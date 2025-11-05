@@ -112,6 +112,24 @@ function artly_enqueue_assets() {
         wp_get_theme()->get( 'Version' ),
         true
     );
+
+    // Dashboard assets for the user dashboard template.
+    if ( is_page_template( 'page-dashboard.php' ) || is_page( 'dashboard' ) ) {
+        wp_enqueue_style(
+            'artly-dashboard',
+            get_template_directory_uri() . '/assets/css/dashboard.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-dashboard',
+            get_template_directory_uri() . '/assets/js/dashboard.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 
