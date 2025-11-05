@@ -678,6 +678,35 @@ function nehtw_gateway_api_stockorder( $site, $stock_id, $url = null ) {
     return nehtw_gateway_api_get( $path, $query );
 }
 
+function nehtw_gateway_api_stock_preview( $site, $stock_id, $url = null ) {
+    $site     = (string) $site;
+    $stock_id = (string) $stock_id;
+
+    if ( '' === trim( $site ) || '' === trim( $stock_id ) ) {
+        return new WP_Error( 'nehtw_preview_missing_params', __( 'Missing preview parameters.', 'nehtw-gateway' ) );
+    }
+
+    $path  = sprintf( '/api/v2/stock/%s/%s/preview', rawurlencode( $site ), rawurlencode( $stock_id ) );
+    $query = array();
+
+    if ( null !== $url && '' !== $url ) {
+        $query['url'] = rawurlencode( $url );
+    }
+
+    $response = nehtw_gateway_api_get( $path, $query );
+
+    if ( is_wp_error( $response ) ) {
+        $fallback = nehtw_gateway_api_get_stockinfo( $site, $stock_id, $url );
+        if ( ! is_wp_error( $fallback ) ) {
+            return $fallback;
+        }
+
+        return $response;
+    }
+
+    return $response;
+}
+
 function nehtw_gateway_api_order_status( $task_id, $responsetype = 'any' ) {
     $path = sprintf( '/api/order/%s/status', rawurlencode( $task_id ) );
     return nehtw_gateway_api_get( $path, array( 'responsetype' => $responsetype ) );
@@ -791,6 +820,19 @@ function nehtw_gateway_register_rest_routes() {
             return is_user_logged_in();
         },
     ) );
+
+    // Artly-branded stock order preview endpoint (single link)
+    register_rest_route(
+        'artly/v1',
+        '/stock-order-preview',
+        array(
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => 'nehtw_gateway_rest_stock_order_preview',
+            'permission_callback' => function () {
+                return is_user_logged_in();
+            },
+        )
+    );
 
     // Artly-branded stock order status polling endpoint
     register_rest_route( 'artly/v1', '/stock-order-status', array(
@@ -1203,6 +1245,174 @@ function nehtw_gateway_rest_stock_order_status( WP_REST_Request $request ) {
     return new WP_REST_Response(
         array(
             'orders' => $orders,
+        ),
+        200
+    );
+}
+
+/**
+ * Preview a stock order from a single URL, without placing the order.
+ *
+ * POST /wp-json/artly/v1/stock-order-preview
+ * Body: { "url": "https://..." }
+ *
+ * Returns JSON with site, stock_id, cost_points, balance, preview_thumb, labels, etc.
+ * Does NOT create orders or deduct points.
+ */
+function nehtw_gateway_rest_stock_order_preview( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unauthorized', 'nehtw-gateway' ) ),
+            401
+        );
+    }
+
+    $user_id = get_current_user_id();
+    $url     = trim( (string) $request->get_param( 'url' ) );
+
+    if ( '' === $url ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'No URL provided.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    $parsed = function_exists( 'nehtw_gateway_parse_stock_url' )
+        ? nehtw_gateway_parse_stock_url( $url )
+        : null;
+
+    if ( ! $parsed ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unsupported or invalid link.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    $site      = isset( $parsed['site'] ) ? sanitize_key( (string) $parsed['site'] ) : '';
+    $remote_id = isset( $parsed['remote_id'] ) ? sanitize_text_field( (string) $parsed['remote_id'] ) : '';
+
+    if ( '' === $site || '' === $remote_id ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unsupported or invalid link.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
+        ? nehtw_gateway_get_stock_sites_config()
+        : array();
+
+    if ( empty( $sites_config[ $site ] ) ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unsupported website.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    $site_config  = $sites_config[ $site ];
+    $cost_points  = isset( $site_config['points'] ) ? (float) $site_config['points'] : 0.0;
+    $site_label   = isset( $site_config['label'] ) ? sanitize_text_field( $site_config['label'] ) : $site;
+    $balance_raw  = function_exists( 'nehtw_gateway_get_balance' )
+        ? nehtw_gateway_get_balance( $user_id )
+        : 0.0;
+    $balance      = (float) $balance_raw;
+    $enough_points = ( $cost_points <= 0 ) || ( $balance >= $cost_points );
+
+    $preview_raw = null;
+
+    if ( function_exists( 'nehtw_gateway_api_stock_preview' ) ) {
+        $preview_raw = nehtw_gateway_api_stock_preview( $site, $remote_id, $url );
+    }
+
+    if ( is_wp_error( $preview_raw ) ) {
+        $message      = $preview_raw->get_error_message();
+        $safe_message = __( 'Failed to fetch preview data.', 'nehtw-gateway' );
+
+        return new WP_REST_Response(
+            array(
+                'message'      => $safe_message,
+                'error_detail' => $message,
+            ),
+            502
+        );
+    }
+
+    if ( is_string( $preview_raw ) ) {
+        $decoded = json_decode( $preview_raw, true );
+        if ( JSON_ERROR_NONE === json_last_error() && is_array( $decoded ) ) {
+            $preview_raw = $decoded;
+        }
+    } elseif ( is_object( $preview_raw ) ) {
+        $object_json = wp_json_encode( $preview_raw );
+        if ( $object_json ) {
+            $decoded = json_decode( $object_json, true );
+            if ( JSON_ERROR_NONE === json_last_error() && is_array( $decoded ) ) {
+                $preview_raw = $decoded;
+            }
+        }
+    }
+
+    if ( ! is_array( $preview_raw ) ) {
+        $preview_raw = array();
+    }
+
+    if ( isset( $preview_raw['error'] ) && $preview_raw['error'] ) {
+        $message      = isset( $preview_raw['message'] ) ? (string) $preview_raw['message'] : '';
+        $safe_message = __( 'Failed to fetch preview data.', 'nehtw-gateway' );
+
+        return new WP_REST_Response(
+            array(
+                'message'      => $safe_message,
+                'error_detail' => $message,
+            ),
+            502
+        );
+    }
+
+    $preview_data = isset( $preview_raw['data'] ) && is_array( $preview_raw['data'] )
+        ? $preview_raw['data']
+        : $preview_raw;
+
+    $find_preview = function( $data ) use ( &$find_preview ) {
+        if ( ! is_array( $data ) ) {
+            return '';
+        }
+
+        $keys = array( 'preview_thumb', 'preview', 'thumbnail', 'thumb_url', 'preview_url', 'thumb', 'image' );
+        foreach ( $keys as $key ) {
+            if ( isset( $data[ $key ] ) && '' !== $data[ $key ] && null !== $data[ $key ] ) {
+                $sanitized = esc_url_raw( (string) $data[ $key ] );
+                if ( '' !== $sanitized ) {
+                    return $sanitized;
+                }
+            }
+        }
+
+        foreach ( $data as $value ) {
+            if ( is_array( $value ) ) {
+                $found = $find_preview( $value );
+                if ( '' !== $found ) {
+                    return $found;
+                }
+            }
+        }
+
+        return '';
+    };
+
+    $preview_thumb = $find_preview( $preview_data );
+
+    return new WP_REST_Response(
+        array(
+            'success'        => true,
+            'site'           => $site,
+            'site_label'     => $site_label,
+            'stock_id'       => $remote_id,
+            'url'            => $url,
+            'cost_points'    => $cost_points,
+            'balance'        => $balance,
+            'enough_points'  => $enough_points,
+            'preview_thumb'  => $preview_thumb,
         ),
         200
     );

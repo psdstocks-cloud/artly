@@ -6,6 +6,7 @@
     var config = window.artlyStockOrder || {};
     var sitesConfig = config.sites || {};
     var endpoint = config.endpoint || "";
+    var previewEndpoint = config.previewEndpoint || "";
     var restNonce = config.restNonce || "";
 
     // Simple helper used by some rules in the extractor.
@@ -818,6 +819,71 @@
         });
     }
 
+    function fetchPreviewForUrl(url) {
+      return new Promise(function (resolve, reject) {
+        if (!previewEndpoint) {
+          if (singleMeta) {
+            singleMeta.textContent = "Preview temporarily unavailable.";
+            singleMeta.classList.add("is-visible");
+          }
+          return reject(new Error("preview_endpoint_missing"));
+        }
+
+        var metaEl = singleMeta || root.querySelector("[data-stock-order-single-meta]");
+        if (metaEl) {
+          metaEl.textContent = "Checking file details...";
+          metaEl.classList.add("is-visible");
+        }
+
+        fetch(previewEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-WP-Nonce": restNonce || ""
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ url: url })
+        })
+          .then(function (res) {
+            if (res.status === 401) {
+              throw new Error("unauthorized");
+            }
+            return res.json();
+          })
+          .then(function (data) {
+            if (!data || !data.success) {
+              var message = (data && data.message) || "Unsupported or invalid link.";
+              throw new Error(message);
+            }
+
+            var metaText =
+              "Detected: " + data.site_label + " – " + data.cost_points + " point(s) per link";
+            if (metaEl) {
+              metaEl.textContent = metaText;
+              metaEl.classList.add("is-visible");
+            }
+
+            resolve(data);
+          })
+          .catch(function (err) {
+            console.error("Preview error:", err);
+            var friendly = err && err.message ? err.message : "Failed to preview link.";
+            if (friendly === "unauthorized") {
+              friendly = "Your session expired. Please refresh the page and log in again.";
+            } else if (friendly === "preview_endpoint_missing") {
+              friendly = "Preview temporarily unavailable.";
+            }
+
+            if (metaEl) {
+              metaEl.textContent = friendly;
+              metaEl.classList.add("is-visible");
+            }
+
+            reject(err);
+          });
+      });
+    }
+
     // Polling logic
     var pollTimer = null;
     var activeOrderIds = [];
@@ -999,22 +1065,151 @@
       return div.innerHTML;
     }
 
-    // Single mode submit
+    function createPreviewModal(root) {
+      var modal = root.querySelector("[data-stock-order-preview-modal]");
+      if (modal) return modal;
+
+      modal = document.createElement("div");
+      modal.className = "stock-order-preview-overlay";
+      modal.setAttribute("data-stock-order-preview-modal", "");
+
+      modal.innerHTML =
+        '<div class="stock-order-preview-card">' +
+        '  <div class="stock-order-preview-thumb-wrap">' +
+        '    <img data-preview-img alt="" class="stock-order-preview-thumb" />' +
+        "  </div>" +
+        '  <div class="stock-order-preview-info">' +
+        '    <div class="stock-order-preview-title" data-preview-title></div>' +
+        '    <div class="stock-order-preview-meta">' +
+        '      <div data-preview-source></div>' +
+        '      <div data-preview-id></div>' +
+        '      <div data-preview-cost></div>' +
+        '      <div data-preview-balance></div>' +
+        "    </div>" +
+        '    <div class="stock-order-preview-actions">' +
+        '      <button type="button" class="stock-order-preview-confirm" data-preview-confirm></button>' +
+        '      <button type="button" class="stock-order-preview-cancel" data-preview-cancel>Cancel</button>' +
+        "    </div>" +
+        "  </div>" +
+        "</div>";
+
+      root.appendChild(modal);
+      return modal;
+    }
+
+    function openPreviewModal(root, preview, onConfirm) {
+      var modal = createPreviewModal(root);
+      var img = modal.querySelector("[data-preview-img]");
+      var titleEl = modal.querySelector("[data-preview-title]");
+      var sourceEl = modal.querySelector("[data-preview-source]");
+      var idEl = modal.querySelector("[data-preview-id]");
+      var costEl = modal.querySelector("[data-preview-cost]");
+      var balEl = modal.querySelector("[data-preview-balance]");
+      var confirm = modal.querySelector("[data-preview-confirm]");
+      var cancel = modal.querySelector("[data-preview-cancel]");
+
+      var siteLabel = preview.site_label || preview.site || "";
+      var stockId = preview.stock_id || "";
+      var costValue = preview.cost_points;
+      if (typeof costValue === "undefined" || costValue === null || costValue === "") {
+        costValue = 0;
+      }
+      var balanceValue = preview.balance;
+      if (typeof balanceValue === "undefined" || balanceValue === null || balanceValue === "") {
+        balanceValue = 0;
+      }
+
+      titleEl.textContent = (siteLabel ? siteLabel + " " : "") + stockId;
+      sourceEl.textContent = "Source: " + siteLabel;
+      idEl.textContent = "ID: " + stockId;
+      costEl.textContent = "Cost: " + costValue + " point(s)";
+      balEl.textContent = "Your balance: " + balanceValue + " point(s)";
+
+      if (preview.preview_thumb) {
+        img.src = preview.preview_thumb;
+        img.alt = siteLabel ? siteLabel + " preview" : "";
+        img.style.display = "";
+      } else {
+        img.removeAttribute("src");
+        img.style.display = "none";
+      }
+
+      confirm.textContent = "Confirm order (" + costValue + " point(s))";
+
+      if (!preview.enough_points) {
+        confirm.disabled = true;
+        costEl.textContent += " – not enough points";
+      } else {
+        confirm.disabled = false;
+      }
+
+      function close() {
+        modal.classList.remove("is-visible");
+        confirm.onclick = null;
+        cancel.onclick = null;
+        modal.onclick = null;
+        document.removeEventListener("keydown", handleKeydown);
+      }
+
+      function handleKeydown(evt) {
+        if (evt.key === "Escape") {
+          close();
+        }
+      }
+
+      confirm.onclick = function () {
+        if (confirm.disabled) {
+          return;
+        }
+        close();
+        if (typeof onConfirm === "function") {
+          onConfirm();
+        }
+      };
+
+      cancel.onclick = function () {
+        close();
+      };
+
+      modal.onclick = function (evt) {
+        if (evt.target === modal) {
+          close();
+        }
+      };
+
+      document.addEventListener("keydown", handleKeydown);
+
+      modal.classList.add("is-visible");
+    }
+
+    // Single mode submit WITH preview + confirm
     if (singleSubmit && singleInput) {
       singleSubmit.addEventListener("click", function () {
         var url = singleInput.value.trim();
         if (!url) return;
 
-        var payload = {
-          links: [
-            {
-              url: url,
-              selected: true
-            }
-          ]
-        };
+        fetchPreviewForUrl(url)
+          .then(function (preview) {
+            openPreviewModal(root, preview, function () {
+              var payload = {
+                links: [
+                  {
+                    url: url,
+                    selected: true
+                  }
+                ]
+              };
 
-        submitStockOrder(payload);
+              submitStockOrder(payload);
+            });
+          })
+          .catch(function (err) {
+            if (err && err.message === "unauthorized") {
+              showError(
+                "Your session expired. Please refresh the page and log in again."
+              );
+            }
+          });
       });
     }
 
