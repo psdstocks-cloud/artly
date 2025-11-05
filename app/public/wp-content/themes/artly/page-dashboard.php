@@ -185,7 +185,7 @@ if ( is_array( $stock_orders_source ) ) {
       <article class="dashboard-card dashboard-card--wallet">
         <header class="dashboard-card-header">
           <span class="dashboard-card-label"><?php esc_html_e( 'Wallet', 'artly' ); ?></span>
-          <h2 class="dashboard-card-title"><?php esc_html_e( 'Points balance', 'artly' ); ?></h2>
+          <h2 class="dashboard-card-title"><?php esc_html_e( 'Wallet Points', 'artly' ); ?></h2>
         </header>
         <div class="dashboard-card-body">
           <div class="dashboard-wallet-balance">
@@ -214,7 +214,7 @@ if ( is_array( $stock_orders_source ) ) {
       <article class="dashboard-card dashboard-card--ai">
         <header class="dashboard-card-header">
           <span class="dashboard-card-label"><?php esc_html_e( 'AI generation', 'artly' ); ?></span>
-          <h2 class="dashboard-card-title"><?php esc_html_e( 'Recent AI jobs', 'artly' ); ?></h2>
+          <h2 class="dashboard-card-title"><?php esc_html_e( 'Recent AI Creations', 'artly' ); ?></h2>
         </header>
         <div class="dashboard-card-body">
           <?php if ( ! empty( $recent_ai_jobs ) ) : ?>
@@ -259,7 +259,7 @@ if ( is_array( $stock_orders_source ) ) {
       <article class="dashboard-card dashboard-card--stock">
         <header class="dashboard-card-header">
           <span class="dashboard-card-label"><?php esc_html_e( 'Stock downloads', 'artly' ); ?></span>
-          <h2 class="dashboard-card-title"><?php esc_html_e( 'Recent downloads', 'artly' ); ?></h2>
+          <h2 class="dashboard-card-title"><?php esc_html_e( 'Stock Downloads History', 'artly' ); ?></h2>
         </header>
         <div class="dashboard-card-body">
           <?php if ( ! empty( $recent_stock_orders ) ) : ?>

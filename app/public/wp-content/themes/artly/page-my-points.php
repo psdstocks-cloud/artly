@@ -49,7 +49,7 @@ if ( $has_gateway ) {
             <span class="points-label"><?php esc_html_e( 'Points unavailable', 'artly' ); ?></span>
           </div>
           <p class="points-text-muted">
-            <?php esc_html_e( 'The Nehtw Gateway plugin is not active, so your points balance cannot be displayed right now.', 'artly' ); ?>
+            <?php esc_html_e( 'The wallet system is not available right now. Please contact support if this issue persists.', 'artly' ); ?>
           </p>
         </div>
       </section>
