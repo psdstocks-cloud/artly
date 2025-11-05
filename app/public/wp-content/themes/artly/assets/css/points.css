@@ -1,0 +1,258 @@
+.artly-points-page {
+  min-height: 100vh;
+  padding: 4rem 0 5rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(31, 41, 55, 0.8) 0, transparent 50%),
+    radial-gradient(circle at 100% 20%, rgba(15, 23, 42, 0.9) 0, transparent 60%),
+    radial-gradient(circle at 50% 100%, #020617 0, #000000 100%);
+  color: #f9fafb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+.artly-points-wrapper {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.points-hero {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.points-kicker {
+  display: inline-block;
+  padding: 0.2rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.points-hero h1 {
+  font-size: clamp(2.4rem, 5vw, 3.2rem);
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.points-subtitle {
+  max-width: 560px;
+  margin: 0 auto;
+  color: rgba(226, 232, 255, 0.78);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.points-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem;
+}
+
+@media (max-width: 900px) {
+  .points-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.points-card {
+  border-radius: 24px;
+  padding: 24px 22px 26px;
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.08), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.points-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.7),
+    0 0 0 1px rgba(248, 250, 252, 0.1);
+}
+
+.points-card--balance {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.points-card--history {
+  padding-bottom: 12px;
+}
+
+.points-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.points-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(226, 232, 255, 0.7);
+}
+
+.points-balance {
+  font-size: 2.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin: 4px 0 8px;
+}
+
+.points-text-muted {
+  font-size: 0.95rem;
+  color: rgba(226, 232, 255, 0.8);
+  line-height: 1.6;
+}
+
+.points-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1.75rem;
+}
+
+.points-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.3rem;
+  border-radius: 999px;
+  border: none;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #fb923c, #fb7185);
+  color: #020617;
+  box-shadow: 0 12px 30px rgba(248, 113, 113, 0.35);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  white-space: nowrap;
+}
+
+.points-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 38px rgba(248, 113, 113, 0.45);
+  filter: brightness(1.05);
+}
+
+.points-link {
+  font-size: 0.95rem;
+  color: rgba(226, 232, 255, 0.72);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.points-link:hover {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.points-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.points-history-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.points-history-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.points-history-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.points-history-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.points-history-meta {
+  font-size: 0.85rem;
+  color: rgba(203, 213, 225, 0.8);
+}
+
+.points-history-amount {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.points-amount--plus {
+  color: #22c55e;
+}
+
+.points-amount--minus {
+  color: #f97373;
+}
+
+.points-empty {
+  margin: 0;
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+  color: rgba(226, 232, 255, 0.75);
+}
+
+@media (max-width: 640px) {
+  .artly-points-page {
+    padding: 3.5rem 0 4rem;
+  }
+
+  .artly-points-wrapper {
+    padding: 0 1rem;
+  }
+
+  .points-card {
+    padding: 22px 20px 24px;
+  }
+
+  .points-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .points-btn,
+  .points-link {
+    width: 100%;
+    text-align: center;
+  }
+
+  .points-history-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .points-history-amount {
+    font-size: 1rem;
+  }
+}
