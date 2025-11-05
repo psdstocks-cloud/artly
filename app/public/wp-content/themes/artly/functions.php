@@ -287,22 +287,10 @@ function artly_enqueue_login_assets() {
         wp_enqueue_style(
             'artly-login',
             get_template_directory_uri() . '/assets/css/login.css',
-            array( 'artly-style', 'artly-signup' ), // Reuse signup styles
+            array( 'artly-style' ),
             wp_get_theme()->get( 'Version' )
         );
-
-        wp_enqueue_script(
-            'artly-login-form',
-            get_template_directory_uri() . '/assets/js/login-form.js',
-            array(),
-            wp_get_theme()->get( 'Version' ),
-            true
-        );
-
-        wp_localize_script( 'artly-login-form', 'artlyLogin', array(
-            'ajaxurl' => admin_url( 'admin-ajax.php' ),
-            'nonce' => wp_create_nonce( 'artly_login_ajax_nonce' )
-        ) );
+        // Note: wp_login_form() handles form submission natively, no custom JS needed
     }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_login_assets' );
@@ -381,6 +369,56 @@ function artly_custom_login_url( $login_url, $redirect, $force_reauth ) {
     return $login_url;
 }
 add_filter( 'login_url', 'artly_custom_login_url', 10, 3 );
+
+/**
+ * Redirect direct visits to wp-login.php to the branded /login/ page.
+ */
+function artly_force_branded_login() {
+    // Only for GET requests, so we don't break core form posts.
+    if ( 'GET' !== $_SERVER['REQUEST_METHOD'] ) {
+        return;
+    }
+
+    // Don't redirect if we're processing a login action (like logout, lostpassword, etc.)
+    $action = isset( $_GET['action'] ) ? $_GET['action'] : '';
+    if ( in_array( $action, array( 'logout', 'lostpassword', 'resetpass', 'rp', 'register', 'login' ), true ) ) {
+        // Allow logout and password reset to work normally
+        if ( 'logout' === $action || 'lostpassword' === $action || 'resetpass' === $action || 'rp' === $action || 'register' === $action ) {
+            return;
+        }
+        // For 'login' action or no action, redirect to custom page
+    }
+
+    $login_slug = 'login'; // the page you created
+    $login_url  = home_url( '/' . $login_slug . '/' );
+
+    $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+
+    // If we're on wp-login.php and not already on /login/, redirect.
+    if ( false !== strpos( $request_uri, 'wp-login.php' ) && ! is_page( $login_slug ) ) {
+        // Preserve any error parameters
+        if ( isset( $_GET['login'] ) ) {
+            $login_url = add_query_arg( 'login', sanitize_text_field( $_GET['login'] ), $login_url );
+        }
+        wp_safe_redirect( $login_url );
+        exit;
+    }
+}
+add_action( 'login_init', 'artly_force_branded_login' );
+
+/**
+ * Redirect failed logins back to custom login page
+ */
+function artly_redirect_failed_login( $username ) {
+    $login_page = get_page_by_path( 'login' );
+    if ( $login_page ) {
+        $login_url = get_permalink( $login_page->ID );
+        $login_url = add_query_arg( 'login', 'failed', $login_url );
+        wp_safe_redirect( $login_url );
+        exit;
+    }
+}
+add_filter( 'wp_login_failed', 'artly_redirect_failed_login' );
 
 /**
  * Get client IP address in a safe way (X-Forwarded-For aware)

@@ -1,4 +1,4 @@
-/* Artly Login Page Styles - Reuses signup styles with minor adjustments */
+/* Artly Login Page Styles - Branded to match pricing card design */
 
 .artly-login-page {
   min-height: 100vh;
@@ -13,11 +13,21 @@
   align-items: center;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 2rem;
 }
 
-/* Left Side: Info */
-.artly-login-info {
+/* Left Side: Story Panel */
+.artly-login-panel--story {
   padding: 2rem 0;
+}
+
+.artly-login-kicker {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(226, 232, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
 }
 
 .artly-login-title {
@@ -25,88 +35,326 @@
   line-height: 1.1;
   font-weight: 700;
   margin: 0 0 1rem;
-  color: #050608;
+  color: #f9fafb;
 }
 
 .artly-login-subtitle {
   font-size: 1.1rem;
   line-height: 1.6;
-  color: #394152;
+  color: rgba(226, 232, 255, 0.85);
   margin-bottom: 2.5rem;
 }
 
-.artly-login-features {
+.artly-login-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
   display: grid;
-  gap: 1.2rem;
+  gap: 1.5rem;
 }
 
-.artly-login-feature {
+.artly-login-benefits li {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.95rem;
-  color: #4b5563;
+  gap: 1rem;
+  align-items: flex-start;
 }
 
-.artly-login-feature .artly-icon {
-  color: #06f5e8;
+.artly-login-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  font-weight: 700;
+  font-size: 0.875rem;
   flex-shrink: 0;
 }
 
-/* Right Side: Form */
-.artly-login-form-wrapper {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 2.5rem;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+.artly-login-benefits h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: #f9fafb;
 }
 
+.artly-login-benefits p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+  color: rgba(226, 232, 255, 0.7);
+}
+
+.artly-login-footer-note {
+  font-size: 0.875rem;
+  color: rgba(226, 232, 255, 0.6);
+  line-height: 1.5;
+  margin-top: 2rem;
+}
+
+/* Right Side: Form Panel */
+.artly-login-panel--form {
+  background: radial-gradient(circle at top left, rgba(248, 250, 252, 0.08), rgba(15, 23, 42, 0.96));
+  border-radius: 28px;
+  box-shadow: 0 32px 120px rgba(15, 23, 42, 0.85);
+  padding: 2.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.artly-login-form-header {
+  margin-bottom: 2rem;
+}
+
+.artly-login-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(226, 232, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem;
+}
+
+.artly-login-panel--form h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #f9fafb;
+}
+
+.artly-login-form-subtitle {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: rgba(226, 232, 255, 0.7);
+  margin: 0;
+}
+
+/* Error Alert */
+.artly-login-alert {
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.artly-login-alert--error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.artly-login-alert strong {
+  font-weight: 600;
+  color: #fee2e2;
+}
+
+.artly-login-alert span {
+  font-size: 0.875rem;
+}
+
+/* Login Form */
 .artly-login-form {
   display: grid;
   gap: 1.5rem;
 }
 
-/* Reuse form styles from signup.css */
-.artly-form-group-row {
+/* WordPress login form inner wrapper */
+.artly-login-form-inner,
+#loginform {
+  display: grid;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+/* WordPress form paragraphs */
+.artly-login-form .login-username,
+.artly-login-form .login-password,
+.artly-login-form .login-remember,
+.artly-login-form .login-submit {
+  margin: 0;
+  padding: 0;
+}
+
+/* Labels */
+.artly-login-form label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(226, 232, 255, 0.9);
+  margin-bottom: 0.5rem;
+}
+
+/* WordPress input fields - target actual classes */
+.artly-login-form input.input,
+.artly-login-form #user_login,
+.artly-login-form #user_pass,
+.artly-login-form input[type="text"],
+.artly-login-form input[type="password"] {
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.5);
+  color: #f9fafb;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.artly-login-form input.input:focus,
+.artly-login-form #user_login:focus,
+.artly-login-form #user_pass:focus {
+  outline: none;
+  border-color: #fb923c;
+  background: rgba(15, 23, 42, 0.7);
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.1);
+}
+
+.artly-login-form input.input::placeholder,
+.artly-login-form #user_login::placeholder,
+.artly-login-form #user_pass::placeholder {
+  color: rgba(226, 232, 255, 0.5);
+}
+
+/* Remember me checkbox */
+.artly-login-form .login-remember {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+}
+
+.artly-login-form .login-remember label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: rgba(226, 232, 255, 0.7);
+  cursor: pointer;
+  margin: 0;
+}
+
+.artly-login-form .login-remember input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Primary Button - Match pricing CTA */
+.artly-login-form .login-submit input[type="submit"],
+.artly-login-form #artly-login-submit,
+.artly-login-form .button-primary {
+  width: 100%;
+  border-radius: 999px;
+  padding: 0.9rem 1.3rem;
+  background: linear-gradient(135deg, #f97316, #ec4899);
+  color: #0b1220;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 18px 40px rgba(236, 72, 153, 0.45);
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.artly-login-form .login-submit input[type="submit"]:hover,
+.artly-login-form #artly-login-submit:hover,
+.artly-login-form .button-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 24px 60px rgba(236, 72, 153, 0.55);
+}
+
+.artly-login-form .login-submit input[type="submit"]:active,
+.artly-login-form #artly-login-submit:active,
+.artly-login-form .button-primary:active {
+  transform: translateY(0);
+}
+
+/* Form Meta */
+.artly-login-form-meta {
+  text-align: center;
   margin-top: -0.5rem;
 }
 
-.artly-forgot-password {
+.artly-login-link {
   font-size: 0.9rem;
-  color: #06f5e8;
+  color: rgba(226, 232, 255, 0.7);
   text-decoration: none;
-  font-weight: 500;
   transition: color 0.2s ease;
 }
 
-.artly-forgot-password:hover {
-  color: #16a3ff;
+.artly-login-link:hover {
+  color: #fb923c;
   text-decoration: underline;
 }
 
-/* Footer Link */
-.artly-login-footer {
+/* Divider */
+.artly-login-divider {
+  display: flex;
+  align-items: center;
   text-align: center;
-  font-size: 0.9rem;
-  color: #6b7280;
-  margin: 0;
-  margin-top: 0.5rem;
+  margin: 2rem 0 1.5rem;
+  color: rgba(226, 232, 255, 0.5);
+  font-size: 0.875rem;
 }
 
-.artly-login-footer a {
-  color: #06f5e8;
+.artly-login-divider::before,
+.artly-login-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.artly-login-divider span {
+  padding: 0 1rem;
+}
+
+/* Secondary Button */
+.artly-login-secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.9rem 1.3rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #f9fafb;
   font-weight: 600;
+  font-size: 1rem;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.artly-login-footer a:hover {
-  color: #16a3ff;
+.artly-login-secondary-btn:hover {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(148, 163, 184, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Muted Text */
+.artly-login-muted {
+  font-size: 0.75rem;
+  color: rgba(226, 232, 255, 0.5);
+  text-align: center;
+  margin: 1.5rem 0 0;
+  line-height: 1.5;
+}
+
+.artly-login-muted a {
+  color: rgba(226, 232, 255, 0.7);
+  text-decoration: none;
+}
+
+.artly-login-muted a:hover {
+  color: #fb923c;
   text-decoration: underline;
 }
 
@@ -115,13 +363,14 @@
   .artly-login-wrapper {
     grid-template-columns: minmax(0, 1fr);
     gap: 2.5rem;
+    padding: 0 1.5rem;
   }
 
-  .artly-login-info {
+  .artly-login-panel--story {
     text-align: center;
   }
 
-  .artly-login-form-wrapper {
+  .artly-login-panel--form {
     padding: 2rem;
   }
 }
@@ -131,18 +380,20 @@
     padding: 2rem 0 3rem;
   }
 
-  .artly-login-form-wrapper {
+  .artly-login-wrapper {
+    padding: 0 1rem;
+  }
+
+  .artly-login-panel--form {
     padding: 1.5rem;
-    border-radius: 18px;
+    border-radius: 20px;
   }
 
   .artly-login-title {
     font-size: 2rem;
   }
 
-  .artly-form-group-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
+  .artly-login-panel--form h2 {
+    font-size: 1.5rem;
   }
 }
