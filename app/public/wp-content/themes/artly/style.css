@@ -1,0 +1,478 @@
+/*
+Theme Name: Artly
+Theme URI: https://wordpress.com/theme/artly
+Author: Automattic
+Author URI: https://automattic.com/
+Description: Artly is a WordPress theme designed for blogs and magazines. Its modern, offset layout for posts and pages comes in three style variations, allowing you to showcase your content in a visually stunning and functional way. With Artly, you can display your content beautifully and efficiently, all in a package that is easy to use and customize.
+Requires at least: 5.8
+Tested up to: 6.2
+Requires PHP: 5.7
+Version: 1.0.7
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: artly
+Tags: one-column, custom-colors, custom-menu, custom-logo, editor-style, featured-images, full-site-editing, block-patterns, rtl-language-support, theme-options, threaded-comments, translation-ready, wide-blocks
+*/
+
+/*
+ * Control the hover stylings of outline block style.
+ * Unnecessary once block styles are configurable via theme.json
+ * https://github.com/WordPress/gutenberg/issues/42794
+ */
+.wp-block-button.is-style-outline>.wp-block-button__link:not(.has-background):hover {
+	background-color: var(--wp--preset--color--secondary);
+	color: var(--wp--preset--color--background);
+	border-color: var(--wp--preset--color--secondary);
+}
+
+/*
+ * Link styles
+ * https://github.com/WordPress/gutenberg/issues/42319
+ */
+a {
+	text-decoration-thickness: .0625em !important;
+	text-underline-offset: .15em;
+}
+/* ---------- HOMEPAGE ---------- */
+
+.artly-hero {
+    padding: 3rem 0 2.5rem;
+}
+
+.artly-hero-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 3rem;
+    align-items: center;
+}
+
+.artly-hero-copy {
+    max-width: 560px;
+}
+
+.artly-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.75rem;
+    color: var(--artly-muted);
+    margin: 0 0 0.75rem;
+}
+
+.artly-hero-title {
+    font-size: clamp(2.3rem, 3.4vw, 3rem);
+    line-height: 1.06;
+    margin: 0 0 1rem;
+}
+
+.artly-hero-sub {
+    font-size: 0.98rem;
+    line-height: 1.7;
+    color: var(--artly-muted);
+    margin: 0 0 1.5rem;
+}
+
+.artly-hero-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-bottom: 0.75rem;
+}
+
+.artly-hero-footnote {
+    font-size: 0.8rem;
+    color: var(--artly-muted);
+}
+
+/* Buttons */
+
+.artly-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.6rem 1.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.artly-btn-primary {
+    background: linear-gradient(135deg, #0ff0ff, #00c0ff);
+    color: #021420;
+    box-shadow: 0 10px 25px rgba(0, 200, 255, 0.35);
+}
+
+.artly-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(0, 200, 255, 0.45);
+}
+
+.artly-btn-ghost {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(0, 0, 0, 0.06);
+    color: var(--artly-text);
+}
+
+/* Hero preview card */
+
+.artly-hero-preview {
+    display: flex;
+    justify-content: center;
+}
+
+.artly-preview-card {
+    width: 100%;
+    max-width: 460px;
+    border-radius: 26px;
+    padding: 1.4rem 1.4rem 1.1rem;
+    background: radial-gradient(circle at top left, rgba(255, 120, 255, 0.12), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(0, 240, 255, 0.18), transparent 55%),
+        linear-gradient(145deg, #151822, #050814);
+    box-shadow: 0 34px 70px rgba(5, 10, 40, 0.8);
+    color: #f7f9ff;
+    font-size: 0.8rem;
+}
+
+.artly-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.9;
+}
+
+.artly-preview-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 30% 30%, #ff6bd8, #ff2b75);
+    box-shadow: 0 0 12px rgba(255, 60, 150, 0.7);
+}
+
+.artly-preview-label {
+    font-weight: 500;
+}
+
+.artly-preview-pill {
+    margin-left: auto;
+    border-radius: 999px;
+    padding: 0.15rem 0.7rem;
+    background: rgba(0, 0, 0, 0.25);
+    font-size: 0.65rem;
+}
+
+.artly-preview-pill.subtle {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.artly-preview-balance {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1.1rem;
+}
+
+.artly-preview-kicker {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.7;
+    margin-bottom: 0.25rem;
+}
+
+.artly-preview-balance-value {
+    font-size: 2.4rem;
+    font-weight: 600;
+}
+
+.artly-preview-balance-meta {
+    text-align: right;
+    font-size: 0.72rem;
+    opacity: 0.8;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.artly-preview-downloader {
+    padding: 0.9rem;
+    border-radius: 18px;
+    background: rgba(8, 12, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    margin-bottom: 0.8rem;
+}
+
+.artly-preview-downloader-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+}
+
+.artly-preview-caption {
+    font-size: 0.76rem;
+    opacity: 0.78;
+    margin: 0 0 0.55rem;
+}
+
+.artly-preview-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.artly-preview-input {
+    flex: 1;
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    background: rgba(2, 8, 25, 0.95);
+    font-size: 0.72rem;
+    opacity: 0.9;
+}
+
+.artly-preview-btn {
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    background: linear-gradient(135deg, #0ff0ff, #00c0ff);
+    color: #021420;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.artly-preview-footer {
+    font-size: 0.72rem;
+    opacity: 0.75;
+}
+
+/* Logos band */
+
+.artly-band {
+    padding: 1.5rem 0 2rem;
+}
+
+.artly-band-inner {
+    text-align: center;
+}
+
+.artly-band-eyebrow {
+    font-size: 0.8rem;
+    color: var(--artly-muted);
+    margin-bottom: 0.75rem;
+}
+
+.artly-logos-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.6rem;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    opacity: 0.65;
+}
+
+/* Generic sections */
+
+.artly-section {
+    padding: 2.5rem 0 2.5rem;
+}
+
+.artly-section-alt {
+    background: rgba(255, 255, 255, 0.65);
+    border-radius: 24px;
+    margin-bottom: 1.5rem;
+}
+
+.artly-section-inner {
+    max-width: var(--artly-max-width);
+    margin: 0 auto;
+}
+
+.artly-section-title {
+    font-size: 1.6rem;
+    margin-bottom: 1.4rem;
+}
+
+/* Grids & cards */
+
+.artly-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.6rem;
+}
+
+.artly-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.4rem;
+}
+
+.artly-feature-card,
+.artly-pill-card {
+    padding: 1.1rem 1.1rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 14px 40px rgba(9, 13, 40, 0.06);
+    font-size: 0.9rem;
+}
+
+.artly-feature-card h3,
+.artly-pill-card h3 {
+    font-size: 1rem;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+/* Steps */
+
+.artly-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.6rem;
+}
+
+.artly-step {
+    padding: 1.1rem;
+    border-radius: 18px;
+    background: rgba(7, 9, 30, 0.9);
+    color: #f5f8ff;
+    box-shadow: 0 20px 40px rgba(5, 9, 40, 0.45);
+    font-size: 0.9rem;
+}
+
+.artly-step-number {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0ff0ff, #00c0ff);
+    color: #021420;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.artly-step h3 {
+    font-size: 1rem;
+    margin-top: 0;
+}
+
+/* Pricing */
+
+.artly-pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.6rem;
+    margin-top: 0.8rem;
+}
+
+.artly-pricing-card {
+    padding: 1.2rem 1.1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 30px rgba(10, 15, 40, 0.18);
+    font-size: 0.9rem;
+}
+
+.artly-pricing-card-featured {
+    border: 1px solid rgba(0, 215, 255, 0.7);
+    box-shadow: 0 18px 40px rgba(0, 200, 255, 0.35);
+}
+
+.artly-pricing-label {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.72rem;
+    color: var(--artly-muted);
+}
+
+.artly-pricing-points {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin: 0.2rem 0 0.4rem;
+}
+
+.artly-pricing-points span {
+    font-size: 0.75rem;
+    font-weight: 400;
+    margin-left: 0.2rem;
+    color: var(--artly-muted);
+}
+
+.artly-pricing-card ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0.6rem 0 0;
+}
+
+.artly-pricing-card li {
+    margin-bottom: 0.2rem;
+}
+
+.artly-pricing-cta {
+    margin-top: 1.6rem;
+    text-align: center;
+}
+
+/* Final CTA */
+
+.artly-final-cta {
+    padding: 2.8rem 1.5rem 3rem;
+}
+
+.artly-final-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+    border-radius: 26px;
+    padding: 2.1rem 1.8rem 1.9rem;
+    background: radial-gradient(circle at top left, rgba(255, 120, 255, 0.12), transparent 60%),
+        radial-gradient(circle at bottom right, rgba(0, 240, 255, 0.18), transparent 60%),
+        linear-gradient(145deg, #151822, #050814);
+    color: #f7f9ff;
+    box-shadow: 0 34px 70px rgba(5, 10, 40, 0.8);
+}
+
+.artly-final-inner h2 {
+    margin-top: 0;
+    margin-bottom: 0.7rem;
+}
+
+.artly-final-inner p {
+    font-size: 0.98rem;
+    opacity: 0.86;
+    margin-bottom: 1.4rem;
+}
+
+/* Responsive tweaks */
+
+@media (max-width: 900px) {
+    .artly-hero-inner {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .artly-hero-preview {
+        order: -1;
+        margin-bottom: 1.5rem;
+    }
+    .artly-grid-3,
+    .artly-steps,
+    .artly-pricing-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .artly-grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .artly-grid-4 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

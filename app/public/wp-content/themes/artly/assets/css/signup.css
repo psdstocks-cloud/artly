@@ -1,0 +1,453 @@
+/* Artly Signup Page Styles */
+
+.artly-signup-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #f7f4ff 0, #f2f5ff 30%, #070a13 140%);
+  padding: 3rem 0 5rem;
+}
+
+.artly-signup-wrapper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 4rem;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Left Side: Info */
+.artly-signup-info {
+  padding: 2rem 0;
+}
+
+.artly-signup-title {
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  line-height: 1.1;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: #050608;
+}
+
+.artly-signup-subtitle {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #394152;
+  margin-bottom: 2.5rem;
+}
+
+.artly-signup-features {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.artly-signup-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+.artly-signup-feature .artly-icon {
+  color: #06f5e8;
+  flex-shrink: 0;
+}
+
+/* Right Side: Form */
+.artly-signup-form-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.artly-signup-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* Form Errors - Enhanced */
+.artly-form-errors {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.artly-form-errors .artly-icon {
+  flex-shrink: 0;
+  color: #dc2626;
+  margin-top: 0.1rem;
+}
+
+.artly-form-errors-list {
+  flex: 1;
+}
+
+.artly-form-errors-list ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.artly-form-errors-list li {
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
+}
+
+.artly-form-errors-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Success Message */
+.artly-form-success {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  border: 1px solid #6ee7b7;
+  border-radius: 12px;
+  color: #059669;
+  font-size: 0.9rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+.artly-form-success .artly-icon {
+  flex-shrink: 0;
+  color: #059669;
+  margin-top: 0.1rem;
+}
+
+/* Form Groups */
+.artly-form-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.artly-form-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.artly-form-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  background: #fff;
+  color: #111827;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.artly-form-input::placeholder {
+  color: #9ca3af;
+}
+
+.artly-form-input:hover:not(:disabled) {
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.artly-form-input:focus {
+  outline: none;
+  border-color: #06f5e8;
+  box-shadow: 0 0 0 3px rgba(6, 245, 232, 0.1);
+}
+
+.artly-form-input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.artly-form-input:invalid:not(:placeholder-shown):not(:focus) {
+  border-color: #fca5a5;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1);
+}
+
+.artly-form-input:valid:not(:placeholder-shown):not(:focus) {
+  border-color: #06f5e8;
+}
+
+.artly-form-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Password Wrapper */
+.artly-password-wrapper {
+  position: relative;
+}
+
+.artly-password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  border-radius: 6px;
+}
+
+.artly-password-toggle:hover {
+  color: #111827;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.artly-password-toggle:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.artly-password-wrapper input {
+  padding-right: 3.5rem;
+}
+
+/* Checkbox */
+.artly-form-group-checkbox {
+  margin-top: 0.5rem;
+}
+
+.artly-form-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.artly-form-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.1rem;
+  cursor: pointer;
+  accent-color: #06f5e8;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.artly-form-checkbox-label {
+  flex: 1;
+}
+
+.artly-form-checkbox-label a {
+  color: #06f5e8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+
+.artly-form-checkbox-label a:hover {
+  color: #16a3ff;
+}
+
+/* Submit Button - Enhanced to match theme */
+.artly-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease,
+    border-color 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.artly-btn-primary {
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #031019;
+  box-shadow: 0 16px 30px rgba(15, 159, 240, 0.35);
+}
+
+.artly-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 36px rgba(15, 159, 240, 0.45);
+}
+
+.artly-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.artly-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.artly-btn-full {
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+  position: relative;
+}
+
+/* Loading State */
+.artly-btn-loading {
+  pointer-events: none;
+  position: relative;
+  color: transparent;
+}
+
+.artly-btn-loading::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  margin-left: -10px;
+  margin-top: -10px;
+  border: 2px solid #031019;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Footer Link */
+.artly-signup-footer {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+  margin-top: 0.5rem;
+}
+
+.artly-signup-footer a {
+  color: #06f5e8;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.artly-signup-footer a:hover {
+  color: #16a3ff;
+  text-decoration: underline;
+}
+
+/* Field Error Styles - Enhanced */
+.artly-input-error {
+  border-color: #fca5a5 !important;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1) !important;
+}
+
+.artly-field-error {
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.artly-field-error::before {
+  content: "⚠";
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* Success Checkmark */
+.artly-field-success {
+  font-size: 0.8rem;
+  color: #059669;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.artly-field-success::before {
+  content: "✓";
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .artly-signup-wrapper {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+  }
+
+  .artly-signup-info {
+    text-align: center;
+  }
+
+  .artly-signup-form-wrapper {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .artly-signup-page {
+    padding: 2rem 0 3rem;
+  }
+
+  .artly-signup-form-wrapper {
+    padding: 1.5rem;
+    border-radius: 18px;
+  }
+
+  .artly-signup-title {
+    font-size: 2rem;
+  }
+
+  .artly-btn-full {
+    padding: 0.85rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}

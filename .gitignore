@@ -1,0 +1,115 @@
+# WordPress Core Files (exclude - WordPress should be installed separately)
+app/public/wp-admin/
+app/public/wp-includes/
+app/public/wp-*.php
+app/public/xmlrpc.php
+app/public/license.txt
+app/public/readme.html
+app/public/index.php
+
+# WordPress Configuration (sensitive)
+app/public/wp-config.php
+app/public/wp-config-sample.php
+
+# Local by Flywheel
+conf/
+logs/
+
+# WordPress Uploads (user-generated content)
+app/public/wp-content/uploads/
+app/public/wp-content/upgrade/
+app/public/wp-content/upgrade-temp-backup/
+
+# WordPress Default Themes & Plugins (exclude defaults, keep custom)
+app/public/wp-content/themes/twentytwentythree/
+app/public/wp-content/themes/twentytwentyfour/
+app/public/wp-content/themes/twentytwentyfive/
+app/public/wp-content/plugins/akismet/
+app/public/wp-content/plugins/hello.php
+
+# Keep our custom theme and plugin
+# !app/public/wp-content/themes/artly/
+# !app/public/wp-content/plugins/nehtw-gateway/
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vendor directories
+vendor/
+composer.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Build artifacts
+*.log
+*.cache
+dist/
+build/
+.tmp/
+
+# Database backups
+*.sql
+*.sql.gz
+*.sql.bz2
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# PHP specific
+*.php~
+.phpintel/
+
+# Package files
+*.zip
+*.tar.gz
+*.rar
+
+# WordPress specific ignores
+wp-content/cache/
+wp-content/backup-db/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/upgrade/
+wp-content/debug.log
+wp-content/backups/
+
+# Keep structure but exclude content
+!app/public/wp-content/themes/
+!app/public/wp-content/plugins/
+app/public/wp-content/themes/*
+!app/public/wp-content/themes/artly/
+app/public/wp-content/plugins/*
+!app/public/wp-content/plugins/nehtw-gateway/
+

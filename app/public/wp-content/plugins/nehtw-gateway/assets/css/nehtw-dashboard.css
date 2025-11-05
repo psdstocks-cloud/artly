@@ -1,0 +1,422 @@
+/* Root container */
+#nehtw-gateway-dashboard-root {
+    min-height: 60vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem 1.5rem;
+    box-sizing: border-box;
+}
+
+/* Centering shell */
+.nehtw-dashboard-shell {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* Glassmorphism card */
+.nehtw-dashboard-card {
+    width: 100%;
+    max-width: 960px;
+    border-radius: 32px;
+    padding: 24px 28px;
+    color: #f7f9fc;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(0, 255, 255, 0.2), transparent 60%),
+        linear-gradient(135deg, #15192a, #242c42);
+    box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(26px);
+    -webkit-backdrop-filter: blur(26px);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Helvetica Neue", Arial, sans-serif;
+    position: relative;
+}
+
+/* Header row */
+.nehtw-dashboard-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+/* App title / badge */
+.nehtw-dashboard-app-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nehtw-dashboard-badge-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 30% 20%, #ff7bff, #ff3f3f);
+    box-shadow: 0 0 16px rgba(255, 63, 111, 0.9);
+}
+
+.nehtw-dashboard-app-label {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.nehtw-dashboard-app-name {
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.1;
+}
+
+/* Header controls */
+.nehtw-dashboard-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Generic chip */
+.nehtw-chip {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(10, 16, 40, 0.5);
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    outline: none;
+}
+
+.nehtw-chip-on {
+    background: linear-gradient(135deg, #1af2ff, #53ff9d);
+    color: #06111e;
+    border-color: transparent;
+}
+
+.nehtw-chip-ghost {
+    background: transparent;
+}
+
+/* CTA button */
+.nehtw-cta {
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #00f5ff, #18ffb2);
+    color: #051019;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 255, 220, 0.4);
+    white-space: nowrap;
+}
+
+/* Grid layout */
+.nehtw-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.3fr);
+    grid-auto-rows: minmax(0, auto);
+    gap: 16px;
+}
+
+/* Stack panels on small screens */
+@media (max-width: 840px) {
+    .nehtw-dashboard-card {
+        padding: 18px 16px 20px;
+        border-radius: 24px;
+    }
+
+    .nehtw-dashboard-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .nehtw-dashboard-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Panels */
+.nehtw-panel {
+    border-radius: 20px;
+    padding: 14px 14px 16px;
+    background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 60%),
+        rgba(12, 17, 40, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nehtw-panel h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.nehtw-panel-sub {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: rgba(226, 232, 255, 0.7);
+}
+
+/* Balance panel */
+.nehtw-panel-balance {
+    grid-column: 1 / span 2;
+}
+
+.nehtw-balance-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-top: 4px;
+    gap: 12px;
+}
+
+.nehtw-balance-amount {
+    font-size: 46px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.nehtw-balance-meta {
+    text-align: right;
+    font-size: 11px;
+    color: rgba(230, 240, 255, 0.7);
+}
+
+.nehtw-balance-meta-line + .nehtw-balance-meta-line {
+    margin-top: 2px;
+}
+
+/* Downloader panel */
+.nehtw-panel-downloader {
+    grid-column: 1 / span 2;
+}
+
+/* Segmented control */
+.nehtw-segmented {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(8, 13, 36, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+}
+
+.nehtw-segment {
+    border: none;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: rgba(230, 235, 255, 0.7);
+    background: transparent;
+    cursor: pointer;
+}
+
+.nehtw-segment-on {
+    background: linear-gradient(135deg, #38f8ff, #6df5ce);
+    color: #050c12;
+}
+
+/* Form fields */
+.nehtw-field-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(211, 220, 255, 0.7);
+    margin-bottom: 4px;
+}
+
+.nehtw-input {
+    width: 100%;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(1, 6, 26, 0.7);
+    color: #f7fbff;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.nehtw-input::placeholder {
+    color: rgba(192, 204, 240, 0.7);
+}
+
+.nehtw-input:focus {
+    border-color: rgba(0, 255, 203, 0.9);
+    box-shadow: 0 0 0 1px rgba(0, 255, 203, 0.5);
+}
+
+/* Transaction History Panel */
+.nehtw-panel-transactions {
+    grid-column: 1 / span 2;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.nehtw-transactions-list {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+}
+
+.nehtw-transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(1, 6, 26, 0.5);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s ease;
+}
+
+.nehtw-transaction-item:hover {
+    background: rgba(1, 6, 26, 0.7);
+    border-color: rgba(0, 255, 203, 0.3);
+    transform: translateX(2px);
+}
+
+.nehtw-transaction-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nehtw-transaction-type {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.nehtw-transaction-points {
+    font-size: 14px;
+    font-weight: 700;
+    color: #00f5ff;
+}
+
+.nehtw-transaction-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.nehtw-transaction-date {
+    font-size: 11px;
+    color: rgba(230, 235, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.nehtw-transaction-order-link {
+    font-size: 11px;
+    color: #00f5ff;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(0, 245, 255, 0.1);
+    border: 1px solid rgba(0, 245, 255, 0.3);
+    transition: all 0.2s ease;
+}
+
+.nehtw-transaction-order-link:hover {
+    background: rgba(0, 245, 255, 0.2);
+    border-color: rgba(0, 245, 255, 0.5);
+    color: #18ffb2;
+}
+
+.nehtw-transactions-empty {
+    text-align: center;
+    padding: 20px;
+    color: rgba(230, 235, 255, 0.5);
+    font-size: 13px;
+    font-style: italic;
+    margin: 12px 0 0;
+}
+
+/* Responsive adjustments for transactions */
+@media (max-width: 840px) {
+    .nehtw-transaction-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .nehtw-transaction-meta {
+        align-items: flex-start;
+        width: 100%;
+    }
+}
+
+/* Primary button */
+.nehtw-button-primary {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #00f5ff, #1bffb7);
+    color: #030d12;
+    box-shadow: 0 14px 30px rgba(0, 255, 210, 0.5);
+}
+
+.nehtw-button-primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Alerts */
+.nehtw-alert {
+    margin-top: 10px;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 12px;
+}
+
+.nehtw-alert-error {
+    background: rgba(255, 56, 96, 0.07);
+    border: 1px solid rgba(255, 105, 130, 0.6);
+    color: #ffe1ea;
+}
+
+.nehtw-alert-success {
+    background: rgba(21, 230, 160, 0.08);
+    border: 1px solid rgba(80, 255, 201, 0.7);
+    color: #d4fff1;
+}
+
+/* Last order summary */
+.nehtw-last-order {
+    margin-top: 10px;
+    font-size: 12px;
+    color: rgba(228, 236, 255, 0.8);
+}
+
+.nehtw-last-order code {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+/* Guest view */
+.nehtw-dashboard-guest {
+    padding: 2rem 1.5rem;
+    text-align: center;
+}
