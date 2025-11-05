@@ -19,6 +19,7 @@ define( 'NEHTW_GATEWAY_API_BASE', 'https://nehtw.com' );
 define( 'NEHTW_GATEWAY_API_KEY', 'A8K9bV5s2OX12E8cmS4I96mtmSNzv7' );
 
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
 
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
@@ -342,6 +343,80 @@ function nehtw_gateway_get_order_by_task_id( $task_id ) {
     return $row ?: null;
 }
 
+function nehtw_gateway_get_ai_job_by_job_id( $job_id ) {
+    global $wpdb;
+
+    $table  = nehtw_gateway_get_table_name( 'ai_jobs' );
+    $job_id = sanitize_text_field( $job_id );
+
+    if ( ! $table || '' === $job_id ) {
+        return null;
+    }
+
+    $sql = $wpdb->prepare( "SELECT * FROM {$table} WHERE job_id = %s LIMIT 1", $job_id );
+    $row = $wpdb->get_row( $sql, ARRAY_A );
+
+    return $row ?: null;
+}
+
+function nehtw_gateway_update_ai_job( $job_id, $fields = array() ) {
+    global $wpdb;
+
+    $table  = nehtw_gateway_get_table_name( 'ai_jobs' );
+    $job_id = sanitize_text_field( $job_id );
+
+    if ( ! $table || '' === $job_id || empty( $fields ) ) {
+        return false;
+    }
+
+    $data   = array( 'updated_at' => current_time( 'mysql' ) );
+    $format = array( '%s' );
+
+    if ( isset( $fields['status'] ) ) {
+        $data['status'] = sanitize_text_field( $fields['status'] );
+        $format[]       = '%s';
+    }
+
+    if ( isset( $fields['cost_points'] ) ) {
+        $data['cost_points'] = floatval( $fields['cost_points'] );
+        $format[]            = '%f';
+    }
+
+    if ( isset( $fields['percentage_complete'] ) ) {
+        $data['percentage_complete'] = intval( $fields['percentage_complete'] );
+        $format[]                    = '%d';
+    }
+
+    if ( isset( $fields['files'] ) ) {
+        $data['files'] = maybe_serialize( $fields['files'] );
+        $format[]      = '%s';
+    }
+
+    if ( isset( $fields['error_message'] ) ) {
+        $data['error_message'] = sanitize_text_field( $fields['error_message'] );
+        $format[]              = '%s';
+    }
+
+    if ( isset( $fields['prompt'] ) ) {
+        $data['prompt'] = wp_strip_all_tags( $fields['prompt'] );
+        $format[]       = '%s';
+    }
+
+    if ( isset( $fields['created_at'] ) ) {
+        $data['created_at'] = sanitize_text_field( $fields['created_at'] );
+        $format[]           = '%s';
+    }
+
+    $updated = $wpdb->update( $table, $data, array( 'job_id' => $job_id ), $format, array( '%s' ) );
+
+    return ( false !== $updated );
+}
+
+function nehtw_gateway_api_ai_public( $job_id ) {
+    $path = sprintf( '/api/aig/public/%s', rawurlencode( $job_id ) );
+    return nehtw_gateway_api_get( $path );
+}
+
 function nehtw_gateway_get_api_key() {
     $key = defined( 'NEHTW_GATEWAY_API_KEY' ) ? NEHTW_GATEWAY_API_KEY : '';
     return trim( (string) $key );
@@ -489,6 +564,35 @@ function nehtw_gateway_register_rest_routes() {
                 'sanitize_callback' => 'sanitize_text_field',
             ),
         ),
+    ) );
+
+    register_rest_route( 'nehtw/v1', '/download-history', array(
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'nehtw_rest_get_download_history',
+        'permission_callback' => function () { return is_user_logged_in(); },
+        'args'                => array(
+            'page'     => array(
+                'type'              => 'integer',
+                'sanitize_callback' => 'absint',
+                'default'           => 1,
+            ),
+            'per_page' => array(
+                'type'              => 'integer',
+                'sanitize_callback' => 'absint',
+                'default'           => 20,
+            ),
+            'type'     => array(
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default'           => 'all',
+            ),
+        ),
+    ) );
+
+    register_rest_route( 'nehtw/v1', '/download-link', array(
+        'methods'             => WP_REST_Server::CREATABLE,
+        'callback'            => 'nehtw_rest_get_download_link',
+        'permission_callback' => function () { return is_user_logged_in(); },
     ) );
 }
 add_action( 'rest_api_init', 'nehtw_gateway_register_rest_routes' );
@@ -804,6 +908,267 @@ function nehtw_gateway_rest_redownload_order( WP_REST_Request $request ) {
         'order'         => $formatted_order,
         'download_link' => $download_link,
     ) );
+}
+
+function nehtw_rest_get_download_history( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unauthorized', 'nehtw-gateway' ) ),
+            401
+        );
+    }
+
+    $user_id  = get_current_user_id();
+    $page     = max( 1, (int) $request->get_param( 'page' ) );
+    $per_page = max( 1, (int) $request->get_param( 'per_page' ) );
+    $per_page = min( 100, $per_page );
+    $type     = nehtw_gateway_history_sanitize_type( $request->get_param( 'type' ) );
+
+    $history = array(
+        'items'       => array(),
+        'total'       => 0,
+        'total_pages' => 0,
+    );
+
+    if ( function_exists( 'nehtw_get_user_download_history' ) ) {
+        $history = nehtw_get_user_download_history( $user_id, $page, $per_page, $type );
+    }
+
+    $items = array();
+    if ( ! empty( $history['items'] ) && is_array( $history['items'] ) ) {
+        foreach ( $history['items'] as $item ) {
+            $items[] = array(
+                'kind'       => isset( $item['kind'] ) ? sanitize_key( $item['kind'] ) : '',
+                'id'         => isset( $item['id'] ) ? sanitize_text_field( $item['id'] ) : '',
+                'title'      => isset( $item['title'] ) ? wp_strip_all_tags( $item['title'] ) : '',
+                'site'       => isset( $item['site'] ) ? sanitize_text_field( $item['site'] ) : '',
+                'thumbnail'  => isset( $item['thumbnail'] ) && $item['thumbnail'] ? esc_url_raw( $item['thumbnail'] ) : '',
+                'status'     => isset( $item['status'] ) ? wp_strip_all_tags( $item['status'] ) : '',
+                'points'     => isset( $item['points'] ) ? floatval( $item['points'] ) : 0.0,
+                'created_at' => isset( $item['created_at'] ) ? (int) $item['created_at'] : 0,
+                'task_id'    => isset( $item['task_id'] ) ? sanitize_text_field( $item['task_id'] ) : '',
+                'job_id'     => isset( $item['job_id'] ) ? sanitize_text_field( $item['job_id'] ) : '',
+            );
+        }
+    }
+
+    return new WP_REST_Response(
+        array(
+            'items'       => $items,
+            'total'       => isset( $history['total'] ) ? (int) $history['total'] : 0,
+            'total_pages' => isset( $history['total_pages'] ) ? (int) $history['total_pages'] : 0,
+            'page'        => $page,
+            'per_page'    => $per_page,
+        ),
+        200
+    );
+}
+
+function nehtw_rest_get_download_link( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unauthorized', 'nehtw-gateway' ) ),
+            401
+        );
+    }
+
+    $user_id = get_current_user_id();
+
+    $params = $request->get_json_params();
+    if ( ! is_array( $params ) ) {
+        $params = array();
+    }
+
+    $kind = $request->get_param( 'kind' );
+    if ( null === $kind && isset( $params['kind'] ) ) {
+        $kind = $params['kind'];
+    }
+
+    $id = $request->get_param( 'id' );
+    if ( null === $id && isset( $params['id'] ) ) {
+        $id = $params['id'];
+    }
+
+    $kind = sanitize_key( (string) $kind );
+    $id   = sanitize_text_field( (string) $id );
+
+    if ( '' === $kind || '' === $id ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Missing parameters.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    $download_url = '';
+
+    if ( 'stock' === $kind ) {
+        $order = nehtw_gateway_get_order_by_task_id( $id );
+
+        if ( ! $order ) {
+            return new WP_REST_Response(
+                array( 'message' => __( 'Download not found.', 'nehtw-gateway' ) ),
+                404
+            );
+        }
+
+        if ( (int) $order['user_id'] !== (int) $user_id ) {
+            return new WP_REST_Response(
+                array( 'message' => __( 'Forbidden', 'nehtw-gateway' ) ),
+                403
+            );
+        }
+
+        $raw_data = class_exists( 'Nehtw_Gateway_Stock_Orders' ) ? Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order ) : array();
+        if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) && Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
+            $formatted    = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
+            $download_url = isset( $formatted['download_link'] ) ? esc_url_raw( $formatted['download_link'] ) : '';
+        }
+
+        if ( '' === $download_url && ! empty( $raw_data ) && class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
+            $download_url = Nehtw_Gateway_Stock_Orders::extract_download_link_from_array( $raw_data );
+        }
+
+        if ( '' === $download_url ) {
+            $api = nehtw_gateway_api_order_download( $id, 'any' );
+
+            if ( is_wp_error( $api ) ) {
+                $api->add_data( array( 'status' => 502 ) );
+                return $api;
+            }
+
+            if ( isset( $api['error'] ) && $api['error'] ) {
+                $message = isset( $api['message'] ) ? (string) $api['message'] : __( 'Unable to refresh the download link.', 'nehtw-gateway' );
+                return new WP_REST_Response( array( 'message' => $message ), 502 );
+            }
+
+            $candidates = array( 'download_link', 'url', 'link' );
+            foreach ( $candidates as $candidate ) {
+                if ( isset( $api[ $candidate ] ) && '' !== $api[ $candidate ] ) {
+                    $maybe = esc_url_raw( (string) $api[ $candidate ] );
+                    if ( '' !== $maybe ) {
+                        $download_url = $maybe;
+                        break;
+                    }
+                }
+            }
+
+            if ( '' === $download_url && isset( $api['data'] ) ) {
+                foreach ( $candidates as $candidate ) {
+                    if ( isset( $api['data'][ $candidate ] ) && '' !== $api['data'][ $candidate ] ) {
+                        $maybe = esc_url_raw( (string) $api['data'][ $candidate ] );
+                        if ( '' !== $maybe ) {
+                            $download_url = $maybe;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ( '' === $download_url ) {
+                return new WP_REST_Response(
+                    array( 'message' => __( 'Download not ready.', 'nehtw-gateway' ) ),
+                    409
+                );
+            }
+
+            $update_fields = array(
+                'download_link' => $download_url,
+                'raw_response'  => class_exists( 'Nehtw_Gateway_Stock_Orders' ) ? Nehtw_Gateway_Stock_Orders::merge_raw_response_with_download( isset( $order['raw_response'] ) ? $order['raw_response'] : array(), $api ) : $api,
+            );
+
+            if ( isset( $api['file_name'] ) && '' !== $api['file_name'] ) {
+                $update_fields['file_name'] = $api['file_name'];
+            } elseif ( isset( $api['filename'] ) && '' !== $api['filename'] ) {
+                $update_fields['file_name'] = $api['filename'];
+            }
+
+            if ( isset( $api['link_type'] ) && '' !== $api['link_type'] ) {
+                $update_fields['link_type'] = $api['link_type'];
+            }
+
+            nehtw_gateway_update_stock_order_status( $id, isset( $order['status'] ) ? $order['status'] : 'completed', $update_fields );
+        }
+    } elseif ( 'ai' === $kind ) {
+        $job = nehtw_gateway_get_ai_job_by_job_id( $id );
+
+        if ( ! $job ) {
+            return new WP_REST_Response(
+                array( 'message' => __( 'Download not found.', 'nehtw-gateway' ) ),
+                404
+            );
+        }
+
+        if ( (int) $job['user_id'] !== (int) $user_id ) {
+            return new WP_REST_Response(
+                array( 'message' => __( 'Forbidden', 'nehtw-gateway' ) ),
+                403
+            );
+        }
+
+        $download_url = nehtw_gateway_extract_ai_download_url( isset( $job['files'] ) ? $job['files'] : array() );
+
+        if ( '' === $download_url ) {
+            $api = nehtw_gateway_api_ai_public( $id );
+
+            if ( is_wp_error( $api ) ) {
+                $api->add_data( array( 'status' => 502 ) );
+                return $api;
+            }
+
+            if ( isset( $api['files'] ) ) {
+                $download_url = nehtw_gateway_extract_ai_download_url( $api['files'] );
+            }
+
+            if ( '' === $download_url && isset( $api['data']['files'] ) ) {
+                $download_url = nehtw_gateway_extract_ai_download_url( $api['data']['files'] );
+            }
+
+            $update_fields = array();
+
+            if ( isset( $api['status'] ) ) {
+                $update_fields['status'] = $api['status'];
+            }
+
+            if ( isset( $api['prompt'] ) ) {
+                $update_fields['prompt'] = $api['prompt'];
+            }
+
+            if ( isset( $api['files'] ) ) {
+                $update_fields['files'] = $api['files'];
+            }
+
+            if ( isset( $api['percentage_complete'] ) ) {
+                $update_fields['percentage_complete'] = $api['percentage_complete'];
+            } elseif ( isset( $api['percentage'] ) ) {
+                $update_fields['percentage_complete'] = $api['percentage'];
+            }
+
+            if ( isset( $api['error'] ) && $api['error'] ) {
+                $update_fields['error_message'] = is_string( $api['error'] ) ? $api['error'] : __( 'AI generation reported an error.', 'nehtw-gateway' );
+            }
+
+            if ( ! empty( $update_fields ) ) {
+                nehtw_gateway_update_ai_job( $id, $update_fields );
+            }
+        }
+
+        if ( '' === $download_url ) {
+            return new WP_REST_Response(
+                array( 'message' => __( 'Download not ready.', 'nehtw-gateway' ) ),
+                409
+            );
+        }
+    } else {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unsupported download type.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    return new WP_REST_Response(
+        array( 'url' => esc_url_raw( $download_url ) ),
+        200
+    );
 }
 
 function nehtw_gateway_register_admin_menu() {

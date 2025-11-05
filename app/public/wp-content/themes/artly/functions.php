@@ -130,6 +130,32 @@ function artly_enqueue_assets() {
             true
         );
     }
+
+    if ( is_page_template( 'page-my-downloads.php' ) || is_page( 'my-downloads' ) ) {
+        wp_enqueue_style(
+            'artly-downloads',
+            get_template_directory_uri() . '/assets/css/downloads.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-downloads',
+            get_template_directory_uri() . '/assets/js/downloads.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        wp_localize_script(
+            'artly-downloads',
+            'artlyDownloadsSettings',
+            array(
+                'restUrl' => esc_url_raw( rest_url( 'nehtw/v1/' ) ),
+                'nonce'   => wp_create_nonce( 'wp_rest' ),
+            )
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 
