@@ -1,0 +1,136 @@
+.artly-onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.artly-onboarding-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 0 0, rgba(15, 23, 42, 0.9), transparent 55%),
+    radial-gradient(circle at 100% 0, rgba(8, 47, 73, 0.95), transparent 55%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.artly-onboarding-shell {
+  position: relative;
+  max-width: 520px;
+  width: 100%;
+  margin-inline: 1.5rem;
+}
+
+.artly-onboarding-card {
+  position: relative;
+  border-radius: 26px;
+  padding: 1.8rem 1.6rem 1.4rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.08), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.98));
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(148, 163, 184, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #e5edff;
+}
+
+.artly-onboarding-kicker {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.95);
+  margin-bottom: 0.3rem;
+}
+
+.artly-onboarding-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: #f8fafc;
+}
+
+.artly-onboarding-body {
+  font-size: 0.95rem;
+  color: rgba(148, 163, 184, 0.98);
+  line-height: 1.6;
+  margin-bottom: 1.2rem;
+}
+
+.artly-onboarding-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.artly-onboarding-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #020617;
+  box-shadow: 0 14px 38px rgba(15, 152, 246, 0.55);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.artly-onboarding-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 42px rgba(15, 152, 246, 0.65);
+  filter: brightness(1.05);
+}
+
+.artly-onboarding-btn-primary:active {
+  transform: translateY(0);
+}
+
+.artly-onboarding-skip {
+  background: transparent;
+  border: none;
+  color: rgba(148, 163, 184, 0.98);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.12s ease;
+}
+
+.artly-onboarding-skip:hover {
+  color: rgba(203, 213, 225, 1);
+}
+
+@media (max-width: 640px) {
+  .artly-onboarding-card {
+    padding-inline: 1.2rem;
+    padding-block: 1.5rem 1.2rem;
+  }
+
+  .artly-onboarding-title {
+    font-size: 1.3rem;
+  }
+
+  .artly-onboarding-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .artly-onboarding-btn-primary {
+    width: 100%;
+  }
+
+  .artly-onboarding-skip {
+    text-align: center;
+  }
+}
+

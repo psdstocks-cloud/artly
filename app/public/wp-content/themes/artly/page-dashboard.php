@@ -21,6 +21,13 @@ get_header();
 $user_id      = get_current_user_id();
 $current_user = wp_get_current_user();
 
+// Check if onboarding should be shown
+$show_onboarding = false;
+if ( is_user_logged_in() ) {
+    $completed = get_user_meta( get_current_user_id(), 'artly_onboarding_completed', true );
+    $show_onboarding = empty( $completed );
+}
+
 $display_name = $current_user->display_name;
 $email        = $current_user->user_email;
 
@@ -310,4 +317,66 @@ if ( is_array( $stock_orders_source ) ) {
 
 <?php
 get_template_part( 'parts/modal', 'wallet-topup' );
+?>
+
+<?php if ( $show_onboarding ) : ?>
+  <div class="artly-onboarding" data-artly-onboarding>
+    <div class="artly-onboarding-backdrop"></div>
+    <div class="artly-onboarding-shell">
+      <div class="artly-onboarding-card" data-onboarding-step="1">
+        <p class="artly-onboarding-kicker"><?php esc_html_e( 'Welcome to Artly', 'artly' ); ?></p>
+        <h2 class="artly-onboarding-title">
+          <?php esc_html_e( 'Turn your ideas into AI images', 'artly' ); ?>
+        </h2>
+        <p class="artly-onboarding-body">
+          <?php esc_html_e( 'Use the AI generator to create custom visuals from any prompt. Every generation uses your Artly points.', 'artly' ); ?>
+        </p>
+        <div class="artly-onboarding-footer">
+          <button type="button" class="artly-onboarding-btn-primary" data-onboarding-next>
+            <?php esc_html_e( 'Next: Stock downloads', 'artly' ); ?>
+          </button>
+          <button type="button" class="artly-onboarding-skip" data-onboarding-skip>
+            <?php esc_html_e( 'Skip for now', 'artly' ); ?>
+          </button>
+        </div>
+      </div>
+      <div class="artly-onboarding-card" data-onboarding-step="2" hidden>
+        <p class="artly-onboarding-kicker"><?php esc_html_e( 'Stock & assets', 'artly' ); ?></p>
+        <h2 class="artly-onboarding-title">
+          <?php esc_html_e( 'Download stock files with points', 'artly' ); ?>
+        </h2>
+        <p class="artly-onboarding-body">
+          <?php esc_html_e( 'Browse stock sites inside Artly and pay using your wallet points instead of entering card details every time.', 'artly' ); ?>
+        </p>
+        <div class="artly-onboarding-footer">
+          <button type="button" class="artly-onboarding-btn-primary" data-onboarding-next>
+            <?php esc_html_e( 'Next: Wallet', 'artly' ); ?>
+          </button>
+          <button type="button" class="artly-onboarding-skip" data-onboarding-skip>
+            <?php esc_html_e( 'Skip for now', 'artly' ); ?>
+          </button>
+        </div>
+      </div>
+      <div class="artly-onboarding-card" data-onboarding-step="3" hidden>
+        <p class="artly-onboarding-kicker"><?php esc_html_e( 'Wallet & points', 'artly' ); ?></p>
+        <h2 class="artly-onboarding-title">
+          <?php esc_html_e( 'Keep track of your Artly wallet', 'artly' ); ?>
+        </h2>
+        <p class="artly-onboarding-body">
+          <?php esc_html_e( 'Your wallet holds the points you use for AI generations and stock downloads. Top up anytime from the dashboard.', 'artly' ); ?>
+        </p>
+        <div class="artly-onboarding-footer">
+          <button type="button" class="artly-onboarding-btn-primary" data-onboarding-finish>
+            <?php esc_html_e( 'Got it, start creating', 'artly' ); ?>
+          </button>
+          <button type="button" class="artly-onboarding-skip" data-onboarding-skip>
+            <?php esc_html_e( 'Skip for now', 'artly' ); ?>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+<?php endif; ?>
+
+<?php
 get_footer();

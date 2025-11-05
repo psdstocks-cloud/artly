@@ -199,6 +199,34 @@ function artly_enqueue_assets() {
             true
         );
     }
+
+    // Onboarding assets (Dashboard only)
+    if ( is_page_template( 'page-dashboard.php' ) || is_page( 'dashboard' ) ) {
+        wp_enqueue_style(
+            'artly-onboarding',
+            get_template_directory_uri() . '/assets/css/onboarding.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-onboarding',
+            get_template_directory_uri() . '/assets/js/onboarding.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        // Localize AJAX + nonce
+        wp_localize_script(
+            'artly-onboarding',
+            'artlyOnboarding',
+            array(
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => wp_create_nonce( 'artly_onboarding' ),
+            )
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 
@@ -474,6 +502,34 @@ function artly_ajax_login() {
 }
 add_action( 'wp_ajax_artly_login_ajax', 'artly_ajax_login' );
 add_action( 'wp_ajax_nopriv_artly_login_ajax', 'artly_ajax_login' );
+
+/**
+ * Handle AJAX onboarding completion
+ */
+function artly_ajax_onboarding_complete() {
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'message' => 'Unauthorized' ), 401 );
+    }
+
+    $user_id = get_current_user_id();
+    update_user_meta( $user_id, 'artly_onboarding_completed', 1 );
+
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_artly_onboarding_complete', 'artly_ajax_onboarding_complete' );
+
+/**
+ * Reset onboarding (for testing only - remove this in production)
+ * Add ?reset_onboarding=1 to the dashboard URL to reset your onboarding status
+ */
+function artly_reset_onboarding_for_testing() {
+    if ( isset( $_GET['reset_onboarding'] ) && is_user_logged_in() && current_user_can( 'manage_options' ) ) {
+        delete_user_meta( get_current_user_id(), 'artly_onboarding_completed' );
+        wp_safe_redirect( home_url( '/dashboard/' ) );
+        exit;
+    }
+}
+add_action( 'template_redirect', 'artly_reset_onboarding_for_testing' );
 
 /**
  * Filter login URL to use custom login page
