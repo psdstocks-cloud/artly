@@ -22,6 +22,8 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscriptions.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-wallet-topups.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-email-templates.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock.php';
 
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
@@ -780,7 +782,15 @@ function nehtw_gateway_register_rest_routes() {
             ),
         ),
     ) );
->>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
+
+    // Artly-branded stock ordering endpoint (batch mode)
+    register_rest_route( 'artly/v1', '/stock-order', array(
+        'methods'             => WP_REST_Server::CREATABLE,
+        'callback'            => 'nehtw_gateway_rest_stock_order_batch',
+        'permission_callback' => function () {
+            return is_user_logged_in();
+        },
+    ) );
 }
 add_action( 'rest_api_init', 'nehtw_gateway_register_rest_routes' );
 
@@ -872,6 +882,198 @@ function nehtw_gateway_rest_stock_order( WP_REST_Request $request ) {
         'order_id'    => $order_id,
         'new_balance' => $new_balance,
         'remote'      => $resp,
+    );
+}
+
+/**
+ * Handle batch stock ordering from Stock Ordering page (artly/v1/stock-order).
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response( array( 'message' => 'Unauthorized' ), 401 );
+    }
+
+    $user_id = get_current_user_id();
+    $payload_links = $request->get_param( 'links' );
+
+    if ( ! is_array( $payload_links ) || empty( $payload_links ) ) {
+        return new WP_REST_Response( array( 'message' => 'No links provided.' ), 400 );
+    }
+
+    $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
+        ? nehtw_gateway_get_stock_sites_config()
+        : array();
+
+    // Get current balance (using existing helper)
+    $balance = function_exists( 'nehtw_gateway_get_balance' )
+        ? nehtw_gateway_get_balance( $user_id )
+        : 0.0;
+
+    $results = array();
+
+    foreach ( $payload_links as $entry ) {
+        $url      = isset( $entry['url'] ) ? trim( (string) $entry['url'] ) : '';
+        $selected = ! empty( $entry['selected'] );
+
+        $result = array(
+            'url'     => $url,
+            'status'  => '',
+            'message' => '',
+        );
+
+        if ( '' === $url ) {
+            $result['status']  = 'error';
+            $result['message'] = __( 'Empty link.', 'nehtw-gateway' );
+            $results[] = $result;
+            continue;
+        }
+
+        if ( ! $selected ) {
+            $result['status']  = 'skipped';
+            $result['message'] = __( 'Skipped by user.', 'nehtw-gateway' );
+            $results[] = $result;
+            continue;
+        }
+
+        $parsed = function_exists( 'nehtw_gateway_parse_stock_url' )
+            ? nehtw_gateway_parse_stock_url( $url )
+            : null;
+
+        if ( ! $parsed ) {
+            $result['status']  = 'error';
+            $result['message'] = __( 'Unsupported or invalid link.', 'nehtw-gateway' );
+            $results[] = $result;
+            continue;
+        }
+
+        $site      = $parsed['site'];
+        $remote_id = $parsed['remote_id'];
+
+        if ( empty( $sites_config[ $site ] ) ) {
+            $result['status']  = 'error';
+            $result['message'] = __( 'This website is not supported.', 'nehtw-gateway' );
+            $results[] = $result;
+            continue;
+        }
+
+        $cost_points = (float) $sites_config[ $site ]['points'];
+
+        // Check for existing completed order (no double charge)
+        $existing = function_exists( 'nehtw_gateway_get_existing_stock_order' )
+            ? nehtw_gateway_get_existing_stock_order( $user_id, $site, $remote_id )
+            : null;
+
+        if ( $existing ) {
+            $result['status']   = 'already_downloaded';
+            $result['message']  = __( 'You already downloaded this asset. Reusing link without charging points.', 'nehtw-gateway' );
+            $result['order_id'] = isset( $existing['id'] ) ? (int) $existing['id'] : 0;
+            $result['download_link'] = isset( $existing['download_link'] ) ? esc_url_raw( $existing['download_link'] ) : null;
+            $results[] = $result;
+            continue;
+        }
+
+        // Check balance
+        if ( $balance < $cost_points ) {
+            $result['status']  = 'insufficient_points';
+            $result['message'] = __( 'Not enough points in your wallet.', 'nehtw-gateway' );
+            $results[] = $result;
+            continue;
+        }
+
+        // Deduct points from wallet
+        if ( function_exists( 'nehtw_gateway_add_transaction' ) ) {
+            nehtw_gateway_add_transaction(
+                $user_id,
+                'stock_order',
+                -1 * $cost_points,
+                array(
+                    'meta' => array(
+                        'source'       => 'stock_order_page',
+                        'site'         => $site,
+                        'remote_id'    => $remote_id,
+                        'original_url' => $url,
+                    ),
+                )
+            );
+        }
+
+        // Update local variable balance
+        $balance -= $cost_points;
+
+        // Place stock order using existing API helper
+        $api_resp = function_exists( 'nehtw_gateway_api_stockorder' )
+            ? nehtw_gateway_api_stockorder( $site, $remote_id, $url )
+            : null;
+
+        if ( is_wp_error( $api_resp ) || ( isset( $api_resp['error'] ) && $api_resp['error'] ) ) {
+            $result['status']  = 'error';
+            $result['message'] = isset( $api_resp['message'] ) ? $api_resp['message'] : __( 'Failed to place order.', 'nehtw-gateway' );
+            $results[] = $result;
+            // Refund points if order failed
+            if ( function_exists( 'nehtw_gateway_add_transaction' ) ) {
+                nehtw_gateway_add_transaction(
+                    $user_id,
+                    'stock_order_refund',
+                    $cost_points,
+                    array(
+                        'meta' => array(
+                            'source'       => 'stock_order_refund',
+                            'site'         => $site,
+                            'remote_id'    => $remote_id,
+                            'original_url' => $url,
+                        ),
+                    )
+                );
+                $balance += $cost_points;
+            }
+            continue;
+        }
+
+        $task_id = isset( $api_resp['task_id'] ) ? (string) $api_resp['task_id'] : '';
+
+        if ( '' === $task_id ) {
+            $result['status']  = 'error';
+            $result['message'] = __( 'Order placed but no task ID received.', 'nehtw-gateway' );
+            $results[] = $result;
+            continue;
+        }
+
+        // Create order record in database
+        $order_id = function_exists( 'nehtw_gateway_create_stock_order' )
+            ? nehtw_gateway_create_stock_order(
+                $user_id,
+                $site,
+                $remote_id,
+                $url,
+                $task_id,
+                $cost_points,
+                null,
+                'pending',
+                array( 'raw_response' => $api_resp )
+            )
+            : 0;
+
+        $result['status']   = 'queued';
+        $result['message']  = __( 'Order queued. You\'ll see it soon in your history.', 'nehtw-gateway' );
+        $result['order_id'] = $order_id;
+        $result['task_id']  = $task_id;
+        $results[] = $result;
+    }
+
+    // Get final balance after all transactions
+    $final_balance = function_exists( 'nehtw_gateway_get_balance' )
+        ? nehtw_gateway_get_balance( $user_id )
+        : 0.0;
+
+    return new WP_REST_Response(
+        array(
+            'links'   => $results,
+            'balance' => $final_balance,
+        ),
+        200
     );
 }
 
@@ -1467,7 +1669,6 @@ function nehtw_rest_export_wallet_transactions_csv( WP_REST_Request $request ) {
     );
 }
 
->>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
 function nehtw_gateway_register_admin_menu() {
     add_menu_page(
         __( 'Nehtw Gateway', 'nehtw-gateway' ),
@@ -1542,7 +1743,21 @@ function nehtw_gateway_register_wallet_topups_submenu() {
 add_action( 'admin_menu', 'nehtw_gateway_register_wallet_topups_submenu' );
 
 /**
->>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
+ * Register the Email Templates submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_email_templates_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'Email Templates', 'nehtw-gateway' ),
+        __( 'Email Templates', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-email-templates',
+        'nehtw_gateway_render_email_templates_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_email_templates_submenu' );
+
+/**
  * Render the User Points admin page.
  */
 function nehtw_gateway_render_user_points_page() {
@@ -2328,7 +2543,6 @@ function nehtw_gateway_render_wallet_topups_page() {
     <?php
 }
 
->>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
 function nehtw_gateway_enqueue_admin_assets( $hook_suffix ) {
     if ( 'toplevel_page_nehtw-gateway' !== $hook_suffix ) return;
 
@@ -2514,8 +2728,10 @@ function nehtw_gateway_handle_subscriptions_cron() {
 
     $now = gmdate( 'Y-m-d H:i:s' );
 
-    // 1) Handle reminders (3 days & 1 day before)
-    nehtw_gateway_send_subscription_reminders( $table, $now );
+    // 1) Handle reminders (3 days & 1 day before) - using templated email system
+    if ( function_exists( 'nehtw_gateway_process_subscription_reminders' ) ) {
+        nehtw_gateway_process_subscription_reminders();
+    }
 
     // 2) Handle due renewals
     $sql = $wpdb->prepare(

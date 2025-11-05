@@ -304,6 +304,9 @@ if ( is_array( $stock_orders_source ) ) {
             </p>
           <?php endif; ?>
           <div class="dashboard-actions">
+            <a class="dashboard-btn-primary" href="<?php echo esc_url( home_url( '/stock-order/' ) ); ?>">
+              <?php esc_html_e( 'Order stock images', 'artly' ); ?>
+            </a>
             <a class="dashboard-btn-secondary" href="<?php echo esc_url( home_url( '/app/stock/' ) ); ?>">
               <?php esc_html_e( 'Go to stock', 'artly' ); ?>
             </a>

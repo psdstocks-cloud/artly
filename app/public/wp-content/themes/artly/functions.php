@@ -227,6 +227,43 @@ function artly_enqueue_assets() {
             )
         );
     }
+
+    // Stock Ordering assets
+    if ( is_page_template( 'page-stock-order.php' ) || is_page( 'stock-order' ) ) {
+        wp_enqueue_style(
+            'artly-stock-order',
+            get_template_directory_uri() . '/assets/css/stock-order.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-stock-order',
+            get_template_directory_uri() . '/assets/js/stock-order.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        // Get sites config from plugin
+        $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
+            ? nehtw_gateway_get_stock_sites_config()
+            : array();
+
+        $dashboard_page = get_page_by_path( 'dashboard' );
+        $history_url     = home_url( '/my-downloads/' );
+
+        wp_localize_script(
+            'artly-stock-order',
+            'artlyStockOrder',
+            array(
+                'endpoint'   => esc_url_raw( rest_url( 'artly/v1/stock-order' ) ),
+                'restNonce'  => wp_create_nonce( 'wp_rest' ),
+                'sites'      => $sites_config,
+                'historyUrl' => esc_url_raw( $history_url ),
+            )
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 
