@@ -296,6 +296,22 @@ function artly_enqueue_login_assets() {
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_login_assets' );
 
 /**
+ * Enqueue My Points page assets
+ */
+function artly_enqueue_points_assets() {
+    // Load on the dedicated My Points template or slug "my-points"
+    if ( is_page_template( 'page-my-points.php' ) || is_page( 'my-points' ) ) {
+        wp_enqueue_style(
+            'artly-points',
+            get_template_directory_uri() . '/assets/css/points.css',
+            array( 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+    }
+}
+add_action( 'wp_enqueue_scripts', 'artly_enqueue_points_assets' );
+
+/**
  * Handle AJAX login submission
  */
 function artly_ajax_login() {
