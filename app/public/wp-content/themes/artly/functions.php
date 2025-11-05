@@ -257,10 +257,11 @@ function artly_enqueue_assets() {
             'artly-stock-order',
             'artlyStockOrder',
             array(
-                'endpoint'   => esc_url_raw( rest_url( 'artly/v1/stock-order' ) ),
-                'restNonce'  => wp_create_nonce( 'wp_rest' ),
-                'sites'      => $sites_config,
-                'historyUrl' => esc_url_raw( $history_url ),
+                'endpoint'       => esc_url_raw( rest_url( 'artly/v1/stock-order' ) ),
+                'statusEndpoint' => esc_url_raw( rest_url( 'artly/v1/stock-order-status' ) ),
+                'restNonce'      => wp_create_nonce( 'wp_rest' ),
+                'sites'          => $sites_config,
+                'historyUrl'     => esc_url_raw( $history_url ),
             )
         );
     }

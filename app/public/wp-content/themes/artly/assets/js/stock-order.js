@@ -8,6 +8,565 @@
     var endpoint = config.endpoint || "";
     var restNonce = config.restNonce || "";
 
+    // Simple helper used by some rules in the extractor.
+    function idMapping(source, arr) {
+      // For our purposes we just join the parts with a dash.
+      // This matches what the backend expects.
+      return arr.join("-");
+    }
+
+    /**
+     * ====== URL → { source, id, url } EXTRACTOR ======
+     * This is the complete pattern list from the original implementation.
+     */
+    var idExtractor = function (str) {
+      var sourceMatch = [
+        {
+          match: /shutterstock.com(|\/[a-z]*)\/video\/clip-([0-9]*)/,
+          result: function (string) {
+            var stockSource = "vshutter";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /shutterstock.com(.*)music\/(.*)track-([0-9]*)-/,
+          result: function (string) {
+            var stockSource = "mshutter";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /shutterstock\.com\/(.*)(image-vector|image-photo|image-illustration|image|image-generated|editorial)\/([0-9a-zA-Z-_]*)-([0-9a-z]*)/,
+          result: function (string) {
+            var stockSource = "shutterstock";
+            var stockId = string[4];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /shutterstock\.com\/(.*)(image-vector|image-photo|image-illustration|image-generated|editorial)\/([0-9a-z]*)/,
+          result: function (string) {
+            var stockSource = "shutterstock";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /stock\.adobe.com\/(..\/||.....\/)(images|templates|3d-assets|stock-photo|video)\/([a-zA-Z0-9-%.,]*)\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "adobestock";
+            var stockId = string[4];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /stock\.adobe.com(.*)asset_id=([0-9]*)/,
+          result: function (string) {
+            var stockSource = "adobestock";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /stock\.adobe.com\/(.*)search\/audio\?(k|keywords)=([0-9]*)/,
+          result: function (string) {
+            var stockSource = "adobestock";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /stock\.adobe\.com\/(..\/||.....\/)([0-9]*)/,
+          result: function (string) {
+            var stockSource = "adobestock";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /depositphotos\.com(.*)depositphotos_([0-9]*)(.*)\.jpg/,
+          result: function (string) {
+            var stockSource = "depositphotos";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /depositphotos\.com\/([0-9]*)\/stock-video(.*)/,
+          result: function (string) {
+            var stockSource = "depositphotos_video";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /depositphotos\.com\/([0-9]*)\/(stock-photo|stock-illustration|free-stock)(.*)/,
+          result: function (string) {
+            var stockSource = "depositphotos";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /depositphotos.com(.*)qview=([0-9]*)/,
+          result: function (string) {
+            var stockSource = "depositphotos";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /depositphotos.com(.*)\/(photo|editorial|vector|illustration)\/([0-9a-z-]*)-([0-9]*)/,
+          result: function (string) {
+            var stockSource = "depositphotos";
+            var stockId = string[4];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /123rf\.com\/(photo|free-photo)_([0-9]*)_/,
+          result: function (string) {
+            var stockSource = "123rf";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /123rf\.com\/(.*)mediapopup=([0-9]*)/,
+          result: function (string) {
+            var stockSource = "123rf";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /123rf\.com\/stock-photo\/([0-9]*).html/,
+          result: function (string) {
+            var stockSource = "123rf";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /istockphoto\.com\/(.*)gm([0-9A-Z_]*)-/,
+          result: function (string) {
+            var stockSource = "istockphoto";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /gettyimages\.com\/(.*)\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "istockphoto";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /freepik.(.*)\/(.*)-?video-?(.*)\/([0-9a-z-]*)_([0-9]*)/,
+          result: function (string) {
+            var stockSource = "vfreepik";
+            var stockId = string[5];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /freepik\.(.*)(.*)_([0-9]*).htm/,
+          result: function (string) {
+            var stockSource = "freepik";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /freepik.com\/(icon|icone)\/(.*)_([0-9]*)/,
+          result: function (string) {
+            var stockSource = "flaticon";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /flaticon.com\/(.*)\/([0-9a-z-]*)_([0-9]*)/,
+          result: function (string) {
+            var stockSource = "flaticon";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /flaticon.com\/(.*)(packs|stickers-pack)\/([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "flaticonpack";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /elements\.envato\.com(.*)\/([0-9a-zA-Z-]*)-([0-9A-Z]*)/,
+          result: function (string) {
+            var stockSource = "envato";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /dreamstime(.*)-image([0-9]*)/,
+          result: function (string) {
+            var stockSource = "dreamstime";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /pngtree\.com(.*)_([0-9]*).html/,
+          result: function (string) {
+            var stockSource = "pngtree";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /vectorstock.com\/([0-9a-zA-Z-]*)\/([0-9a-zA-Z-]*)-([0-9]*)/,
+          result: function (string) {
+            var stockSource = "vectorstock";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /motionarray.com\/([a-zA-Z0-9-]*)\/([a-zA-Z0-9-]*)-([0-9]*)/,
+          result: function (string) {
+            var stockSource = "motionarray";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /(alamy|alamyimages)\.(com|es|de|it|fr)\/(.*)(-|image)([0-9]*).html/,
+          result: function (string) {
+            var stockSource = "alamy";
+            var stockId = string[5];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /motionelements\.com\/(([a-z-]*\/)|)(([a-z-3]*)|(product|davinci-resolve-template))(\/|-)([0-9]*)-/,
+          result: function (string) {
+            var stockSource = "motionelements";
+            var getVar = [3, 7];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /storyblocks\.com\/(video|images|audio)\/stock\/([0-9a-z-]*)-([0-9a-z_]*)/,
+          result: function (string) {
+            var stockSource = "storyblocks";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /epidemicsound.com\/(.*)tracks?\/([a-zA-Z0-9-]*)/,
+          result: function (string) {
+            var stockSource = "epidemicsound";
+            var getVar = [1, 2];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /yellowimages\.com\/(stock\/|(.*)p=)([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "yellowimages";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /vecteezy.com\/([\/a-zA-Z-]*)\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "vecteezy";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /creativefabrica.com\/(.*)product\/([a-z0-9-]*)/,
+          result: function (string) {
+            var stockSource = "creativefabrica";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /lovepik.com\/([a-z]*)-([0-9]*)\//,
+          result: function (string) {
+            var stockSource = "lovepik";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /rawpixel\.com\/image\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "rawpixel";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /deeezy\.com\/product\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "deeezy";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /(productioncrate|footagecrate|graphicscrate)\.com\/([a-z0-9-]*)\/([a-zA-Z0-9-_]*)/,
+          result: function (string) {
+            var stockSource = "footagecrate";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /artgrid\.io\/clip\/([0-9]*)\//,
+          result: function (string) {
+            var stockSource = "artgrid_HD";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /pixelsquid.com(.*)-([0-9]*)\?image=(...)/,
+          result: function (string) {
+            var stockSource = "pixelsquid";
+            var getVar = [2, 3];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /pixelsquid.com(.*)-([0-9]*)/,
+          result: function (string) {
+            var stockSource = "pixelsquid";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /ui8\.net\/(.*)\/(.*)\/([0-9a-zA-Z-]*)/,
+          result: function (string) {
+            var stockSource = "ui8";
+            var stockId = string[3];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /iconscout.com\/((\w{2})\/?$|(\w{2})\/|)([0-9a-z-]*)\/([0-9a-z-_]*)/,
+          result: function (string) {
+            var stockSource = "iconscout";
+            var stockId = string[5];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /designi.com.br\/([0-9a-zA-Z]*)/,
+          result: function (string) {
+            var stockSource = "designi";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /mockupcloud.com\/(product|scene|graphics\/product)\/([a-z0-9-]*)/,
+          result: function (string) {
+            var stockSource = "mockupcloud";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /artlist.io\/(stock-footage|video-templates)\/(.*)\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "artlist_footage";
+            var getVar = [1, 3];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /artlist.io\/(sfx|royalty-free-music)\/(.*)\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "artlist_sound";
+            var getVar = [1, 3];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /pixeden.com\/([0-9a-z-]*)\/([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "pixeden";
+            var getVar = [1, 2];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /uplabs.com\/posts\/([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "uplabs";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /pixelbuddha.net\/(premium|)(.*)\/([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "pixelbuddha";
+            var getVar = [1, 2, 3];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /uihut.com\/designs\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "uihut";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /craftwork.design\/product\/([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "craftwork";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /baixardesign.com.br\/arquivo\/([0-9a-z]*)/,
+          result: function (string) {
+            var stockSource = "baixardesign";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /soundstripe.com\/(.*)\/([0-9]*)/,
+          result: function (string) {
+            var stockSource = "soundstripe";
+            var getVar = [1, 2];
+            var arr = [];
+            for (var i = 0; i < string.length; i++) {
+              if (getVar.includes(i)) {
+                arr.push(string[i]);
+              }
+            }
+            var stockId = idMapping(stockSource, arr);
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /mrmockup.com\/product\/([0-9a-z-]*)/,
+          result: function (string) {
+            var stockSource = "mrmockup";
+            var stockId = string[1];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+        {
+          match: /designbr\.com\.br\/(.*)modal=([^&]+)/,
+          result: function (string) {
+            var stockSource = "designbr";
+            var stockId = string[2];
+            return { source: stockSource, id: stockId, url: str };
+          },
+        },
+      ];
+
+      var item = sourceMatch.find(function (it) {
+        return str.match(it.match);
+      });
+
+      if (!item) {
+        return false;
+      }
+
+      var match = str.match(item.match);
+      return item.result(match);
+    };
+
+    // Helper: Detect site and cost from URL using idExtractor
+    function detectFromIdExtractor(url) {
+      if (!window.artlyStockOrder || !window.artlyStockOrder.sites) return null;
+
+      var extracted = idExtractor(url);
+      if (!extracted) return null;
+
+      var sourceKey = extracted.source;
+      var sites = window.artlyStockOrder.sites;
+      var cfg = sites[sourceKey] || null;
+
+      return {
+        source: sourceKey,
+        id: extracted.id,
+        url: extracted.url,
+        label: cfg && cfg.label ? cfg.label : sourceKey,
+        points: cfg && typeof cfg.points !== "undefined" ? cfg.points : 0
+      };
+    }
+
     // Tab switching
     var tabs = root.querySelectorAll(".stock-order-tab");
     var panels = root.querySelectorAll("[data-stock-order-panel]");
@@ -25,46 +584,6 @@
       });
     });
 
-    // Helper: Detect site and cost from URL using full config
-    function detectSiteFromUrl(url) {
-      if (!url || typeof url !== "string") {
-        return null;
-      }
-
-      if (!sitesConfig || typeof sitesConfig !== "object") {
-        return null;
-      }
-
-      try {
-        var u = new URL(url);
-        var host = u.hostname.toLowerCase();
-      } catch (e) {
-        return null;
-      }
-
-      var match = null;
-
-      Object.keys(sitesConfig).forEach(function (key) {
-        var site = sitesConfig[key];
-        if (!site || site.enabled === false || !Array.isArray(site.domains)) {
-          return;
-        }
-
-        site.domains.forEach(function (pattern) {
-          if (match) return;
-          if (host.indexOf(pattern.toLowerCase()) !== -1) {
-            match = {
-              key: key,
-              label: site.label || key,
-              points: parseFloat(site.points || 0)
-            };
-          }
-        });
-      });
-
-      return match;
-    }
-
     // Single mode: detect on input
     var singleInput = root.querySelector("#stock-order-single-input");
     var singleMeta = root.querySelector("[data-stock-order-single-meta]");
@@ -78,14 +597,14 @@
         return;
       }
 
-      var site = detectSiteFromUrl(url);
-      if (!site) {
-        singleMeta.textContent = "Unsupported or unknown website.";
+      var info = detectFromIdExtractor(url);
+      if (!info) {
+        singleMeta.textContent = "Unsupported or invalid link.";
         singleMeta.classList.add("is-visible");
         return;
       }
 
-      singleMeta.textContent = "Detected: " + site.label + " – " + site.points + " point(s) per link";
+      singleMeta.textContent = "Detected: " + info.label + " – " + info.points + " point(s) per link";
       singleMeta.classList.add("is-visible");
     }
 
@@ -117,14 +636,14 @@
 
         lines.forEach(function (line) {
           var url = line.trim();
-          var detected = detectSiteFromUrl(url);
+          var info = detectFromIdExtractor(url);
 
-          if (detected) {
+          if (info) {
             var item = {
               url: url,
-              site: detected.key,
-              label: detected.label,
-              points: detected.points
+              site: info.source,
+              label: info.label,
+              points: info.points
             };
             batchItems.push(item);
 
@@ -137,7 +656,7 @@
               '<input type="checkbox" checked />',
               '<div class="stock-order-batch-item-content">',
               '  <div class="stock-order-batch-item-url">' + escapeHtml(url) + "</div>",
-              '  <div class="stock-order-batch-item-meta">' + escapeHtml(detected.label) + " – " + detected.points + " point(s)</div>",
+              '  <div class="stock-order-batch-item-meta">' + escapeHtml(info.label) + " – " + info.points + " point(s)</div>",
               "</div>"
             ].join("");
 
@@ -208,9 +727,75 @@
           var links = data.links || [];
           var balance = data.balance || 0;
 
-          links.forEach(function (link) {
-            showResult(link);
+          // Render all results first
+          var html = '<ul class="stock-order-results-list">';
+          var pendingOrderIds = [];
+
+          links.forEach(function (item, index) {
+            var status = item.status || "unknown";
+            var orderId = item.order_id || "";
+            var safeUrl = item.url || "";
+            var message = item.message || "";
+
+            html += '<li class="stock-order-result stock-order-result--' + status + '"';
+            if (orderId) {
+              html += ' data-order-id="' + orderId + '"';
+            }
+            html += '>';
+
+            html += '<div class="stock-order-result-top">';
+            html += '<div class="stock-order-result-url">' + escapeHtml(safeUrl) + "</div>";
+            html +=
+              '<span class="stock-order-result-status" data-order-status>' +
+              escapeHtml(message || mapStatusToText(status)) +
+              "</span>";
+            html += "</div>";
+
+            html += '<div class="stock-order-result-progress">';
+            html +=
+              '<div class="stock-order-result-progress-bar" data-order-progress data-progress-pct="' +
+              mapStatusToProgress(status) +
+              '"></div>';
+            html += "</div>";
+
+            if (orderId) {
+              html += '<div class="stock-order-result-actions" data-order-actions>';
+              html +=
+                '<a href="' +
+                escapeHtml(window.artlyStockOrder ? window.artlyStockOrder.historyUrl : "/my-downloads/") +
+                '" class="stock-order-result-link">';
+              html += "View in history";
+              html += "</a>";
+              html += "</div>";
+            }
+
+            html += "</li>";
+
+            // Collect order IDs for polling
+            if (orderId && (status === "queued" || status === "processing")) {
+              pendingOrderIds.push(parseInt(orderId, 10));
+            }
           });
+
+          html += "</ul>";
+
+          if (resultsEl) {
+            resultsEl.innerHTML = html;
+
+            // Initialize progress bar widths
+            var progressBars = resultsEl.querySelectorAll("[data-order-progress]");
+            progressBars.forEach(function (bar) {
+              var pct = parseInt(bar.getAttribute("data-progress-pct") || "0", 10);
+              if (pct > 0) {
+                bar.style.width = pct + "%";
+              }
+            });
+          }
+
+          // Start polling if we have pending orders
+          if (pendingOrderIds.length) {
+            startStockOrderPolling(pendingOrderIds);
+          }
 
           // Update balance if needed (you could show this somewhere)
           if (balance !== undefined) {
@@ -233,39 +818,168 @@
         });
     }
 
-    function showResult(link) {
-      var resultsEl = root.querySelector("[data-stock-order-results]");
-      if (!resultsEl) return;
+    // Polling logic
+    var pollTimer = null;
+    var activeOrderIds = [];
 
-      var itemEl = document.createElement("div");
-      itemEl.className = "stock-order-result-item";
+    function startStockOrderPolling(orderIds) {
+      // Merge new IDs into active list (avoid duplicates)
+      orderIds.forEach(function (id) {
+        id = parseInt(id, 10);
+        if (!id) return;
+        if (activeOrderIds.indexOf(id) === -1) {
+          activeOrderIds.push(id);
+        }
+      });
 
-      var status = link.status || "";
-      var message = link.message || "";
+      if (!activeOrderIds.length) return;
 
-      if (status === "queued" || status === "already_downloaded") {
-        itemEl.classList.add("stock-order-result-item--success");
-      } else if (status === "error" || status === "insufficient_points") {
-        itemEl.classList.add("stock-order-result-item--error");
-      } else if (status === "skipped") {
-        itemEl.classList.add("stock-order-result-item--warning");
+      // If timer already running, just let it continue
+      if (pollTimer) return;
+
+      pollTimer = window.setInterval(function () {
+        if (!activeOrderIds.length) {
+          stopStockOrderPolling();
+          return;
+        }
+
+        pollStockOrderStatus();
+      }, 5000); // every 5 seconds
+    }
+
+    function stopStockOrderPolling() {
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
       }
+      activeOrderIds = [];
+    }
 
-      var html = [
-        '<div class="stock-order-result-url">' + escapeHtml(link.url || "") + "</div>",
-        '<div class="stock-order-result-message">' + escapeHtml(message) + "</div>"
-      ];
+    function pollStockOrderStatus() {
+      var statusEndpoint = config.statusEndpoint || "";
+      if (!statusEndpoint) return;
+      if (!activeOrderIds.length) return;
 
-      if (link.order_id && link.status === "already_downloaded") {
-        html.push(
-          '<a href="' +
-            escapeHtml(window.artlyStockOrder ? window.artlyStockOrder.historyUrl : "/my-downloads/") +
-            '" class="stock-order-history-link" style="margin-top: 0.5rem; display: inline-block;">View in history</a>'
+      var url =
+        statusEndpoint + "?order_ids[]=" + activeOrderIds.join("&order_ids[]=");
+
+      fetch(url, {
+        method: "GET",
+        headers: {
+          "X-WP-Nonce": restNonce
+        },
+        credentials: "same-origin"
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("http");
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data || !Array.isArray(data.orders)) return;
+
+          var finalStates = ["completed", "failed", "already_downloaded"];
+
+          data.orders.forEach(function (order) {
+            updateOrderProgressUI(order);
+
+            if (finalStates.indexOf(order.status) !== -1) {
+              // Remove from active list
+              activeOrderIds = activeOrderIds.filter(function (id) {
+                return id !== order.id;
+              });
+            }
+          });
+
+          if (!activeOrderIds.length) {
+            stopStockOrderPolling();
+          }
+        })
+        .catch(function () {
+          // Soft-fail: do not break UI; just stop polling on repeated failures.
+        });
+    }
+
+    function mapStatusToProgress(status) {
+      switch (status) {
+        case "queued":
+          return 25;
+        case "processing":
+          return 60;
+        case "completed":
+        case "already_downloaded":
+          return 100;
+        case "failed":
+          return 100;
+        default:
+          return 40;
+      }
+    }
+
+    function mapStatusToText(status) {
+      switch (status) {
+        case "queued":
+          return "Queued";
+        case "processing":
+          return "Processing";
+        case "completed":
+          return "Ready";
+        case "already_downloaded":
+          return "Already downloaded";
+        case "failed":
+          return "Failed";
+        default:
+          return "Pending";
+      }
+    }
+
+    function updateOrderProgressUI(order) {
+      if (!order || !order.id) return;
+
+      var selector = '[data-order-id="' + order.id + '"]';
+      var row = root.querySelector(selector);
+      if (!row) return;
+
+      var statusEl = row.querySelector("[data-order-status]");
+      var barEl = row.querySelector("[data-order-progress]");
+      var actionsEl = row.querySelector("[data-order-actions]");
+
+      var pct = mapStatusToProgress(order.status);
+      var label = mapStatusToText(order.status);
+
+      if (barEl) {
+        barEl.style.width = pct + "%";
+        barEl.setAttribute("data-progress-pct", pct);
+
+        row.classList.remove(
+          "stock-order-result--queued",
+          "stock-order-result--processing",
+          "stock-order-result--completed",
+          "stock-order-result--already_downloaded",
+          "stock-order-result--failed"
         );
+
+        row.classList.add("stock-order-result--" + (order.status || "unknown"));
       }
 
-      itemEl.innerHTML = html.join("");
-      resultsEl.appendChild(itemEl);
+      if (statusEl) {
+        statusEl.textContent = label;
+      }
+
+      // If completed with download_url, show direct download link
+      if (actionsEl && order.download_url) {
+        actionsEl.innerHTML =
+          '<a href="' +
+          escapeHtml(order.download_url) +
+          '" target="_blank" rel="noopener" class="stock-order-result-link">Download file</a>';
+      } else if (actionsEl && (order.status === "completed" || order.status === "already_downloaded")) {
+        // Show history link if no direct download URL
+        if (!actionsEl.querySelector("a")) {
+          actionsEl.innerHTML =
+            '<a href="' +
+            escapeHtml(window.artlyStockOrder ? window.artlyStockOrder.historyUrl : "/my-downloads/") +
+            '" class="stock-order-result-link">View in history</a>';
+        }
+      }
     }
 
     function showError(message) {
@@ -329,6 +1043,19 @@
 
         var payload = { links: links };
         submitStockOrder(payload);
+      });
+    }
+
+    // Collapsible supported websites list
+    var supCard = root.querySelector(".stock-order-supported");
+    var supToggle = root.querySelector("[data-stock-order-supported-toggle]");
+
+    if (supCard && supToggle) {
+      supToggle.addEventListener("click", function () {
+        var expanded = supCard.classList.toggle("is-expanded");
+        supToggle.textContent = expanded
+          ? "Show fewer websites"
+          : "Show all websites";
       });
     }
   });

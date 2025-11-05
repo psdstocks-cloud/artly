@@ -791,6 +791,15 @@ function nehtw_gateway_register_rest_routes() {
             return is_user_logged_in();
         },
     ) );
+
+    // Artly-branded stock order status polling endpoint
+    register_rest_route( 'artly/v1', '/stock-order-status', array(
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'nehtw_gateway_rest_stock_order_status',
+        'permission_callback' => function () {
+            return is_user_logged_in();
+        },
+    ) );
 }
 add_action( 'rest_api_init', 'nehtw_gateway_register_rest_routes' );
 
@@ -1056,6 +1065,7 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
             )
             : 0;
 
+        // Normalize status: 'pending' from DB becomes 'queued' for frontend
         $result['status']   = 'queued';
         $result['message']  = __( 'Order queued. You\'ll see it soon in your history.', 'nehtw-gateway' );
         $result['order_id'] = $order_id;
@@ -1072,6 +1082,127 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
         array(
             'links'   => $results,
             'balance' => $final_balance,
+        ),
+        200
+    );
+}
+
+/**
+ * Handle stock order status polling from Stock Ordering page (artly/v1/stock-order-status).
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function nehtw_gateway_rest_stock_order_status( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response( array( 'message' => 'Unauthorized' ), 401 );
+    }
+
+    $user_id   = get_current_user_id();
+    $order_ids = $request->get_param( 'order_ids' );
+
+    if ( ! is_array( $order_ids ) || empty( $order_ids ) ) {
+        return new WP_REST_Response(
+            array(
+                'message' => 'No order IDs provided.',
+                'orders'  => array(),
+            ),
+            200
+        );
+    }
+
+    $order_ids = array_map( 'intval', $order_ids );
+    $order_ids = array_filter( $order_ids );
+
+    if ( empty( $order_ids ) ) {
+        return new WP_REST_Response(
+            array(
+                'message' => 'No valid order IDs.',
+                'orders'  => array(),
+            ),
+            200
+        );
+    }
+
+    global $wpdb;
+
+    $table = nehtw_gateway_get_table_name( 'stock_orders' );
+
+    if ( ! $table ) {
+        return new WP_REST_Response(
+            array(
+                'message' => 'Stock orders table not found.',
+                'orders'  => array(),
+            ),
+            200
+        );
+    }
+
+    // Fetch rows belonging to this user only.
+    $placeholders = implode( ',', array_fill( 0, count( $order_ids ), '%d' ) );
+    $sql          = $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE user_id = %d AND id IN ($placeholders)",
+        array_merge( array( $user_id ), $order_ids )
+    );
+
+    $rows = $wpdb->get_results( $sql, ARRAY_A );
+
+    if ( ! $rows ) {
+        return new WP_REST_Response(
+            array(
+                'message' => 'No orders found.',
+                'orders'  => array(),
+            ),
+            200
+        );
+    }
+
+    // Optional: sync queued/processing orders with Nehtw via internal helper.
+    $orders = array();
+
+    foreach ( $rows as $row ) {
+        $row_id = (int) $row['id'];
+
+        // If status is non-final, attempt sync via internal helper
+        // that talks to Nehtw API and updates local DB.
+        $status = isset( $row['status'] ) ? strtolower( (string) $row['status'] ) : '';
+        if ( in_array( $status, array( 'pending', 'queued', 'processing' ), true ) && function_exists( 'nehtw_gateway_sync_stock_order_status' ) ) {
+            nehtw_gateway_sync_stock_order_status( $row_id );
+        }
+
+        // Re-fetch the row after potential sync.
+        $sql_one = $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE id = %d AND user_id = %d LIMIT 1",
+            $row_id,
+            $user_id
+        );
+        $row2 = $wpdb->get_row( $sql_one, ARRAY_A );
+
+        if ( ! $row2 ) {
+            continue;
+        }
+
+        // Normalize status for frontend
+        $status_normalized = strtolower( (string) $row2['status'] );
+        if ( $status_normalized === 'pending' ) {
+            $status_normalized = 'queued';
+        } elseif ( $status_normalized === 'completed' || $status_normalized === 'complete' || $status_normalized === 'ready' ) {
+            $status_normalized = 'completed';
+        }
+
+        $orders[] = array(
+            'id'           => (int) $row2['id'],
+            'status'       => $status_normalized,
+            'site'         => isset( $row2['site'] ) ? $row2['site'] : '',
+            'remote_id'    => isset( $row2['stock_id'] ) ? $row2['stock_id'] : '',
+            'download_url' => ! empty( $row2['download_link'] ) ? esc_url_raw( $row2['download_link'] ) : '',
+            'updated_at'   => isset( $row2['updated_at'] ) ? $row2['updated_at'] : '',
+        );
+    }
+
+    return new WP_REST_Response(
+        array(
+            'orders' => $orders,
         ),
         200
     );

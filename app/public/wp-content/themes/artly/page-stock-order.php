@@ -136,6 +136,16 @@ $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
               </li>
             <?php endforeach; ?>
           </ul>
+          <div class="stock-order-supported-fade" data-stock-order-supported-fade></div>
+          <?php if ( count( $sites_config ) > 8 ) : ?>
+            <button
+              type="button"
+              class="stock-order-supported-toggle"
+              data-stock-order-supported-toggle
+            >
+              <?php esc_html_e( 'Show all websites', 'artly' ); ?>
+            </button>
+          <?php endif; ?>
           <a class="stock-order-history-link" href="<?php echo esc_url( home_url( '/my-downloads/' ) ); ?>">
             <?php esc_html_e( 'View download history', 'artly' ); ?>
           </a>
