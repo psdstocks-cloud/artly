@@ -25,7 +25,7 @@ class Nehtw_Gateway_Stock_Orders {
      */
     public static function get_user_orders( $user_id, $limit = 10, $offset = 0 ) {
         global $wpdb;
-        
+
         $table   = $wpdb->prefix . 'nehtw_stock_orders';
         $user_id = intval( $user_id );
         $limit   = max( 1, intval( $limit ) );
@@ -52,6 +52,49 @@ class Nehtw_Gateway_Stock_Orders {
         }
 
         return array_map( array( __CLASS__, 'format_order_for_api' ), $results );
+    }
+
+    /**
+     * Find the most recent order for a given user/site/stock combination.
+     *
+     * @param int    $user_id  User ID.
+     * @param string $site     Stock provider site key.
+     * @param string $stock_id Remote stock identifier.
+     *
+     * @return array|null Matching order array or null when not found/invalid.
+     */
+    public static function find_existing_user_order( $user_id, $site, $stock_id ) {
+        global $wpdb;
+
+        $table = nehtw_gateway_get_table_name( 'stock_orders' );
+        if ( ! $table ) {
+            return null;
+        }
+
+        $user_id  = (int) $user_id;
+        $site     = sanitize_key( $site );
+        $stock_id = sanitize_text_field( $stock_id );
+
+        if ( $user_id <= 0 || '' === $site || '' === $stock_id ) {
+            return null;
+        }
+
+        $sql = $wpdb->prepare(
+            "SELECT *
+             FROM {$table}
+             WHERE user_id = %d
+               AND site = %s
+               AND stock_id = %s
+             ORDER BY id DESC
+             LIMIT 1",
+            $user_id,
+            $site,
+            $stock_id
+        );
+
+        $row = $wpdb->get_row( $sql, ARRAY_A );
+
+        return $row ?: null;
     }
 
     /**
