@@ -217,6 +217,12 @@
         const [balance, setBalance] = useState(settings.balance || 0);
         const [lastOrder, setLastOrder] = useState(null);
         const [transactions] = useState(settings.transactions || []);
+        const [orders, setOrders] = useState([]);
+        const [ordersLoading, setOrdersLoading] = useState(false);
+        const [ordersError, setOrdersError] = useState('');
+        const [downloadingTaskId, setDownloadingTaskId] = useState('');
+        const [redownloadError, setRedownloadError] = useState('');
+        const [ordersRefreshToken, setOrdersRefreshToken] = useState(0);
 
         // Auto-clear flash message after a few seconds.
         useEffect(() => {
@@ -224,6 +230,45 @@
             const t = setTimeout(() => setFlash(''), 4000);
             return () => clearTimeout(t);
         }, [flash]);
+
+        useEffect(() => {
+            let isMounted = true;
+
+            const loadOrders = async () => {
+                setOrdersLoading(true);
+                setOrdersError('');
+
+                try {
+                    const response = await apiFetch({
+                        path: '/nehtw/v1/orders?per_page=20',
+                        method: 'GET',
+                    });
+
+                    if (!isMounted) {
+                        return;
+                    }
+
+                    const list = response && Array.isArray(response.data) ? response.data : [];
+                    setOrders(list);
+                } catch (err) {
+                    if (!isMounted) {
+                        return;
+                    }
+                    const msg = (err && err.message) || 'Could not load your downloads. Please try again later.';
+                    setOrdersError(msg);
+                } finally {
+                    if (isMounted) {
+                        setOrdersLoading(false);
+                    }
+                }
+            };
+
+            loadOrders();
+
+            return () => {
+                isMounted = false;
+            };
+        }, [ordersRefreshToken]);
 
         const handleSubmitSingle = async (event) => {
             event.preventDefault();
@@ -273,6 +318,7 @@
                 setFlash(response && response.message
                     ? response.message
                     : 'Order created successfully.');
+                setOrdersRefreshToken((token) => token + 1);
                 setUrl('');
             } catch (err) {
                 const msg = (err && err.message) || 'Unexpected error while calling the Nehtw REST endpoint.';
@@ -292,6 +338,55 @@
         };
 
         const onSubmit = mode === 'single' ? handleSubmitSingle : handleSubmitBatch;
+
+        const handleRedownload = async (order) => {
+            if (!order || !order.task_id || !order.can_redownload_free) {
+                return;
+            }
+
+            setRedownloadError('');
+            setDownloadingTaskId(order.task_id);
+
+            try {
+                const response = await apiFetch({
+                    path: `/nehtw/v1/orders/${encodeURIComponent(order.task_id)}/redownload`,
+                    method: 'POST',
+                });
+
+                if (response && response.order) {
+                    setOrders((prev) => {
+                        if (!Array.isArray(prev)) {
+                            return response.order ? [response.order] : prev;
+                        }
+
+                        const next = prev.slice();
+                        const index = next.findIndex((item) => item && item.task_id === order.task_id);
+
+                        if (index === -1 && response.order) {
+                            return [response.order].concat(next);
+                        }
+
+                        if (index > -1) {
+                            next[index] = response.order;
+                            return next;
+                        }
+
+                        return prev;
+                    });
+                }
+
+                if (response && response.download_link) {
+                    window.location.href = response.download_link;
+                } else {
+                    setRedownloadError('Download link not available yet. Please try again in a moment.');
+                }
+            } catch (err) {
+                const msg = (err && err.message) || 'Failed to refresh the download link. Please try again.';
+                setRedownloadError(msg);
+            } finally {
+                setDownloadingTaskId('');
+            }
+        };
 
         return h(
             'div',
@@ -564,11 +659,101 @@
                     'section',
                     { className: 'nehtw-panel' },
                     h('h3', null, 'Download history'),
-                    h(
-                        'p',
-                        { className: 'nehtw-panel-sub' },
-                        'You don’t have any downloads yet. Once you place orders, they will appear here with free re-downloads.'
-                    )
+                    ordersLoading
+                        ? h(
+                              'p',
+                              { className: 'nehtw-panel-sub' },
+                              'Loading your downloads…'
+                          )
+                        : ordersError
+                        ? h(
+                              'div',
+                              { className: 'nehtw-alert nehtw-alert-error' },
+                              ordersError
+                          )
+                        : orders && orders.length
+                        ? h(
+                              'div',
+                              { className: 'nehtw-orders-list' },
+                              orders.map((order, index) => {
+                                  const key = order.task_id || order.id || `order-${index}`;
+                                  const provider = order.site ? String(order.site).toUpperCase() : 'STOCK';
+                                  const title = order.file_name || order.stock_id || 'Download';
+
+                                  let createdAtLabel = '';
+                                  if (order && order.created_at) {
+                                      const rawDate = typeof order.created_at === 'string'
+                                          ? order.created_at.replace(' ', 'T')
+                                          : order.created_at;
+                                      const parsedDate = new Date(rawDate);
+                                      if (!isNaN(parsedDate.getTime())) {
+                                          createdAtLabel = parsedDate.toLocaleString();
+                                      }
+                                  }
+
+                                  const statusLabel = order.status ? String(order.status) : 'pending';
+                                  const isDownloading = downloadingTaskId === order.task_id;
+                                  const canDownload = !!order.can_redownload_free && !isDownloading;
+                                  const buttonLabel = isDownloading
+                                      ? 'Preparing download…'
+                                      : order.can_redownload_free
+                                      ? 'Download again'
+                                      : 'Unavailable';
+
+                                  return h(
+                                      'div',
+                                      { key, className: 'nehtw-order-card' },
+                                      order.preview_thumb &&
+                                          h(
+                                              'div',
+                                              { className: 'nehtw-order-thumb' },
+                                              h('img', {
+                                                  src: order.preview_thumb,
+                                                  alt: title,
+                                                  loading: 'lazy',
+                                              })
+                                          ),
+                                      h(
+                                          'div',
+                                          { className: 'nehtw-order-details' },
+                                          h('div', { className: 'nehtw-order-provider' }, provider),
+                                          h('div', { className: 'nehtw-order-title' }, title),
+                                          createdAtLabel &&
+                                              h(
+                                                  'div',
+                                                  { className: 'nehtw-order-date' },
+                                                  createdAtLabel
+                                              ),
+                                          h('span', { className: 'nehtw-order-status' }, statusLabel)
+                                      ),
+                                      h(
+                                          'div',
+                                          { className: 'nehtw-order-actions' },
+                                          h(
+                                              'button',
+                                              {
+                                                  type: 'button',
+                                                  className: 'nehtw-button-primary nehtw-order-download-button',
+                                                  disabled: !canDownload,
+                                                  onClick: canDownload ? () => handleRedownload(order) : undefined,
+                                              },
+                                              buttonLabel
+                                          )
+                                      )
+                                  );
+                              })
+                          )
+                        : h(
+                              'p',
+                              { className: 'nehtw-panel-sub' },
+                              'You don’t have any downloads yet. Once you place orders, they will appear here with free re-downloads.'
+                          ),
+                    redownloadError &&
+                        h(
+                            'div',
+                            { className: 'nehtw-alert nehtw-alert-error nehtw-orders-inline-error' },
+                            redownloadError
+                        )
                 ),
 
                 // Need help panel
