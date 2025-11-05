@@ -170,6 +170,35 @@ function nehtw_gateway_add_transaction( $user_id, $type, $points, $args = array(
     return $wpdb->insert_id;
 }
 
+/**
+ * Get the current wallet points balance for a specific user.
+ *
+ * @param int $user_id
+ * @return float
+ */
+function nehtw_gateway_get_user_points_balance( $user_id ) {
+    global $wpdb;
+
+    $user_id = intval( $user_id );
+    if ( $user_id <= 0 ) {
+        return 0;
+    }
+
+    $table = nehtw_gateway_get_table_name( 'wallet_transactions' );
+    if ( ! $table ) {
+        return 0;
+    }
+
+    $sql = $wpdb->prepare(
+        "SELECT COALESCE(SUM(points), 0) FROM {$table} WHERE user_id = %d",
+        $user_id
+    );
+
+    $total = $wpdb->get_var( $sql );
+
+    return floatval( $total );
+}
+
 function nehtw_gateway_get_balance( $user_id ) {
     global $wpdb;
     $table   = nehtw_gateway_get_table_name( 'wallet_transactions' );
@@ -789,6 +818,163 @@ function nehtw_gateway_register_admin_menu() {
     );
 }
 add_action( 'admin_menu', 'nehtw_gateway_register_admin_menu' );
+
+/**
+ * Register the User Points submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_user_points_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'User Points', 'nehtw-gateway' ),
+        __( 'User Points', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-user-points',
+        'nehtw_gateway_render_user_points_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_user_points_submenu' );
+
+/**
+ * Render the User Points admin page.
+ */
+function nehtw_gateway_render_user_points_page() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
+    }
+
+    $success_message = '';
+    $error_message   = '';
+
+    if ( 'POST' === $_SERVER['REQUEST_METHOD'] && isset( $_POST['nehtw_gateway_action'] ) ) {
+        $action = sanitize_key( wp_unslash( $_POST['nehtw_gateway_action'] ) );
+
+        if ( 'adjust_points' === $action ) {
+            check_admin_referer( 'nehtw_gateway_adjust_points', 'nehtw_gateway_nonce' );
+
+            $user_id = isset( $_POST['user_id'] ) ? intval( wp_unslash( $_POST['user_id'] ) ) : 0;
+            $amount  = isset( $_POST['amount'] ) ? floatval( wp_unslash( $_POST['amount'] ) ) : 0;
+            $note    = isset( $_POST['note'] ) ? sanitize_text_field( wp_unslash( $_POST['note'] ) ) : '';
+
+            if ( $user_id <= 0 || 0 == $amount ) {
+                $error_message = __( 'Please provide a valid user and amount.', 'nehtw-gateway' );
+            } else {
+                $meta = array(
+                    'source' => 'admin_manual_adjustment',
+                    'note'   => $note,
+                );
+
+                $inserted = nehtw_gateway_add_transaction(
+                    $user_id,
+                    'admin_manual_adjust',
+                    $amount,
+                    array(
+                        'meta' => $meta,
+                    )
+                );
+
+                if ( $inserted ) {
+                    $success_message = __( 'Points updated for user.', 'nehtw-gateway' );
+                } else {
+                    $error_message = __( 'Unable to update points for user.', 'nehtw-gateway' );
+                }
+            }
+        }
+    }
+
+    $paged    = isset( $_GET['paged'] ) ? max( 1, intval( wp_unslash( $_GET['paged'] ) ) ) : 1;
+    $per_page = 20;
+
+    $users = get_users(
+        array(
+            'number' => $per_page,
+            'paged'  => $paged,
+        )
+    );
+
+    $total_users_data = count_users();
+    $total_users      = isset( $total_users_data['total_users'] ) ? intval( $total_users_data['total_users'] ) : 0;
+    $total_pages      = $total_users > 0 ? (int) ceil( $total_users / $per_page ) : 1;
+    $base_url = menu_page_url( 'nehtw-gateway-user-points', false );
+    if ( ! $base_url ) {
+        $base_url = add_query_arg(
+            array( 'page' => 'nehtw-gateway-user-points' ),
+            admin_url( 'admin.php' )
+        );
+    }
+
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'User Points', 'nehtw-gateway' ); ?></h1>
+
+        <?php if ( $success_message ) : ?>
+            <div class="notice notice-success is-dismissible"><p><?php echo esc_html( $success_message ); ?></p></div>
+        <?php endif; ?>
+
+        <?php if ( $error_message ) : ?>
+            <div class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ); ?></p></div>
+        <?php endif; ?>
+
+        <table class="widefat striped">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Name', 'nehtw-gateway' ); ?></th>
+                    <th><?php esc_html_e( 'Email', 'nehtw-gateway' ); ?></th>
+                    <th><?php esc_html_e( 'Current Points', 'nehtw-gateway' ); ?></th>
+                    <th><?php esc_html_e( 'Adjust Points', 'nehtw-gateway' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ( ! empty( $users ) ) : ?>
+                    <?php foreach ( $users as $user ) : ?>
+                        <?php $balance = nehtw_gateway_get_user_points_balance( $user->ID ); ?>
+                        <tr>
+                            <td><?php echo esc_html( $user->display_name ); ?></td>
+                            <td><?php echo esc_html( $user->user_email ); ?></td>
+                            <td><?php echo esc_html( number_format_i18n( $balance, 2 ) ); ?></td>
+                            <td>
+                                <form method="post" style="display:flex; gap:6px; align-items:center;">
+                                    <?php wp_nonce_field( 'nehtw_gateway_adjust_points', 'nehtw_gateway_nonce' ); ?>
+                                    <input type="hidden" name="nehtw_gateway_action" value="adjust_points" />
+                                    <input type="hidden" name="user_id" value="<?php echo esc_attr( $user->ID ); ?>" />
+                                    <input type="number" step="0.01" name="amount" placeholder="<?php esc_attr_e( 'Amount', 'nehtw-gateway' ); ?>" />
+                                    <input type="text" name="note" placeholder="<?php esc_attr_e( 'Note (optional)', 'nehtw-gateway' ); ?>" />
+                                    <button type="submit" class="button button-small">
+                                        <?php esc_html_e( 'Add / Subtract', 'nehtw-gateway' ); ?>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else : ?>
+                    <tr>
+                        <td colspan="4"><?php esc_html_e( 'No users found.', 'nehtw-gateway' ); ?></td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <?php if ( $total_pages > 1 ) : ?>
+            <div class="tablenav">
+                <div class="tablenav-pages">
+                    <?php if ( $paged > 1 ) : ?>
+                        <?php $prev_url = esc_url( add_query_arg( 'paged', $paged - 1, $base_url ) ); ?>
+                        <a class="button" href="<?php echo $prev_url; ?>">&laquo; <?php esc_html_e( 'Previous', 'nehtw-gateway' ); ?></a>
+                    <?php endif; ?>
+
+                    <span class="pagination-links">
+                        <?php printf( esc_html__( 'Page %1$d of %2$d', 'nehtw-gateway' ), intval( $paged ), intval( $total_pages ) ); ?>
+                    </span>
+
+                    <?php if ( $paged < $total_pages ) : ?>
+                        <?php $next_url = esc_url( add_query_arg( 'paged', $paged + 1, $base_url ) ); ?>
+                        <a class="button" href="<?php echo $next_url; ?>"><?php esc_html_e( 'Next', 'nehtw-gateway' ); ?> &raquo;</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
 
 function nehtw_gateway_enqueue_admin_assets( $hook_suffix ) {
     if ( 'toplevel_page_nehtw-gateway' !== $hook_suffix ) return;
