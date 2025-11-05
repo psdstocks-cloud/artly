@@ -315,9 +315,13 @@
                     api: response,
                 });
 
-                setFlash(response && response.message
-                    ? response.message
-                    : 'Order created successfully.');
+                if (response && response.already_owned) {
+                    setFlash('You downloaded this before — here’s your fresh link (no points deducted).');
+                } else {
+                    setFlash(response && response.message
+                        ? response.message
+                        : 'Order created successfully.');
+                }
                 setOrdersRefreshToken((token) => token + 1);
                 setUrl('');
             } catch (err) {
@@ -650,6 +654,12 @@
                                     null,
                                     'Task ID: ',
                                     h('code', null, lastOrder.api.task_id)
+                                ),
+                            lastOrder.api && lastOrder.api.already_owned &&
+                                h(
+                                    'p',
+                                    { className: 'nehtw-badge-owned' },
+                                    'Already purchased — free re-download'
                                 )
                         )
                 ),

@@ -486,6 +486,23 @@ function nehtw_gateway_rest_stock_order( WP_REST_Request $request ) {
         return new WP_Error( 'nehtw_missing_params', __( 'Both "site" and "stock_id" are required.', 'nehtw-gateway' ), array( 'status' => 400 ) );
     }
 
+    $existing_order = Nehtw_Gateway_Stock_Orders::find_existing_user_order( $user_id, $site, $stock_id );
+    if ( $existing_order && ! empty( $existing_order['download_link'] ) ) {
+        $balance = nehtw_gateway_get_balance( $user_id );
+
+        return array(
+            'success'        => true,
+            'task_id'        => isset( $existing_order['task_id'] ) ? $existing_order['task_id'] : '',
+            'order_id'       => isset( $existing_order['id'] ) ? (int) $existing_order['id'] : 0,
+            'new_balance'    => $balance,
+            'already_owned'  => true,
+            'download_link'  => $existing_order['download_link'],
+            'status'         => isset( $existing_order['status'] ) ? $existing_order['status'] : '',
+            'site'           => isset( $existing_order['site'] ) ? $existing_order['site'] : '',
+            'stock_id'       => isset( $existing_order['stock_id'] ) ? $existing_order['stock_id'] : '',
+        );
+    }
+
     $balance = nehtw_gateway_get_balance( $user_id );
     if ( $cost_points > 0 && $balance < $cost_points ) {
         return new WP_Error(
