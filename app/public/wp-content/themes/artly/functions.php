@@ -35,6 +35,14 @@ function artly_enqueue_assets() {
         wp_get_theme()->get( 'Version' )
     );
 
+    // Global layout styling for header and footer.
+    wp_enqueue_style(
+        'artly-layout',
+        get_template_directory_uri() . '/assets/css/layout.css',
+        array( 'artly-style' ),
+        wp_get_theme()->get( 'Version' )
+    );
+
     // Only load the pricing assets on the Pricing page (slug: pricing)
     if ( is_page( 'pricing' ) ) {
 
@@ -95,6 +103,15 @@ function artly_enqueue_assets() {
             'woocommerceActive' => class_exists( 'WooCommerce' ),
         ) );
     }
+
+    // Header script for mobile navigation toggle.
+    wp_enqueue_script(
+        'artly-header',
+        get_template_directory_uri() . '/assets/js/header.js',
+        array(),
+        wp_get_theme()->get( 'Version' ),
+        true
+    );
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 

@@ -1,0 +1,378 @@
+/* === Global Layout for Artly (Header + Footer) === */
+
+:root {
+  --artly-header-bg: radial-gradient(circle at top left, rgba(15, 23, 42, 0.98) 0, rgba(15, 23, 42, 0.92) 40%, rgba(15, 23, 42, 0.88) 100%);
+  --artly-footer-bg: radial-gradient(circle at 0 0, #020617 0, #020617 40%, #000000 100%);
+  --artly-surface: rgba(15, 23, 42, 0.95);
+  --artly-border-soft: rgba(148, 163, 184, 0.28);
+  --artly-text-main: #e5edff;
+  --artly-text-muted: rgba(148, 163, 184, 0.9);
+  --artly-accent-primary-start: #06f5e8;
+  --artly-accent-primary-end: #16a3ff;
+  --artly-accent-secondary-start: #fb923c;
+  --artly-accent-secondary-end: #fb7185;
+}
+
+/* Optional: let specific pages override background but keep header overlaid nicely */
+.artly-page-shell {
+  min-height: 100vh;
+}
+
+/* === HEADER === */
+
+.artly-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(
+    to bottom,
+    rgba(15, 23, 42, 0.96),
+    rgba(15, 23, 42, 0.9)
+  );
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--artly-border-soft);
+}
+
+.artly-header-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+/* Logo / brand */
+
+.artly-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--artly-text-main);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.artly-header-logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 140deg,
+    var(--artly-accent-primary-start),
+    var(--artly-accent-primary-end),
+    var(--artly-accent-secondary-start),
+    var(--artly-accent-secondary-end),
+    var(--artly-accent-primary-start)
+  );
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9),
+    0 10px 24px rgba(15, 23, 42, 0.7);
+}
+
+/* Nav area */
+
+.artly-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 1.25rem;
+}
+
+/* WordPress nav menu */
+
+.artly-header-nav {
+  flex: 1;
+}
+
+.artly-header-menu {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.artly-header-menu li a {
+  text-decoration: none;
+  font-size: 0.9rem;
+  color: var(--artly-text-muted);
+  padding: 0.3rem 0;
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.artly-header-menu li a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -0.2rem;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(
+    135deg,
+    var(--artly-accent-primary-start),
+    var(--artly-accent-primary-end)
+  );
+  border-radius: 999px;
+  transition: width 0.16s ease;
+}
+
+.artly-header-menu li a:hover {
+  color: var(--artly-text-main);
+}
+
+.artly-header-menu li a:hover::after {
+  width: 100%;
+}
+
+/* CTA area on right */
+
+.artly-header-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.artly-header-link {
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--artly-text-muted);
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.artly-header-link:hover {
+  color: var(--artly-text-main);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.artly-header-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.3rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  background: linear-gradient(
+    135deg,
+    var(--artly-accent-primary-start),
+    var(--artly-accent-primary-end)
+  );
+  color: #031019;
+  box-shadow: 0 12px 30px rgba(15, 159, 240, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.artly-header-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 38px rgba(15, 159, 240, 0.45);
+  filter: brightness(1.05);
+}
+
+/* Ghost-style button for “Log out” etc. */
+
+.artly-header-button--ghost {
+  background: transparent;
+  border: 1px solid var(--artly-border-soft);
+  color: var(--artly-text-main);
+  box-shadow: none;
+}
+
+.artly-header-button--ghost:hover {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+/* Mobile nav toggle */
+
+.artly-header-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  padding: 0.35rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.artly-header-toggle span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--artly-text-main);
+  margin: 3px 0;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .artly-header-inner {
+    padding-inline: 1.1rem;
+  }
+
+  .artly-header-main {
+    gap: 0.85rem;
+  }
+
+  .artly-header-nav {
+    position: fixed;
+    inset: 3.5rem 1rem auto 1rem;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid var(--artly-border-soft);
+    padding: 0.9rem 1rem;
+    transform-origin: top;
+    transform: scaleY(0.9);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  .artly-header-menu {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .artly-header-cta {
+    display: none;
+  }
+
+  .artly-header-toggle {
+    display: inline-flex;
+  }
+
+  .artly-site-header.is-open .artly-header-nav {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scaleY(1);
+  }
+}
+
+/* === FOOTER === */
+
+.artly-site-footer {
+  background: var(--artly-footer-bg);
+  border-top: 1px solid rgba(15, 23, 42, 1);
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+  color: var(--artly-text-main);
+}
+
+.artly-footer-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 2.5rem;
+}
+
+.artly-footer-brand-title {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.artly-footer-brand-text {
+  font-size: 0.9rem;
+  color: var(--artly-text-muted);
+  max-width: 320px;
+}
+
+.artly-footer-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.8rem;
+  font-size: 0.9rem;
+}
+
+.artly-footer-links h4 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  margin-bottom: 0.6rem;
+  color: var(--artly-text-muted);
+}
+
+.artly-footer-links ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.artly-footer-links li + li {
+  margin-top: 0.3rem;
+}
+
+.artly-footer-links a {
+  text-decoration: none;
+  color: var(--artly-text-main);
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.artly-footer-links a:hover {
+  opacity: 1;
+}
+
+/* Bottom bar */
+
+.artly-footer-bottom {
+  max-width: 1140px;
+  margin: 2rem auto 0;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.9);
+  padding-top: 1.4rem;
+  font-size: 0.8rem;
+  color: var(--artly-text-muted);
+}
+
+.artly-footer-bottom-links {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.artly-footer-bottom-links a {
+  text-decoration: none;
+  color: var(--artly-text-muted);
+  transition: color 0.15s ease;
+}
+
+.artly-footer-bottom-links a:hover {
+  color: var(--artly-text-main);
+}
+
+/* Responsive footer */
+
+@media (max-width: 800px) {
+  .artly-footer-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .artly-footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .artly-footer-bottom {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+}
