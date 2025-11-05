@@ -161,12 +161,17 @@ if ( is_array( $stock_orders_source ) ) {
               <div class="dashboard-profile-meta">
                 <?php echo esc_html( $email ); ?>
               </div>
-              <?php if ( ! empty( $nehtw_username ) ) : ?>
+              <?php
+              $registered = $current_user && ! empty( $current_user->user_registered )
+                  ? strtotime( $current_user->user_registered )
+                  : 0;
+              ?>
+              <?php if ( $registered ) : ?>
                 <div class="dashboard-profile-meta">
                   <?php
                   printf(
-                      esc_html__( 'Nehtw: %s', 'artly' ),
-                      esc_html( $nehtw_username )
+                      esc_html__( 'Member since %s', 'artly' ),
+                      esc_html( date_i18n( get_option( 'date_format' ), $registered ) )
                   );
                   ?>
                 </div>
@@ -188,24 +193,14 @@ if ( is_array( $stock_orders_source ) ) {
           </div>
           <div class="dashboard-wallet-compare">
             <span class="dashboard-chip">
-              <?php esc_html_e( 'Local wallet', 'artly' ); ?>
+              <?php esc_html_e( 'Artly wallet', 'artly' ); ?>
             </span>
-            <?php if ( null !== $nehtw_balance ) : ?>
-              <span class="dashboard-chip">
-                <?php
-                printf(
-                    esc_html__( 'Nehtw: %s pts', 'artly' ),
-                    esc_html( number_format_i18n( $nehtw_balance, 2 ) )
-                );
-                ?>
-              </span>
-            <?php endif; ?>
           </div>
           <p class="dashboard-card-text">
             <?php esc_html_e( 'Use your points to download stock files and generate AI images from your dashboard.', 'artly' ); ?>
           </p>
           <div class="dashboard-actions">
-            <a class="dashboard-btn-primary" href="<?php echo esc_url( home_url( '/pricing/' ) ); ?>">
+            <a class="dashboard-btn-primary" href="#" data-artly-open-modal="wallet-topup">
               <?php esc_html_e( 'Add points', 'artly' ); ?>
             </a>
             <a class="dashboard-btn-secondary" href="<?php echo esc_url( home_url( '/my-points/' ) ); ?>">
@@ -314,4 +309,5 @@ if ( is_array( $stock_orders_source ) ) {
 </main>
 
 <?php
+get_template_part( 'parts/modal', 'wallet-topup' );
 get_footer();

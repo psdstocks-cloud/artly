@@ -20,6 +20,8 @@ define( 'NEHTW_GATEWAY_API_KEY', 'A8K9bV5s2OX12E8cmS4I96mtmSNzv7' );
 
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscriptions.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-wallet-topups.php';
 
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
@@ -35,6 +37,7 @@ function nehtw_gateway_activate() {
     $table_stock       = $wpdb->prefix . 'nehtw_stock_orders';
     $table_ai          = $wpdb->prefix . 'nehtw_ai_jobs';
     $table_stock_sites = $wpdb->prefix . 'nehtw_stock_sites';
+    $table_subscriptions = $wpdb->prefix . 'nehtw_subscriptions';
 
     $sql_wallet = "CREATE TABLE {$table_wallet} (
         id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -109,10 +112,29 @@ function nehtw_gateway_activate() {
         KEY active (active)
     ) {$charset_collate};";
 
+    $sql_subscriptions = "CREATE TABLE {$table_subscriptions} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        plan_key VARCHAR(64) NOT NULL,
+        points_per_interval FLOAT NOT NULL DEFAULT 0,
+        `interval` VARCHAR(32) NOT NULL DEFAULT 'month',
+        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        next_renewal_at DATETIME NOT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        meta LONGTEXT NULL,
+        PRIMARY KEY  (id),
+        KEY user_id (user_id),
+        KEY status (status),
+        KEY plan_key (plan_key),
+        KEY next_renewal_at (next_renewal_at)
+    ) {$charset_collate};";
+
     dbDelta( $sql_wallet );
     dbDelta( $sql_stock );
     dbDelta( $sql_ai );
     dbDelta( $sql_stock_sites );
+    dbDelta( $sql_subscriptions );
 }
 register_activation_hook( NEHTW_GATEWAY_PLUGIN_FILE, 'nehtw_gateway_activate' );
 
@@ -123,6 +145,7 @@ function nehtw_gateway_get_table_name( $alias ) {
         'stock_orders'        => $wpdb->prefix . 'nehtw_stock_orders',
         'ai_jobs'             => $wpdb->prefix . 'nehtw_ai_jobs',
         'stock_sites'         => $wpdb->prefix . 'nehtw_stock_sites',
+        'subscriptions'        => $wpdb->prefix . 'nehtw_subscriptions',
     );
     return isset( $map[ $alias ] ) ? $map[ $alias ] : '';
 }
@@ -229,6 +252,133 @@ function nehtw_gateway_get_transactions( $user_id, $limit = 20, $offset = 0 ) {
     );
     $rows = $wpdb->get_results( $sql, ARRAY_A );
     return is_array( $rows ) ? $rows : array();
+}
+
+/**
+ * Get the wallet transactions table name.
+ *
+ * This reuses the existing helper function.
+ */
+function nehtw_gateway_get_wallet_transactions_table() {
+    return nehtw_gateway_get_table_name( 'wallet_transactions' );
+}
+
+/**
+ * Fetch paginated wallet transactions for a user.
+ *
+ * @param int    $user_id
+ * @param int    $page     1-based page
+ * @param int    $per_page items per page
+ * @param string $type     'all'|'stock'|'ai'|'admin'|'other'
+ *
+ * @return array {
+ *   'items'       => array<array>,
+ *   'total'       => int,
+ *   'total_pages' => int,
+ * }
+ */
+function nehtw_gateway_get_user_transactions( $user_id, $page = 1, $per_page = 20, $type = 'all' ) {
+    global $wpdb;
+
+    $user_id  = intval( $user_id );
+    $page     = max( 1, intval( $page ) );
+    $per_page = max( 1, intval( $per_page ) );
+
+    if ( $user_id <= 0 ) {
+        return array(
+            'items'       => array(),
+            'total'       => 0,
+            'total_pages' => 1,
+        );
+    }
+
+    $table = nehtw_gateway_get_wallet_transactions_table();
+
+    if ( ! $table ) {
+        return array(
+            'items'       => array(),
+            'total'       => 0,
+            'total_pages' => 1,
+        );
+    }
+
+    $where_clauses = array( 'user_id = %d' );
+    $where_params  = array( $user_id );
+
+    // Optional type filter
+    if ( 'all' !== $type ) {
+        switch ( $type ) {
+            case 'stock':
+                $where_clauses[] = "type LIKE %s";
+                $where_params[]  = 'stock_%';
+                break;
+            case 'ai':
+                $where_clauses[] = "type LIKE %s";
+                $where_params[]  = 'ai_%';
+                break;
+            case 'admin':
+                $where_clauses[] = "type LIKE %s";
+                $where_params[]  = 'admin_%';
+                break;
+            case 'other':
+                $where_clauses[] = "type NOT LIKE %s";
+                $where_clauses[] = "type NOT LIKE %s";
+                $where_clauses[] = "type NOT LIKE %s";
+                $where_params[]  = 'stock_%';
+                $where_params[]  = 'ai_%';
+                $where_params[]  = 'admin_%';
+                break;
+        }
+    }
+
+    $where_sql = 'WHERE ' . implode( ' AND ', $where_clauses );
+
+    // Count total
+    $sql_count = "SELECT COUNT(*) FROM {$table} {$where_sql}";
+    $total     = (int) $wpdb->get_var( $wpdb->prepare( $sql_count, $where_params ) );
+
+    $total_pages = max( 1, (int) ceil( $total / $per_page ) );
+    $offset      = ( $page - 1 ) * $per_page;
+
+    // Fetch items ordered by newest first
+    $sql_items = "SELECT * FROM {$table} {$where_sql} ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d";
+    $query_params = array_merge( $where_params, array( $per_page, $offset ) );
+
+    $rows = $wpdb->get_results( $wpdb->prepare( $sql_items, $query_params ), ARRAY_A );
+
+    // Normalize rows: add direction (credit/debit), parsed meta, etc.
+    $items = array();
+    foreach ( $rows as $row ) {
+        $points = isset( $row['points'] ) ? (float) $row['points'] : 0.0;
+        $meta   = array();
+
+        if ( ! empty( $row['meta'] ) ) {
+            $decoded = json_decode( $row['meta'], true );
+            if ( is_array( $decoded ) ) {
+                $meta = $decoded;
+            }
+        }
+
+        // Convert DATETIME to Unix timestamp
+        $created_at_timestamp = 0;
+        if ( ! empty( $row['created_at'] ) && '0000-00-00 00:00:00' !== $row['created_at'] ) {
+            $created_at_timestamp = strtotime( $row['created_at'] );
+        }
+
+        $items[] = array(
+            'id'         => isset( $row['id'] ) ? (int) $row['id'] : 0,
+            'type'       => isset( $row['type'] ) ? (string) $row['type'] : '',
+            'points'     => $points,
+            'created_at' => $created_at_timestamp,
+            'meta'       => $meta,
+        );
+    }
+
+    return array(
+        'items'       => $items,
+        'total'       => $total,
+        'total_pages' => $total_pages,
+    );
 }
 
 function nehtw_gateway_create_stock_order( $user_id, $site, $stock_id, $source_url, $task_id, $cost_points, $nehtw_cost = null, $status = 'pending', $extra = array() ) {
@@ -594,6 +744,43 @@ function nehtw_gateway_register_rest_routes() {
         'callback'            => 'nehtw_rest_get_download_link',
         'permission_callback' => function () { return is_user_logged_in(); },
     ) );
+
+    register_rest_route( 'nehtw/v1', '/wallet-transactions', array(
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'nehtw_rest_get_wallet_transactions',
+        'permission_callback' => function () { return is_user_logged_in(); },
+        'args'                => array(
+            'page'     => array(
+                'type'              => 'integer',
+                'sanitize_callback' => 'absint',
+                'default'           => 1,
+            ),
+            'per_page' => array(
+                'type'              => 'integer',
+                'sanitize_callback' => 'absint',
+                'default'           => 20,
+            ),
+            'type'     => array(
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default'           => 'all',
+            ),
+        ),
+    ) );
+
+    register_rest_route( 'nehtw/v1', '/wallet-transactions/export', array(
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'nehtw_rest_export_wallet_transactions_csv',
+        'permission_callback' => function () { return is_user_logged_in(); },
+        'args'                => array(
+            'type' => array(
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default'           => 'all',
+            ),
+        ),
+    ) );
+>>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
 }
 add_action( 'rest_api_init', 'nehtw_gateway_register_rest_routes' );
 
@@ -1171,6 +1358,116 @@ function nehtw_rest_get_download_link( WP_REST_Request $request ) {
     );
 }
 
+function nehtw_rest_get_wallet_transactions( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unauthorized', 'nehtw-gateway' ) ),
+            401
+        );
+    }
+
+    $user_id  = get_current_user_id();
+    $page     = (int) $request->get_param( 'page' ) ?: 1;
+    $per_page = (int) $request->get_param( 'per_page' ) ?: 20;
+    $type     = $request->get_param( 'type' ) ?: 'all';
+
+    if ( ! function_exists( 'nehtw_gateway_get_user_transactions' ) ) {
+        return new WP_REST_Response(
+            array( 'items' => array(), 'total' => 0, 'total_pages' => 1 ),
+            200
+        );
+    }
+
+    $data = nehtw_gateway_get_user_transactions( $user_id, $page, $per_page, $type );
+
+    return new WP_REST_Response(
+        array(
+            'items'       => $data['items'],
+            'total'       => $data['total'],
+            'total_pages' => $data['total_pages'],
+        ),
+        200
+    );
+}
+
+function nehtw_rest_export_wallet_transactions_csv( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unauthorized', 'nehtw-gateway' ) ),
+            401
+        );
+    }
+
+    $user_id = get_current_user_id();
+    $type    = $request->get_param( 'type' ) ?: 'all';
+
+    if ( ! function_exists( 'nehtw_gateway_get_user_transactions' ) ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Transactions helper not found', 'nehtw-gateway' ) ),
+            500
+        );
+    }
+
+    // Export *all* user transactions of this type, no pagination.
+    $data  = nehtw_gateway_get_user_transactions( $user_id, 1, PHP_INT_MAX, $type );
+    $items = $data['items'];
+
+    $csv_lines   = array();
+    $csv_lines[] = array( 'ID', 'Type', 'Direction', 'Points', 'Description', 'Created At' );
+
+    foreach ( $items as $item ) {
+        $points    = isset( $item['points'] ) ? (float) $item['points'] : 0.0;
+        $direction = $points >= 0 ? 'credit' : 'debit';
+        $meta      = isset( $item['meta'] ) && is_array( $item['meta'] ) ? $item['meta'] : array();
+        $note      = isset( $meta['note'] ) ? $meta['note'] : '';
+        $source    = isset( $meta['source'] ) ? $meta['source'] : '';
+
+        $desc_parts = array();
+        if ( $note ) {
+            $desc_parts[] = $note;
+        }
+        if ( $source ) {
+            $desc_parts[] = 'source: ' . $source;
+        }
+        $description = implode( ' | ', $desc_parts );
+
+        $created_at = isset( $item['created_at'] ) ? (int) $item['created_at'] : 0;
+        $date_str   = $created_at
+            ? date_i18n( 'Y-m-d H:i:s', $created_at )
+            : '';
+
+        $csv_lines[] = array(
+            $item['id'] ?? '',
+            $item['type'] ?? '',
+            $direction,
+            $points,
+            $description,
+            $date_str,
+        );
+    }
+
+    // Build CSV string
+    $fh = fopen( 'php://temp', 'w+' );
+    foreach ( $csv_lines as $row ) {
+        fputcsv( $fh, $row );
+    }
+    rewind( $fh );
+    $csv = stream_get_contents( $fh );
+    fclose( $fh );
+
+    $filename = 'artly-wallet-transactions-' . date_i18n( 'Y-m-d' ) . '.csv';
+
+    return new WP_REST_Response(
+        $csv,
+        200,
+        array(
+            'Content-Type'        => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        )
+    );
+}
+
+>>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
 function nehtw_gateway_register_admin_menu() {
     add_menu_page(
         __( 'Nehtw Gateway', 'nehtw-gateway' ),
@@ -1200,6 +1497,52 @@ function nehtw_gateway_register_user_points_submenu() {
 add_action( 'admin_menu', 'nehtw_gateway_register_user_points_submenu' );
 
 /**
+ * Register the Subscription Plans submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_subscription_plans_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'Subscription Plans', 'nehtw-gateway' ),
+        __( 'Subscription Plans', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-subscriptions',
+        'nehtw_gateway_render_subscription_plans_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_subscription_plans_submenu' );
+
+/**
+ * Register the User Subscriptions submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_user_subscriptions_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'User Subscriptions', 'nehtw-gateway' ),
+        __( 'User Subscriptions', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-user-subscriptions',
+        'nehtw_gateway_render_user_subscriptions_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_user_subscriptions_submenu' );
+
+/**
+ * Register the Wallet Top-ups submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_wallet_topups_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'Wallet Top-ups', 'nehtw-gateway' ),
+        __( 'Wallet Top-ups', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-wallet-topups',
+        'nehtw_gateway_render_wallet_topups_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_wallet_topups_submenu' );
+
+/**
+>>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
  * Render the User Points admin page.
  */
 function nehtw_gateway_render_user_points_page() {
@@ -1341,6 +1684,651 @@ function nehtw_gateway_render_user_points_page() {
     <?php
 }
 
+/**
+ * Render the Subscription Plans admin page.
+ */
+function nehtw_gateway_render_subscription_plans_page() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
+    }
+
+    $success_message = '';
+    $error_message   = '';
+
+    if ( 'POST' === $_SERVER['REQUEST_METHOD'] && isset( $_POST['nehtw_gateway_action'] ) ) {
+        $action = sanitize_key( wp_unslash( $_POST['nehtw_gateway_action'] ) );
+
+        if ( 'save_plan' === $action ) {
+            check_admin_referer( 'nehtw_gateway_save_plan', 'nehtw_gateway_nonce' );
+
+            $key        = isset( $_POST['plan_key'] ) ? sanitize_key( wp_unslash( $_POST['plan_key'] ) ) : '';
+            $name       = isset( $_POST['plan_name'] ) ? sanitize_text_field( wp_unslash( $_POST['plan_name'] ) ) : '';
+            $points     = isset( $_POST['plan_points'] ) ? floatval( wp_unslash( $_POST['plan_points'] ) ) : 0;
+            $price      = isset( $_POST['plan_price'] ) ? sanitize_text_field( wp_unslash( $_POST['plan_price'] ) ) : '';
+            $desc       = isset( $_POST['plan_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['plan_description'] ) ) : '';
+            $highlight  = isset( $_POST['plan_highlight'] ) ? true : false;
+            $product_id = isset( $_POST['plan_product_id'] ) ? intval( wp_unslash( $_POST['plan_product_id'] ) ) : 0;
+
+            if ( empty( $key ) || empty( $name ) || $points <= 0 ) {
+                $error_message = __( 'Please provide key, name, and points.', 'nehtw-gateway' );
+            } else {
+                $plans = nehtw_gateway_get_subscription_plans();
+                $plan  = array(
+                    'key'         => $key,
+                    'name'        => $name,
+                    'points'      => $points,
+                    'price_label' => $price,
+                    'description' => $desc,
+                    'highlight'   => $highlight,
+                    'product_id'  => $product_id > 0 ? $product_id : null,
+                );
+
+                // Update or add
+                $found = false;
+                foreach ( $plans as &$existing_plan ) {
+                    if ( isset( $existing_plan['key'] ) && $existing_plan['key'] === $key ) {
+                        $existing_plan = $plan;
+                        $found         = true;
+                        break;
+                    }
+                }
+
+                if ( ! $found ) {
+                    $plans[] = $plan;
+                }
+
+                nehtw_gateway_save_subscription_plans( $plans );
+                $success_message = __( 'Plan saved successfully.', 'nehtw-gateway' );
+            }
+        } elseif ( 'delete_plan' === $action ) {
+            check_admin_referer( 'nehtw_gateway_delete_plan', 'nehtw_gateway_nonce' );
+
+            $key = isset( $_POST['plan_key'] ) ? sanitize_key( wp_unslash( $_POST['plan_key'] ) ) : '';
+
+            if ( ! empty( $key ) ) {
+                $plans = nehtw_gateway_get_subscription_plans();
+                $plans = array_filter(
+                    $plans,
+                    function( $plan ) use ( $key ) {
+                        return ! isset( $plan['key'] ) || $plan['key'] !== $key;
+                    }
+                );
+                nehtw_gateway_save_subscription_plans( array_values( $plans ) );
+                $success_message = __( 'Plan deleted successfully.', 'nehtw-gateway' );
+            }
+        }
+    }
+
+    $plans = nehtw_gateway_get_subscription_plans();
+
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Subscription Plans', 'nehtw-gateway' ); ?></h1>
+
+        <?php if ( $success_message ) : ?>
+            <div class="notice notice-success is-dismissible"><p><?php echo esc_html( $success_message ); ?></p></div>
+        <?php endif; ?>
+
+        <?php if ( $error_message ) : ?>
+            <div class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ); ?></p></div>
+        <?php endif; ?>
+
+        <h2><?php esc_html_e( 'Add / Edit Plan', 'nehtw-gateway' ); ?></h2>
+        <form method="post" style="max-width: 600px;">
+            <?php wp_nonce_field( 'nehtw_gateway_save_plan', 'nehtw_gateway_nonce' ); ?>
+            <input type="hidden" name="nehtw_gateway_action" value="save_plan" />
+            <?php
+            // Get plan to edit if editing (check for plan_key in URL or form)
+            $editing_plan = null;
+            $edit_key     = isset( $_GET['edit'] ) ? sanitize_key( wp_unslash( $_GET['edit'] ) ) : '';
+            if ( $edit_key ) {
+                foreach ( $plans as $p ) {
+                    if ( isset( $p['key'] ) && $p['key'] === $edit_key ) {
+                        $editing_plan = $p;
+                        break;
+                    }
+                }
+            }
+            ?>
+            <table class="form-table">
+                <tr>
+                    <th><label for="plan_key"><?php esc_html_e( 'Plan Key', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="text" id="plan_key" name="plan_key" required class="regular-text" placeholder="starter_100" value="<?php echo $editing_plan ? esc_attr( $editing_plan['key'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="plan_name"><?php esc_html_e( 'Plan Name', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="text" id="plan_name" name="plan_name" required class="regular-text" placeholder="Starter 100" value="<?php echo $editing_plan ? esc_attr( $editing_plan['name'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="plan_points"><?php esc_html_e( 'Points per Month', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="number" id="plan_points" name="plan_points" required step="0.01" min="0" class="regular-text" placeholder="100" value="<?php echo $editing_plan ? esc_attr( $editing_plan['points'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="plan_price"><?php esc_html_e( 'Price Label', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="text" id="plan_price" name="plan_price" class="regular-text" placeholder="EGP 99 / month" value="<?php echo $editing_plan ? esc_attr( $editing_plan['price_label'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="plan_description"><?php esc_html_e( 'Description', 'nehtw-gateway' ); ?></label></th>
+                    <td><textarea id="plan_description" name="plan_description" class="large-text" rows="3"><?php echo $editing_plan ? esc_textarea( $editing_plan['description'] ) : ''; ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="plan_highlight"><?php esc_html_e( 'Highlight', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="checkbox" id="plan_highlight" name="plan_highlight" <?php echo $editing_plan && ! empty( $editing_plan['highlight'] ) ? 'checked' : ''; ?> /></td>
+                </tr>
+                <?php if ( class_exists( 'WooCommerce' ) ) : ?>
+                <tr>
+                    <th><label for="plan_product_id"><?php esc_html_e( 'WooCommerce Product', 'nehtw-gateway' ); ?></label></th>
+                    <td>
+                        <select id="plan_product_id" name="plan_product_id" class="regular-text">
+                            <option value="0"><?php esc_html_e( '— None —', 'nehtw-gateway' ); ?></option>
+                            <?php
+                            $args = array(
+                                'post_type'      => 'product',
+                                'post_status'    => 'publish',
+                                'posts_per_page' => -1,
+                                'orderby'        => 'title',
+                                'order'          => 'ASC',
+                            );
+                            $products = get_posts( $args );
+                            $editing_product_id = $editing_plan && isset( $editing_plan['product_id'] ) ? (int) $editing_plan['product_id'] : 0;
+                            foreach ( $products as $product ) :
+                                $selected = $editing_product_id === $product->ID ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo esc_attr( $product->ID ); ?>" <?php echo $selected; ?>>
+                                    <?php echo esc_html( $product->post_title ); ?> (ID: <?php echo esc_html( $product->ID ); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'Select the WooCommerce product that customers will purchase to subscribe to this plan.', 'nehtw-gateway' ); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+            </table>
+            <p class="submit">
+                <button type="submit" class="button button-primary"><?php esc_html_e( 'Save Plan', 'nehtw-gateway' ); ?></button>
+            </p>
+        </form>
+
+        <h2><?php esc_html_e( 'Existing Plans', 'nehtw-gateway' ); ?></h2>
+        <?php if ( ! empty( $plans ) ) : ?>
+            <table class="widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'Key', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Name', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Points', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Price', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'WooCommerce Product', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Highlight', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Actions', 'nehtw-gateway' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $plans as $plan ) : ?>
+                        <tr>
+                            <td><?php echo esc_html( isset( $plan['key'] ) ? $plan['key'] : '' ); ?></td>
+                            <td><?php echo esc_html( isset( $plan['name'] ) ? $plan['name'] : '' ); ?></td>
+                            <td><?php echo esc_html( isset( $plan['points'] ) ? number_format_i18n( $plan['points'], 0 ) : '0' ); ?></td>
+                            <td><?php echo esc_html( isset( $plan['price_label'] ) ? $plan['price_label'] : '' ); ?></td>
+                            <td>
+                                <?php
+                                $product_id = isset( $plan['product_id'] ) ? (int) $plan['product_id'] : 0;
+                                if ( $product_id > 0 ) {
+                                    $product = get_post( $product_id );
+                                    if ( $product ) {
+                                        echo esc_html( $product->post_title );
+                                        echo ' (ID: ' . esc_html( $product_id ) . ')';
+                                    } else {
+                                        echo esc_html__( 'Product not found', 'nehtw-gateway' );
+                                    }
+                                } else {
+                                    echo '—';
+                                }
+                                ?>
+                            </td>
+                            <td><?php echo ! empty( $plan['highlight'] ) ? esc_html__( 'Yes', 'nehtw-gateway' ) : esc_html__( 'No', 'nehtw-gateway' ); ?></td>
+                            <td>
+                                <form method="post" style="display:inline;">
+                                    <?php wp_nonce_field( 'nehtw_gateway_delete_plan', 'nehtw_gateway_nonce' ); ?>
+                                    <input type="hidden" name="nehtw_gateway_action" value="delete_plan" />
+                                    <input type="hidden" name="plan_key" value="<?php echo esc_attr( isset( $plan['key'] ) ? $plan['key'] : '' ); ?>" />
+                                    <button type="submit" class="button button-small" onclick="return confirm('<?php esc_attr_e( 'Are you sure?', 'nehtw-gateway' ); ?>');"><?php esc_html_e( 'Delete', 'nehtw-gateway' ); ?></button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else : ?>
+            <p><?php esc_html_e( 'No plans defined yet.', 'nehtw-gateway' ); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
+/**
+ * Render the User Subscriptions admin page.
+ */
+function nehtw_gateway_render_user_subscriptions_page() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
+    }
+
+    $success_message = '';
+    $error_message   = '';
+    $selected_user_id = 0;
+    $selected_user   = null;
+
+    // Handle user search
+    if ( isset( $_GET['user_search'] ) ) {
+        $search = sanitize_text_field( wp_unslash( $_GET['user_search'] ) );
+        if ( is_numeric( $search ) ) {
+            $selected_user = get_user_by( 'id', intval( $search ) );
+        } else {
+            $selected_user = get_user_by( 'email', $search );
+            if ( ! $selected_user ) {
+                $selected_user = get_user_by( 'login', $search );
+            }
+        }
+        if ( $selected_user ) {
+            $selected_user_id = $selected_user->ID;
+        }
+    }
+
+    // Handle form submission
+    if ( 'POST' === $_SERVER['REQUEST_METHOD'] && isset( $_POST['nehtw_gateway_action'] ) ) {
+        $action = sanitize_key( wp_unslash( $_POST['nehtw_gateway_action'] ) );
+
+        if ( 'save_subscription' === $action ) {
+            check_admin_referer( 'nehtw_gateway_save_subscription', 'nehtw_gateway_nonce' );
+
+            $user_id             = isset( $_POST['user_id'] ) ? intval( wp_unslash( $_POST['user_id'] ) ) : 0;
+            $plan_key            = isset( $_POST['plan_key'] ) ? sanitize_key( wp_unslash( $_POST['plan_key'] ) ) : '';
+            $points              = isset( $_POST['points_per_interval'] ) ? floatval( wp_unslash( $_POST['points_per_interval'] ) ) : 0;
+            $status              = isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : 'active';
+            $next_renewal        = isset( $_POST['next_renewal_at'] ) ? sanitize_text_field( wp_unslash( $_POST['next_renewal_at'] ) ) : '';
+            $subscription_id     = isset( $_POST['subscription_id'] ) ? intval( wp_unslash( $_POST['subscription_id'] ) ) : 0;
+
+            if ( $user_id <= 0 || empty( $plan_key ) || $points <= 0 ) {
+                $error_message = __( 'Please provide valid user, plan, and points.', 'nehtw-gateway' );
+            } else {
+                if ( empty( $next_renewal ) ) {
+                    $next_renewal = gmdate( 'Y-m-d H:i:s', strtotime( '+1 month' ) );
+                }
+
+                $data = array(
+                    'id'                 => $subscription_id,
+                    'user_id'            => $user_id,
+                    'plan_key'           => $plan_key,
+                    'points_per_interval' => $points,
+                    'interval'           => 'month',
+                    'status'             => $status,
+                    'next_renewal_at'    => $next_renewal,
+                );
+
+                $result = nehtw_gateway_save_subscription( $data );
+
+                if ( $result ) {
+                    $success_message = __( 'Subscription saved successfully.', 'nehtw-gateway' );
+                    $selected_user_id = $user_id;
+                    $selected_user   = get_user_by( 'id', $user_id );
+                } else {
+                    $error_message = __( 'Failed to save subscription.', 'nehtw-gateway' );
+                }
+            }
+        }
+    }
+
+    $plans = nehtw_gateway_get_subscription_plans();
+    $user_subscriptions = array();
+
+    if ( $selected_user_id > 0 ) {
+        $user_subscriptions = nehtw_gateway_get_user_subscriptions( $selected_user_id );
+    }
+
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'User Subscriptions', 'nehtw-gateway' ); ?></h1>
+
+        <?php if ( $success_message ) : ?>
+            <div class="notice notice-success is-dismissible"><p><?php echo esc_html( $success_message ); ?></p></div>
+        <?php endif; ?>
+
+        <?php if ( $error_message ) : ?>
+            <div class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ); ?></p></div>
+        <?php endif; ?>
+
+        <h2><?php esc_html_e( 'Search User', 'nehtw-gateway' ); ?></h2>
+        <form method="get" style="margin-bottom: 20px;">
+            <input type="hidden" name="page" value="nehtw-gateway-user-subscriptions" />
+            <input type="text" name="user_search" placeholder="<?php esc_attr_e( 'User ID, email, or username', 'nehtw-gateway' ); ?>" value="<?php echo isset( $_GET['user_search'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['user_search'] ) ) ) : ''; ?>" />
+            <button type="submit" class="button"><?php esc_html_e( 'Search', 'nehtw-gateway' ); ?></button>
+        </form>
+
+        <?php if ( $selected_user ) : ?>
+            <h2><?php printf( esc_html__( 'Subscriptions for: %s (ID: %d)', 'nehtw-gateway' ), esc_html( $selected_user->display_name ), esc_html( $selected_user->ID ) ); ?></h2>
+
+            <h3><?php esc_html_e( 'Add / Edit Subscription', 'nehtw-gateway' ); ?></h3>
+            <form method="post" style="max-width: 600px;">
+                <?php wp_nonce_field( 'nehtw_gateway_save_subscription', 'nehtw_gateway_nonce' ); ?>
+                <input type="hidden" name="nehtw_gateway_action" value="save_subscription" />
+                <input type="hidden" name="user_id" value="<?php echo esc_attr( $selected_user_id ); ?>" />
+                <table class="form-table">
+                    <tr>
+                        <th><label for="subscription_id"><?php esc_html_e( 'Edit Subscription ID', 'nehtw-gateway' ); ?></label></th>
+                        <td><input type="number" id="subscription_id" name="subscription_id" min="0" class="regular-text" placeholder="0 = New" /></td>
+                    </tr>
+                    <tr>
+                        <th><label for="plan_key"><?php esc_html_e( 'Plan', 'nehtw-gateway' ); ?></label></th>
+                        <td>
+                            <select id="plan_key" name="plan_key" required class="regular-text">
+                                <option value=""><?php esc_html_e( 'Select a plan', 'nehtw-gateway' ); ?></option>
+                                <?php foreach ( $plans as $plan ) : ?>
+                                    <option value="<?php echo esc_attr( isset( $plan['key'] ) ? $plan['key'] : '' ); ?>" data-points="<?php echo esc_attr( isset( $plan['points'] ) ? $plan['points'] : 0 ); ?>">
+                                        <?php echo esc_html( isset( $plan['name'] ) ? $plan['name'] : '' ); ?> (<?php echo esc_html( isset( $plan['points'] ) ? number_format_i18n( $plan['points'], 0 ) : '0' ); ?> points)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="points_per_interval"><?php esc_html_e( 'Points per Interval', 'nehtw-gateway' ); ?></label></th>
+                        <td><input type="number" id="points_per_interval" name="points_per_interval" required step="0.01" min="0" class="regular-text" /></td>
+                    </tr>
+                    <tr>
+                        <th><label for="status"><?php esc_html_e( 'Status', 'nehtw-gateway' ); ?></label></th>
+                        <td>
+                            <select id="status" name="status" class="regular-text">
+                                <option value="active"><?php esc_html_e( 'Active', 'nehtw-gateway' ); ?></option>
+                                <option value="paused"><?php esc_html_e( 'Paused', 'nehtw-gateway' ); ?></option>
+                                <option value="cancelled"><?php esc_html_e( 'Cancelled', 'nehtw-gateway' ); ?></option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="next_renewal_at"><?php esc_html_e( 'Next Renewal', 'nehtw-gateway' ); ?></label></th>
+                        <td><input type="datetime-local" id="next_renewal_at" name="next_renewal_at" class="regular-text" /></td>
+                    </tr>
+                </table>
+                <p class="submit">
+                    <button type="submit" class="button button-primary"><?php esc_html_e( 'Save Subscription', 'nehtw-gateway' ); ?></button>
+                </p>
+            </form>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var planSelect = document.getElementById('plan_key');
+                    var pointsInput = document.getElementById('points_per_interval');
+                    if (planSelect && pointsInput) {
+                        planSelect.addEventListener('change', function() {
+                            var selected = planSelect.options[planSelect.selectedIndex];
+                            if (selected && selected.dataset.points) {
+                                pointsInput.value = selected.dataset.points;
+                            }
+                        });
+                    }
+                });
+            </script>
+
+            <h3><?php esc_html_e( 'Existing Subscriptions', 'nehtw-gateway' ); ?></h3>
+            <?php if ( ! empty( $user_subscriptions ) ) : ?>
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'ID', 'nehtw-gateway' ); ?></th>
+                            <th><?php esc_html_e( 'Plan', 'nehtw-gateway' ); ?></th>
+                            <th><?php esc_html_e( 'Points', 'nehtw-gateway' ); ?></th>
+                            <th><?php esc_html_e( 'Status', 'nehtw-gateway' ); ?></th>
+                            <th><?php esc_html_e( 'Next Renewal', 'nehtw-gateway' ); ?></th>
+                            <th><?php esc_html_e( 'Created', 'nehtw-gateway' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $user_subscriptions as $sub ) : ?>
+                            <tr>
+                                <td><?php echo esc_html( isset( $sub['id'] ) ? $sub['id'] : '' ); ?></td>
+                                <td><?php echo esc_html( isset( $sub['plan_key'] ) ? $sub['plan_key'] : '' ); ?></td>
+                                <td><?php echo esc_html( isset( $sub['points_per_interval'] ) ? number_format_i18n( $sub['points_per_interval'], 2 ) : '0' ); ?></td>
+                                <td><?php echo esc_html( isset( $sub['status'] ) ? $sub['status'] : '' ); ?></td>
+                                <td><?php echo esc_html( isset( $sub['next_renewal_at'] ) ? $sub['next_renewal_at'] : '' ); ?></td>
+                                <td><?php echo esc_html( isset( $sub['created_at'] ) ? $sub['created_at'] : '' ); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p><?php esc_html_e( 'No subscriptions found for this user.', 'nehtw-gateway' ); ?></p>
+            <?php endif; ?>
+        <?php else : ?>
+            <p><?php esc_html_e( 'Search for a user above to manage their subscriptions.', 'nehtw-gateway' ); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
+/**
+ * Render the Wallet Top-ups admin page.
+ */
+function nehtw_gateway_render_wallet_topups_page() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
+    }
+
+    $success_message = '';
+    $error_message   = '';
+
+    if ( 'POST' === $_SERVER['REQUEST_METHOD'] && isset( $_POST['nehtw_gateway_action'] ) ) {
+        $action = sanitize_key( wp_unslash( $_POST['nehtw_gateway_action'] ) );
+
+        if ( 'save_pack' === $action ) {
+            check_admin_referer( 'nehtw_gateway_save_pack', 'nehtw_gateway_nonce' );
+
+            $key        = isset( $_POST['pack_key'] ) ? sanitize_key( wp_unslash( $_POST['pack_key'] ) ) : '';
+            $name       = isset( $_POST['pack_name'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_name'] ) ) : '';
+            $points     = isset( $_POST['pack_points'] ) ? floatval( wp_unslash( $_POST['pack_points'] ) ) : 0;
+            $price      = isset( $_POST['pack_price'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_price'] ) ) : '';
+            $desc       = isset( $_POST['pack_description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['pack_description'] ) ) : '';
+            $highlight  = isset( $_POST['pack_highlight'] ) ? true : false;
+            $product_id = isset( $_POST['pack_product_id'] ) ? intval( wp_unslash( $_POST['pack_product_id'] ) ) : 0;
+
+            if ( empty( $key ) || empty( $name ) || $points <= 0 ) {
+                $error_message = __( 'Please provide key, name, and points.', 'nehtw-gateway' );
+            } else {
+                $packs = nehtw_gateway_get_wallet_topup_packs();
+                $pack  = array(
+                    'key'         => $key,
+                    'name'        => $name,
+                    'points'      => $points,
+                    'price_label' => $price,
+                    'description' => $desc,
+                    'highlight'   => $highlight,
+                    'product_id'  => $product_id > 0 ? $product_id : null,
+                );
+
+                // Update or add
+                $found = false;
+                foreach ( $packs as &$existing_pack ) {
+                    if ( isset( $existing_pack['key'] ) && $existing_pack['key'] === $key ) {
+                        $existing_pack = $pack;
+                        $found         = true;
+                        break;
+                    }
+                }
+
+                if ( ! $found ) {
+                    $packs[] = $pack;
+                }
+
+                nehtw_gateway_save_wallet_topup_packs( $packs );
+                $success_message = __( 'Pack saved successfully.', 'nehtw-gateway' );
+            }
+        } elseif ( 'delete_pack' === $action ) {
+            check_admin_referer( 'nehtw_gateway_delete_pack', 'nehtw_gateway_nonce' );
+
+            $key = isset( $_POST['pack_key'] ) ? sanitize_key( wp_unslash( $_POST['pack_key'] ) ) : '';
+
+            if ( ! empty( $key ) ) {
+                $packs = nehtw_gateway_get_wallet_topup_packs();
+                $packs = array_filter(
+                    $packs,
+                    function( $pack ) use ( $key ) {
+                        return ! isset( $pack['key'] ) || $pack['key'] !== $key;
+                    }
+                );
+                nehtw_gateway_save_wallet_topup_packs( array_values( $packs ) );
+                $success_message = __( 'Pack deleted successfully.', 'nehtw-gateway' );
+            }
+        }
+    }
+
+    $packs = nehtw_gateway_get_wallet_topup_packs();
+
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Wallet Top-ups', 'nehtw-gateway' ); ?></h1>
+
+        <?php if ( $success_message ) : ?>
+            <div class="notice notice-success is-dismissible"><p><?php echo esc_html( $success_message ); ?></p></div>
+        <?php endif; ?>
+
+        <?php if ( $error_message ) : ?>
+            <div class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ); ?></p></div>
+        <?php endif; ?>
+
+        <h2><?php esc_html_e( 'Add / Edit Pack', 'nehtw-gateway' ); ?></h2>
+        <form method="post" style="max-width: 600px;">
+            <?php wp_nonce_field( 'nehtw_gateway_save_pack', 'nehtw_gateway_nonce' ); ?>
+            <input type="hidden" name="nehtw_gateway_action" value="save_pack" />
+            <?php
+            // Get pack to edit if editing
+            $editing_pack = null;
+            $edit_key     = isset( $_GET['edit'] ) ? sanitize_key( wp_unslash( $_GET['edit'] ) ) : '';
+            if ( $edit_key ) {
+                foreach ( $packs as $p ) {
+                    if ( isset( $p['key'] ) && $p['key'] === $edit_key ) {
+                        $editing_pack = $p;
+                        break;
+                    }
+                }
+            }
+            ?>
+            <table class="form-table">
+                <tr>
+                    <th><label for="pack_key"><?php esc_html_e( 'Pack Key', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="text" id="pack_key" name="pack_key" required class="regular-text" placeholder="wallet_100" value="<?php echo $editing_pack ? esc_attr( $editing_pack['key'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="pack_name"><?php esc_html_e( 'Pack Name', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="text" id="pack_name" name="pack_name" required class="regular-text" placeholder="Starter" value="<?php echo $editing_pack ? esc_attr( $editing_pack['name'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="pack_points"><?php esc_html_e( 'Points', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="number" id="pack_points" name="pack_points" required step="0.01" min="0" class="regular-text" placeholder="100" value="<?php echo $editing_pack ? esc_attr( $editing_pack['points'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="pack_price"><?php esc_html_e( 'Price Label', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="text" id="pack_price" name="pack_price" class="regular-text" placeholder="EGP 99" value="<?php echo $editing_pack ? esc_attr( $editing_pack['price_label'] ) : ''; ?>" /></td>
+                </tr>
+                <tr>
+                    <th><label for="pack_description"><?php esc_html_e( 'Description', 'nehtw-gateway' ); ?></label></th>
+                    <td><textarea id="pack_description" name="pack_description" class="large-text" rows="2"><?php echo $editing_pack ? esc_textarea( $editing_pack['description'] ) : ''; ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="pack_highlight"><?php esc_html_e( 'Highlight (Best Value)', 'nehtw-gateway' ); ?></label></th>
+                    <td><input type="checkbox" id="pack_highlight" name="pack_highlight" <?php echo $editing_pack && ! empty( $editing_pack['highlight'] ) ? 'checked' : ''; ?> /></td>
+                </tr>
+                <?php if ( class_exists( 'WooCommerce' ) ) : ?>
+                <tr>
+                    <th><label for="pack_product_id"><?php esc_html_e( 'WooCommerce Product', 'nehtw-gateway' ); ?></label></th>
+                    <td>
+                        <select id="pack_product_id" name="pack_product_id" class="regular-text">
+                            <option value="0"><?php esc_html_e( '— None —', 'nehtw-gateway' ); ?></option>
+                            <?php
+                            $args = array(
+                                'post_type'      => 'product',
+                                'post_status'    => 'publish',
+                                'posts_per_page' => -1,
+                                'orderby'        => 'title',
+                                'order'          => 'ASC',
+                            );
+                            $products = get_posts( $args );
+                            $editing_product_id = $editing_pack && isset( $editing_pack['product_id'] ) ? (int) $editing_pack['product_id'] : 0;
+                            foreach ( $products as $product ) :
+                                $selected = $editing_product_id === $product->ID ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo esc_attr( $product->ID ); ?>" <?php echo $selected; ?>>
+                                    <?php echo esc_html( $product->post_title ); ?> (ID: <?php echo esc_html( $product->ID ); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'Select the WooCommerce product for this top-up pack.', 'nehtw-gateway' ); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+            </table>
+            <p class="submit">
+                <button type="submit" class="button button-primary"><?php esc_html_e( 'Save Pack', 'nehtw-gateway' ); ?></button>
+            </p>
+        </form>
+
+        <h2><?php esc_html_e( 'Existing Packs', 'nehtw-gateway' ); ?></h2>
+        <?php if ( ! empty( $packs ) ) : ?>
+            <table class="widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'Key', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Name', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Points', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Price', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'WooCommerce Product', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Highlight', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Actions', 'nehtw-gateway' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $packs as $pack ) : ?>
+                        <tr>
+                            <td><?php echo esc_html( isset( $pack['key'] ) ? $pack['key'] : '' ); ?></td>
+                            <td><?php echo esc_html( isset( $pack['name'] ) ? $pack['name'] : '' ); ?></td>
+                            <td><?php echo esc_html( isset( $pack['points'] ) ? number_format_i18n( $pack['points'], 0 ) : '0' ); ?></td>
+                            <td><?php echo esc_html( isset( $pack['price_label'] ) ? $pack['price_label'] : '' ); ?></td>
+                            <td>
+                                <?php
+                                $product_id = isset( $pack['product_id'] ) ? (int) $pack['product_id'] : 0;
+                                if ( $product_id > 0 ) {
+                                    $product = get_post( $product_id );
+                                    if ( $product ) {
+                                        echo esc_html( $product->post_title );
+                                        echo ' (ID: ' . esc_html( $product_id ) . ')';
+                                    } else {
+                                        echo esc_html__( 'Product not found', 'nehtw-gateway' );
+                                    }
+                                } else {
+                                    echo '—';
+                                }
+                                ?>
+                            </td>
+                            <td><?php echo ! empty( $pack['highlight'] ) ? esc_html__( 'Yes', 'nehtw-gateway' ) : esc_html__( 'No', 'nehtw-gateway' ); ?></td>
+                            <td>
+                                <form method="post" style="display:inline;">
+                                    <?php wp_nonce_field( 'nehtw_gateway_delete_pack', 'nehtw_gateway_nonce' ); ?>
+                                    <input type="hidden" name="nehtw_gateway_action" value="delete_pack" />
+                                    <input type="hidden" name="pack_key" value="<?php echo esc_attr( isset( $pack['key'] ) ? $pack['key'] : '' ); ?>" />
+                                    <button type="submit" class="button button-small" onclick="return confirm('<?php esc_attr_e( 'Are you sure?', 'nehtw-gateway' ); ?>');"><?php esc_html_e( 'Delete', 'nehtw-gateway' ); ?></button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else : ?>
+            <p><?php esc_html_e( 'No packs defined yet.', 'nehtw-gateway' ); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
+>>>>>>> 72fdc15 (Add wallet transactions, subscriptions, and top-up features)
 function nehtw_gateway_enqueue_admin_assets( $hook_suffix ) {
     if ( 'toplevel_page_nehtw-gateway' !== $hook_suffix ) return;
 
@@ -1501,6 +2489,528 @@ function nehtw_gateway_render_admin_page() {
     </div>
     <?php
 }
+
+/**
+ * Schedule subscriptions cron event.
+ */
+function nehtw_gateway_schedule_subscriptions_cron() {
+    if ( ! wp_next_scheduled( 'nehtw_gateway_run_subscriptions_cron' ) ) {
+        wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'nehtw_gateway_run_subscriptions_cron' );
+    }
+}
+add_action( 'wp', 'nehtw_gateway_schedule_subscriptions_cron' );
+
+/**
+ * Handle subscription renewals and reminders via cron.
+ */
+add_action( 'nehtw_gateway_run_subscriptions_cron', 'nehtw_gateway_handle_subscriptions_cron' );
+function nehtw_gateway_handle_subscriptions_cron() {
+    global $wpdb;
+
+    $table = nehtw_gateway_get_subscriptions_table();
+    if ( ! $table ) {
+        return;
+    }
+
+    $now = gmdate( 'Y-m-d H:i:s' );
+
+    // 1) Handle reminders (3 days & 1 day before)
+    nehtw_gateway_send_subscription_reminders( $table, $now );
+
+    // 2) Handle due renewals
+    $sql = $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE status = %s AND next_renewal_at <= %s",
+        'active',
+        $now
+    );
+
+    $subs = $wpdb->get_results( $sql, ARRAY_A );
+
+    if ( empty( $subs ) ) {
+        return;
+    }
+
+    foreach ( $subs as $sub ) {
+        $user_id = (int) $sub['user_id'];
+        $points  = isset( $sub['points_per_interval'] ) ? (float) $sub['points_per_interval'] : 0.0;
+
+        if ( $user_id <= 0 || $points <= 0 ) {
+            continue;
+        }
+
+        // Add points to local wallet using existing helper
+        if ( function_exists( 'nehtw_gateway_add_transaction' ) ) {
+            nehtw_gateway_add_transaction(
+                $user_id,
+                'subscription_renewal',
+                $points,
+                array(
+                    'meta' => array(
+                        'source'  => 'subscription_auto_topup',
+                        'plan_key' => $sub['plan_key'],
+                        'note'    => sprintf( 'Auto top-up from plan %s', $sub['plan_key'] ),
+                    ),
+                )
+            );
+        }
+
+        // Optional: also sync to Nehtw using /api/sendpoint
+        if ( function_exists( 'nehtw_gateway_send_points_to_nehtw' ) ) {
+            nehtw_gateway_send_points_to_nehtw( $user_id, $points, $sub );
+        }
+
+        // Update next_renewal_at (+1 month for now)
+        $next_ts = strtotime( $sub['next_renewal_at'] );
+        if ( $next_ts ) {
+            $next = gmdate( 'Y-m-d H:i:s', strtotime( '+1 month', $next_ts ) );
+        } else {
+            $next = gmdate( 'Y-m-d H:i:s', strtotime( '+1 month' ) );
+        }
+
+        $wpdb->update(
+            $table,
+            array(
+                'next_renewal_at' => $next,
+                'updated_at'      => $now,
+            ),
+            array( 'id' => $sub['id'] ),
+            array( '%s', '%s' ),
+            array( '%d' )
+        );
+    }
+}
+
+/**
+ * Send subscription reminder emails.
+ *
+ * @param string $table Table name
+ * @param string $now   Current datetime
+ */
+function nehtw_gateway_send_subscription_reminders( $table, $now ) {
+    global $wpdb;
+
+    $sql = $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE status = %s",
+        'active'
+    );
+
+    $subs = $wpdb->get_results( $sql, ARRAY_A );
+
+    if ( empty( $subs ) ) {
+        return;
+    }
+
+    foreach ( $subs as $sub ) {
+        $user_id         = (int) $sub['user_id'];
+        $next_renewal_at = isset( $sub['next_renewal_at'] ) ? $sub['next_renewal_at'] : '';
+
+        if ( ! $next_renewal_at || $user_id <= 0 ) {
+            continue;
+        }
+
+        $meta = array();
+        if ( ! empty( $sub['meta'] ) ) {
+            $decoded = json_decode( $sub['meta'], true );
+            if ( is_array( $decoded ) ) {
+                $meta = $decoded;
+            }
+        }
+
+        $next_ts = strtotime( $next_renewal_at );
+        if ( ! $next_ts ) {
+            continue;
+        }
+
+        $now_ts = strtotime( $now );
+        $diff   = $next_ts - $now_ts;
+        $days   = floor( $diff / DAY_IN_SECONDS );
+
+        $existing = isset( $meta['reminders_sent'] ) && is_array( $meta['reminders_sent'] )
+            ? $meta['reminders_sent']
+            : array();
+
+        $should_update = false;
+
+        if ( $days === 3 && empty( $existing['3d'] ) ) {
+            nehtw_gateway_send_subscription_email( $user_id, $sub, '3d' );
+            $existing['3d'] = true;
+            $should_update  = true;
+        } elseif ( $days === 1 && empty( $existing['1d'] ) ) {
+            nehtw_gateway_send_subscription_email( $user_id, $sub, '1d' );
+            $existing['1d'] = true;
+            $should_update  = true;
+        }
+
+        if ( $should_update ) {
+            $meta['reminders_sent'] = $existing;
+
+            // Save meta back
+            $wpdb->update(
+                $table,
+                array(
+                    'meta'       => wp_json_encode( $meta ),
+                    'updated_at' => $now,
+                ),
+                array( 'id' => $sub['id'] ),
+                array( '%s', '%s' ),
+                array( '%d' )
+            );
+        }
+    }
+}
+
+/**
+ * Send reminder email.
+ *
+ * @param int    $user_id User ID
+ * @param array  $sub     Subscription data
+ * @param string $when    '3d' or '1d'
+ */
+function nehtw_gateway_send_subscription_email( $user_id, $sub, $when ) {
+    $user = get_userdata( $user_id );
+    if ( ! $user ) {
+        return;
+    }
+
+    $to   = $user->user_email;
+    $plan = isset( $sub['plan_key'] ) ? $sub['plan_key'] : '';
+
+    $subject = '';
+    if ( '3d' === $when ) {
+        $subject = sprintf( __( 'Your %s plan will renew in 3 days', 'nehtw-gateway' ), $plan );
+    } else {
+        $subject = sprintf( __( 'Your %s plan renews tomorrow', 'nehtw-gateway' ), $plan );
+    }
+
+    $next_renewal = isset( $sub['next_renewal_at'] ) ? $sub['next_renewal_at'] : '';
+    $points       = isset( $sub['points_per_interval'] ) ? (float) $sub['points_per_interval'] : 0.0;
+
+    $message = sprintf(
+        "Hi %s,\n\nYour subscription plan (%s) is scheduled to renew on %s.\nYou will receive %.2f points as part of this renewal.\n\nIf you no longer want to renew, you can contact support or update your plan.\n\nThanks,\nArtly",
+        $user->display_name,
+        $plan,
+        $next_renewal,
+        $points
+    );
+
+    wp_mail( $to, $subject, $message );
+}
+
+/**
+ * Optional helper for syncing points to Nehtw via /api/sendpoint.
+ *
+ * @param int    $user_id User ID
+ * @param float  $points  Points to send
+ * @param array  $sub     Subscription data
+ */
+function nehtw_gateway_send_points_to_nehtw( $user_id, $points, $sub ) {
+    // This is optional - only implement if you have Nehtw username stored for users
+    // For now, just a placeholder that logs errors but doesn't block local wallet top-up
+
+    $nehtw_username = get_user_meta( $user_id, 'nehtw_username', true );
+
+    if ( empty( $nehtw_username ) ) {
+        // No Nehtw username stored, skip sync
+        return;
+    }
+
+    $api_key = nehtw_gateway_get_api_key();
+    if ( empty( $api_key ) ) {
+        return;
+    }
+
+    $url = add_query_arg(
+        array(
+            'apikey'   => $api_key,
+            'receiver' => $nehtw_username,
+            'amount'   => $points,
+        ),
+        NEHTW_GATEWAY_API_BASE . '/api/sendpoint'
+    );
+
+    $response = wp_remote_get(
+        $url,
+        array(
+            'timeout' => 10,
+        )
+    );
+
+    if ( is_wp_error( $response ) ) {
+        // Log error but don't block local wallet top-up
+        error_log( 'Nehtw sync failed for user ' . $user_id . ': ' . $response->get_error_message() );
+        return;
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    if ( $code < 200 || $code >= 300 ) {
+        error_log( 'Nehtw sync failed for user ' . $user_id . ': HTTP ' . $code );
+    }
+}
+
+/**
+ * When a WooCommerce order is completed, assign subscription(s) based on products.
+ *
+ * This function MUST NOT output anything to the front-end.
+ * It only updates internal subscription tables.
+ *
+ * @param int $order_id Order ID
+ */
+function nehtw_gateway_handle_order_completed_for_subscriptions( $order_id ) {
+    if ( ! function_exists( 'wc_get_order' ) ) {
+        return;
+    }
+
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return;
+    }
+
+    $user_id = $order->get_user_id();
+    if ( ! $user_id ) {
+        return;
+    }
+
+    // Load plans from option
+    if ( ! function_exists( 'nehtw_gateway_get_subscription_plans' ) ) {
+        return;
+    }
+
+    $plans = nehtw_gateway_get_subscription_plans();
+    if ( empty( $plans ) ) {
+        return;
+    }
+
+    // Map product_id => plan data for quick lookup
+    $product_map = array();
+    foreach ( $plans as $plan ) {
+        if ( empty( $plan['product_id'] ) ) {
+            continue;
+        }
+
+        $product_id = (int) $plan['product_id'];
+        if ( $product_id > 0 ) {
+            $product_map[ $product_id ] = $plan;
+        }
+    }
+
+    if ( empty( $product_map ) ) {
+        return;
+    }
+
+    // Check line items
+    foreach ( $order->get_items() as $item ) {
+        $product_id = $item->get_product_id();
+        if ( ! $product_id || ! isset( $product_map[ $product_id ] ) ) {
+            continue;
+        }
+
+        $plan = $product_map[ $product_id ];
+
+        $points = isset( $plan['points'] ) ? (float) $plan['points'] : 0.0;
+        if ( $points <= 0 ) {
+            continue;
+        }
+
+        // Calculate next renewal (1 month from now for now)
+        $now      = current_time( 'mysql', true ); // GMT
+        $interval = 'month';
+        $next     = gmdate( 'Y-m-d H:i:s', strtotime( '+1 month', strtotime( $now ) ) );
+
+        if ( function_exists( 'nehtw_gateway_save_subscription' ) ) {
+            nehtw_gateway_save_subscription(
+                array(
+                    'user_id'             => $user_id,
+                    'plan_key'            => isset( $plan['key'] ) ? $plan['key'] : '',
+                    'points_per_interval' => $points,
+                    'interval'           => $interval,
+                    'status'             => 'active',
+                    'next_renewal_at'    => $next,
+                    'meta'               => array(
+                        // INTERNAL META (never surfaced on front)
+                        'product_id' => $product_id,
+                        'order_id'   => $order_id,
+                    ),
+                )
+            );
+        }
+
+        // Optional: immediately credit the first interval of points now
+        if ( function_exists( 'nehtw_gateway_add_transaction' ) ) {
+            nehtw_gateway_add_transaction(
+                $user_id,
+                'subscription_initial',
+                $points,
+                array(
+                    'meta' => array(
+                        'source'   => 'subscription_initial_payment',
+                        'plan_key' => isset( $plan['key'] ) ? $plan['key'] : '',
+                        'order_id' => $order_id,
+                    ),
+                )
+            );
+        }
+    }
+}
+add_action( 'woocommerce_order_status_completed', 'nehtw_gateway_handle_order_completed_for_subscriptions', 20, 1 );
+
+/**
+ * Handle WooCommerce Subscriptions payment renewals.
+ *
+ * @param WC_Order $order Order object
+ */
+function nehtw_gateway_handle_subscription_renewal_order( $order ) {
+    if ( ! $order instanceof WC_Order ) {
+        return;
+    }
+
+    $user_id = $order->get_user_id();
+    if ( ! $user_id ) {
+        return;
+    }
+
+    if ( ! function_exists( 'nehtw_gateway_get_subscription_plans' ) || ! function_exists( 'nehtw_gateway_add_transaction' ) ) {
+        return;
+    }
+
+    $plans = nehtw_gateway_get_subscription_plans();
+    if ( empty( $plans ) ) {
+        return;
+    }
+
+    // Map product_id => plan
+    $product_map = array();
+    foreach ( $plans as $plan ) {
+        if ( empty( $plan['product_id'] ) ) {
+            continue;
+        }
+
+        $product_id = (int) $plan['product_id'];
+        if ( $product_id > 0 ) {
+            $product_map[ $product_id ] = $plan;
+        }
+    }
+
+    foreach ( $order->get_items() as $item ) {
+        $product_id = $item->get_product_id();
+        if ( ! $product_id || ! isset( $product_map[ $product_id ] ) ) {
+            continue;
+        }
+
+        $plan   = $product_map[ $product_id ];
+        $points = isset( $plan['points'] ) ? (float) $plan['points'] : 0.0;
+
+        if ( $points <= 0 ) {
+            continue;
+        }
+
+        // Credit points for this renewal
+        nehtw_gateway_add_transaction(
+            $user_id,
+            'subscription_renewal',
+            $points,
+            array(
+                'meta' => array(
+                    'source'   => 'subscription_renewal_payment',
+                    'plan_key' => isset( $plan['key'] ) ? $plan['key'] : '',
+                    'order_id' => $order->get_id(),
+                ),
+            )
+        );
+
+        // Optionally update "next_renewal_at" in the internal subscriptions table,
+        // but the cron may already be doing that. Keep behavior consistent with existing cron.
+    }
+}
+
+// Hook into WooCommerce Subscriptions if available
+if ( function_exists( 'wcs_get_subscriptions_for_order' ) ) {
+    add_action( 'woocommerce_subscription_payment_complete', 'nehtw_gateway_handle_subscription_renewal_order', 10, 1 );
+}
+
+/**
+ * Handle WooCommerce order completion for wallet top-up packs.
+ *
+ * This is INTERNAL ONLY: no front-end output.
+ *
+ * @param int $order_id Order ID
+ */
+function nehtw_gateway_handle_wallet_topup_order_completed( $order_id ) {
+    if ( ! function_exists( 'wc_get_order' ) ) {
+        return;
+    }
+
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return;
+    }
+
+    $user_id = $order->get_user_id();
+    if ( ! $user_id ) {
+        return;
+    }
+
+    if ( ! function_exists( 'nehtw_gateway_get_wallet_topup_packs' ) || ! function_exists( 'nehtw_gateway_add_transaction' ) ) {
+        return;
+    }
+
+    $packs = nehtw_gateway_get_wallet_topup_packs();
+    if ( empty( $packs ) ) {
+        return;
+    }
+
+    // Map product_id => points
+    $product_map = array();
+    foreach ( $packs as $pack ) {
+        if ( empty( $pack['product_id'] ) ) {
+            continue;
+        }
+
+        $product_id = (int) $pack['product_id'];
+        if ( $product_id <= 0 ) {
+            continue;
+        }
+
+        $points = isset( $pack['points'] ) ? (float) $pack['points'] : 0.0;
+        if ( $points <= 0 ) {
+            continue;
+        }
+
+        $product_map[ $product_id ] = array(
+            'points' => $points,
+            'key'    => isset( $pack['key'] ) ? $pack['key'] : '',
+            'name'   => isset( $pack['name'] ) ? $pack['name'] : '',
+        );
+    }
+
+    if ( empty( $product_map ) ) {
+        return;
+    }
+
+    foreach ( $order->get_items() as $item ) {
+        $product_id = $item->get_product_id();
+        if ( ! $product_id || ! isset( $product_map[ $product_id ] ) ) {
+            continue;
+        }
+
+        $pack = $product_map[ $product_id ];
+
+        // Credit wallet points
+        nehtw_gateway_add_transaction(
+            $user_id,
+            'wallet_topup',
+            $pack['points'],
+            array(
+                'meta' => array(
+                    'source'    => 'wallet_topup_purchase',
+                    'pack_key'  => $pack['key'],
+                    'pack_name' => $pack['name'],
+                    'order_id'  => $order_id,
+                ),
+            )
+        );
+    }
+}
+add_action( 'woocommerce_order_status_completed', 'nehtw_gateway_handle_wallet_topup_order_completed', 15, 1 );
 
 function nehtw_gateway_init() {
     // Future: Additional initialization

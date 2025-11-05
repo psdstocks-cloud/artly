@@ -1,0 +1,245 @@
+/* Overlay */
+.artly-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.artly-modal.is-open {
+  display: flex;
+}
+
+.artly-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(0, 0, 0, 0.96));
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Dialog */
+.artly-modal-dialog {
+  position: relative;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 1.5rem;
+  border-radius: 26px;
+  padding: 1.7rem 1.6rem 1.6rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.08), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.98));
+  box-shadow:
+    0 20px 45px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(148, 163, 184, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #e5edff;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Close button */
+.artly-modal-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.9);
+  color: rgba(226, 232, 255, 0.9);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.artly-modal-close:hover {
+  background: rgba(15, 23, 42, 1);
+  color: #e5edff;
+}
+
+/* Header */
+.artly-modal-header {
+  margin-bottom: 1.4rem;
+  text-align: center;
+}
+
+.artly-modal-kicker {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: rgba(148, 163, 184, 0.9);
+  margin-bottom: 0.2rem;
+}
+
+.artly-modal-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.artly-modal-subtitle {
+  font-size: 0.9rem;
+  color: rgba(148, 163, 184, 0.9);
+  line-height: 1.5;
+}
+
+/* Body */
+.artly-modal-body {
+  margin-top: 1rem;
+}
+
+/* Packs grid */
+.wallet-packs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.wallet-pack-card {
+  border-radius: 20px;
+  padding: 1rem 0.9rem 1rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.04), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.9),
+    0 0 0 1px rgba(148, 163, 184, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wallet-pack-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 15px 32px rgba(15, 23, 42, 1),
+    0 0 0 1px rgba(248, 250, 252, 0.08);
+}
+
+.wallet-pack-card--highlight {
+  border-color: rgba(6, 245, 232, 0.9);
+  box-shadow:
+    0 14px 34px rgba(8, 145, 178, 0.6),
+    0 0 0 1px rgba(6, 245, 232, 0.8);
+}
+
+/* Badge, name, points, price */
+.wallet-pack-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.wallet-pack-name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.wallet-pack-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fb923c, #fb7185);
+  color: #020617;
+  font-weight: 600;
+}
+
+.wallet-pack-points {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #06f5e8;
+  margin-bottom: 0.1rem;
+}
+
+.wallet-pack-price {
+  font-size: 0.9rem;
+  color: rgba(148, 163, 184, 0.95);
+  margin-bottom: 0.4rem;
+}
+
+.wallet-pack-description {
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.95);
+  margin-bottom: 0.7rem;
+  line-height: 1.4;
+}
+
+/* Button */
+.wallet-pack-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: none;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #020617;
+  box-shadow: 0 12px 30px rgba(15, 159, 240, 0.4);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.wallet-pack-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(15, 159, 240, 0.5);
+  filter: brightness(1.05);
+}
+
+.wallet-pack-note {
+  display: block;
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.8);
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.wallet-pack-empty {
+  text-align: center;
+  color: rgba(148, 163, 184, 0.9);
+  padding: 1rem 0;
+}
+
+/* Body lock when modal open */
+body.artly-modal-open {
+  overflow: hidden;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .artly-modal-dialog {
+    margin: 0 1rem;
+    padding-inline: 1.1rem;
+    padding-top: 1.4rem;
+    padding-bottom: 1.4rem;
+  }
+
+  .wallet-packs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .artly-modal-title {
+    font-size: 1.4rem;
+  }
+}
+

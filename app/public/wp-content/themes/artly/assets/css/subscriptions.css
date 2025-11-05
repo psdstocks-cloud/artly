@@ -1,0 +1,214 @@
+.artly-subscriptions-page {
+  min-height: 100vh;
+  padding: 4rem 0 5rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(15, 23, 42, 0.95) 0, transparent 55%),
+    radial-gradient(circle at 100% 0, rgba(8, 47, 73, 0.95) 0, transparent 55%),
+    radial-gradient(circle at 50% 100%, #020617 0, #000000 100%);
+  color: #e5edff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+.artly-subscriptions-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Hero */
+.subs-hero {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.subs-kicker {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: rgba(148, 163, 184, 0.9);
+  margin-bottom: 0.25rem;
+}
+
+.subs-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subs-subtitle {
+  font-size: 1rem;
+  color: rgba(148, 163, 184, 0.9);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Status Card */
+.subs-status-card {
+  border-radius: 24px;
+  padding: 1.5rem 1.8rem;
+  margin-bottom: 2.5rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.06), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.subs-status-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(148, 163, 184, 0.9);
+  margin-bottom: 0.5rem;
+}
+
+.subs-status-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #06f5e8;
+  margin-bottom: 0.5rem;
+}
+
+.subs-status-meta {
+  font-size: 0.9rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+/* Grid */
+.subs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Plan Card */
+.subs-card {
+  border-radius: 24px;
+  padding: 2rem 1.8rem;
+  background:
+    radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.06), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.subs-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(6, 245, 232, 0.3);
+}
+
+.subs-card--highlight {
+  border: 1px solid rgba(6, 245, 232, 0.4);
+  background:
+    radial-gradient(circle at 0 0, rgba(6, 245, 232, 0.08), transparent 60%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(8, 47, 73, 0.98));
+  box-shadow:
+    0 16px 36px rgba(6, 245, 232, 0.2),
+    0 0 0 1px rgba(6, 245, 232, 0.4);
+}
+
+.subs-plan-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #e5edff;
+}
+
+.subs-plan-price {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fb923c;
+  margin-bottom: 0.5rem;
+}
+
+.subs-plan-points {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #06f5e8;
+  margin-bottom: 1rem;
+}
+
+.subs-plan-desc {
+  font-size: 0.9rem;
+  color: rgba(148, 163, 184, 0.9);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.subs-plan-meta {
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.8);
+  margin-bottom: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.subs-plan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #020617;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(6, 245, 232, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.subs-plan-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(6, 245, 232, 0.45);
+  filter: brightness(1.05);
+}
+
+.subs-card--highlight .subs-plan-btn {
+  background: linear-gradient(135deg, #fb923c, #fb7185);
+  box-shadow: 0 8px 22px rgba(251, 146, 60, 0.35);
+}
+
+.subs-card--highlight .subs-plan-btn:hover {
+  box-shadow: 0 12px 30px rgba(251, 146, 60, 0.45);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .artly-subscriptions-page {
+    padding: 2rem 0 3rem;
+  }
+
+  .subs-title {
+    font-size: 2rem;
+  }
+
+  .subs-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .subs-card {
+    padding: 1.5rem 1.3rem;
+  }
+}
+

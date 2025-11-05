@@ -74,8 +74,8 @@ if ( $has_gateway ) {
           </p>
 
           <div class="points-card-actions">
-            <a class="points-btn" href="<?php echo esc_url( home_url( '/pricing/' ) ); ?>">
-              <?php esc_html_e( 'Add more points', 'artly' ); ?>
+            <a class="points-btn" href="#" data-artly-open-modal="wallet-topup">
+              <?php esc_html_e( 'Add points', 'artly' ); ?>
             </a>
 
             <a class="points-link" href="<?php echo esc_url( home_url( '/my-downloads/' ) ); ?>">
@@ -150,4 +150,7 @@ if ( $has_gateway ) {
   </div>
 </main>
 
-<?php get_footer(); ?>
+<?php
+get_template_part( 'parts/modal', 'wallet-topup' );
+get_footer();
+?>

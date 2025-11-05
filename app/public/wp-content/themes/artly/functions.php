@@ -156,6 +156,49 @@ function artly_enqueue_assets() {
             )
         );
     }
+
+    if ( is_page_template( 'page-transactions.php' ) || is_page( 'transactions' ) || is_page( 'wallet-history' ) ) {
+        wp_enqueue_style(
+            'artly-transactions',
+            get_template_directory_uri() . '/assets/css/transactions.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-transactions',
+            get_template_directory_uri() . '/assets/js/transactions.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+    }
+
+    if ( is_page_template( 'page-subscriptions.php' ) || is_page( 'subscriptions' ) ) {
+        wp_enqueue_style(
+            'artly-subscriptions',
+            get_template_directory_uri() . '/assets/css/subscriptions.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+    }
+
+    if ( is_page_template( 'page-dashboard.php' ) || is_page_template( 'page-my-points.php' ) || is_page( 'dashboard' ) || is_page( 'my-points' ) ) {
+        wp_enqueue_style(
+            'artly-modal-wallet',
+            get_template_directory_uri() . '/assets/css/modal-wallet.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-modal-wallet',
+            get_template_directory_uri() . '/assets/js/modal-wallet.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 
