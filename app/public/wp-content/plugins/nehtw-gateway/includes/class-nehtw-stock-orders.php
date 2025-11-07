@@ -399,6 +399,25 @@ class Nehtw_Gateway_Stock_Orders {
     }
 
     /**
+     * Merge an existing raw_response payload with the latest status information.
+     *
+     * @param mixed $current_raw Existing raw response data.
+     * @param mixed $status_data Latest status payload.
+     *
+     * @return array Combined raw response data.
+     */
+    public static function merge_raw_response_with_status( $current_raw, $status_data ) {
+        $raw_array    = self::parse_raw_response_value( $current_raw );
+        $status_array = self::normalize_to_array( $status_data );
+
+        if ( ! empty( $status_array ) ) {
+            $raw_array['last_status'] = $status_array;
+        }
+
+        return $raw_array;
+    }
+
+    /**
      * Format an order for REST API responses with normalized fields.
      *
      * @param array $order Order array.
@@ -418,6 +437,14 @@ class Nehtw_Gateway_Stock_Orders {
         } else {
             $order['download_link'] = null;
         }
+
+        $order['file_name'] = isset( $order['file_name'] ) && '' !== $order['file_name']
+            ? sanitize_text_field( $order['file_name'] )
+            : null;
+
+        $order['link_type'] = isset( $order['link_type'] ) && '' !== $order['link_type']
+            ? sanitize_text_field( $order['link_type'] )
+            : null;
 
         $preview_thumb            = self::extract_preview_thumb_from_raw( $raw_data );
         $order['preview_thumb']   = $preview_thumb ? $preview_thumb : null;
@@ -458,6 +485,31 @@ class Nehtw_Gateway_Stock_Orders {
             ),
             $data
         );
+
+        if ( array_key_exists( 'download_link', $update_data ) ) {
+            if ( null === $update_data['download_link'] || '' === $update_data['download_link'] ) {
+                $update_data['download_link'] = null;
+            } else {
+                $sanitized_link = esc_url_raw( $update_data['download_link'] );
+                $update_data['download_link'] = '' !== $sanitized_link ? $sanitized_link : null;
+            }
+        }
+
+        if ( array_key_exists( 'file_name', $update_data ) ) {
+            $update_data['file_name'] = ( null !== $update_data['file_name'] && '' !== $update_data['file_name'] )
+                ? sanitize_text_field( $update_data['file_name'] )
+                : null;
+        }
+
+        if ( array_key_exists( 'link_type', $update_data ) ) {
+            $update_data['link_type'] = ( null !== $update_data['link_type'] && '' !== $update_data['link_type'] )
+                ? sanitize_text_field( $update_data['link_type'] )
+                : null;
+        }
+
+        if ( array_key_exists( 'raw_response', $update_data ) ) {
+            $update_data['raw_response'] = maybe_serialize( $update_data['raw_response'] );
+        }
 
         $result = $wpdb->update(
             $table,

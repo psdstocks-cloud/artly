@@ -9,6 +9,13 @@
     var previewEndpoint = config.previewEndpoint || "";
     var restNonce = config.restNonce || "";
 
+    var pollingConfig = {
+      interval: 2000,
+      maxAttempts: 150,
+      downloadRetries: 3,
+      retryDelay: 1000
+    };
+
     // Simple helper used by some rules in the extractor.
     function idMapping(source, arr) {
       // For our purposes we just join the parts with a dash.
@@ -683,7 +690,449 @@
       });
     }
 
-    // Submit function
+    function normalizeOrderForUI(order, resultEl) {
+      var normalized = {
+        url: "",
+        status: "queued",
+        message: "",
+        task_id: "",
+        order_id: "",
+        download_url: "",
+        progress: undefined
+      };
+
+      order = order || {};
+
+      var existingStatus = resultEl && resultEl.dataset && resultEl.dataset.status ? resultEl.dataset.status : "";
+      var rawStatus = "";
+      if (typeof order.status === "string") {
+        rawStatus = order.status.toLowerCase();
+      } else if (typeof order.status === "number") {
+        rawStatus = String(order.status);
+      }
+
+      if (!rawStatus && existingStatus) {
+        rawStatus = existingStatus;
+      }
+
+      if (!rawStatus) {
+        rawStatus = "queued";
+      }
+
+      if (rawStatus === "pending") rawStatus = "queued";
+      if (rawStatus === "complete") rawStatus = "completed";
+      if (rawStatus === "success") rawStatus = "completed";
+      if (rawStatus === "ready_to_download") rawStatus = "ready";
+
+      normalized.status = rawStatus;
+
+      normalized.task_id = order.task_id || (resultEl ? resultEl.getAttribute("data-task-id") || "" : "");
+      normalized.order_id = typeof order.order_id !== "undefined" ? order.order_id : order.id || "";
+
+      var existingUrl = "";
+      if (resultEl) {
+        var existingUrlEl = resultEl.querySelector(".stock-order-result-url");
+        if (existingUrlEl) {
+          existingUrl = existingUrlEl.textContent || "";
+        }
+      }
+
+      normalized.url = order.url || order.source_url || existingUrl || "";
+
+      var downloadUrl = order.download_url || order.downloadLink || order.download_link || "";
+      if (!downloadUrl && resultEl) {
+        var existingBtn = resultEl.querySelector(".stock-order-download-btn");
+        if (existingBtn) {
+          downloadUrl = existingBtn.getAttribute("href") || "";
+        }
+      }
+      normalized.download_url = downloadUrl || "";
+
+      if (typeof order.progress === "number" && !isNaN(order.progress)) {
+        normalized.progress = order.progress;
+      } else if (resultEl) {
+        var progressEl = resultEl.querySelector("[data-progress]");
+        if (progressEl) {
+          var progressAttr = progressEl.getAttribute("data-progress");
+          if (progressAttr) {
+            var parsed = parseFloat(progressAttr);
+            if (!isNaN(parsed)) {
+              normalized.progress = parsed;
+            }
+          }
+        }
+      }
+
+      var message = "";
+      if (typeof order.message === "string") {
+        message = order.message;
+      } else if (resultEl) {
+        var existingMessageEl = resultEl.querySelector("[data-message]");
+        if (existingMessageEl) {
+          message = existingMessageEl.textContent || "";
+        }
+      }
+
+      if (!message) {
+        message = getStatusLabel(normalized.status);
+      }
+
+      normalized.message = message;
+
+      return normalized;
+    }
+
+    function getStatusLabel(status) {
+      var key = (status || "").toString().toLowerCase();
+      var labels = {
+        queued: "Queued...",
+        pending: "Pending...",
+        processing: "Processing...",
+        ready: "Ready",
+        completed: "Completed",
+        failed: "Failed",
+        error: "Error",
+        timeout: "Timeout",
+        already_downloaded: "Already downloaded",
+        insufficient_points: "Not enough points",
+        skipped: "Skipped",
+        invalid: "Error",
+        not_found: "Not found",
+        unknown: "Processing..."
+      };
+      return labels[key] || (status ? status : "Processing...");
+    }
+
+    function getStatusProgress(status) {
+      switch ((status || "").toLowerCase()) {
+        case "queued":
+          return 10;
+        case "processing":
+          return 55;
+        case "ready":
+          return 90;
+        case "completed":
+        case "already_downloaded":
+          return 100;
+        case "failed":
+        case "error":
+        case "timeout":
+          return 100;
+        case "insufficient_points":
+        case "skipped":
+          return 0;
+        default:
+          return 25;
+      }
+    }
+
+    function createOrderResultElement(order) {
+      var normalized = normalizeOrderForUI(order, null);
+      var resultEl = document.createElement("div");
+      var statusClass = normalized.status || "queued";
+      resultEl.className = "stock-order-result stock-order-result--" + statusClass;
+      resultEl.dataset.status = statusClass;
+
+      if (normalized.task_id) {
+        resultEl.setAttribute("data-task-id", normalized.task_id);
+      }
+
+      var safeUrl = normalized.url ? escapeHtml(normalized.url) : "Stock order";
+
+      resultEl.innerHTML = [
+        '<div class="stock-order-result-top">',
+        '  <div class="stock-order-result-url">' + safeUrl + "</div>",
+        '  <div class="stock-order-result-status" data-status>' + escapeHtml(getStatusLabel(statusClass)) + "</div>",
+        "</div>",
+        '<div class="stock-order-result-progress">',
+        '  <div class="stock-order-result-progress-bar" data-progress style="width:0%"></div>',
+        "</div>",
+        '<div class="stock-order-result-message" data-message></div>',
+        '<div class="stock-order-result-actions" data-actions></div>'
+      ].join("");
+
+      updateOrderResult(resultEl, normalized);
+
+      return resultEl;
+    }
+
+    function updateOrderResult(resultEl, order) {
+      if (!resultEl) return;
+
+      var normalized = normalizeOrderForUI(order, resultEl);
+      var status = normalized.status || "queued";
+
+      resultEl.className = "stock-order-result stock-order-result--" + status;
+      resultEl.dataset.status = status;
+
+      if (normalized.task_id) {
+        resultEl.setAttribute("data-task-id", normalized.task_id);
+      }
+
+      var statusEl = resultEl.querySelector("[data-status]");
+      if (statusEl) {
+        statusEl.textContent = getStatusLabel(status);
+      }
+
+      var messageEl = resultEl.querySelector("[data-message]");
+      if (messageEl) {
+        if (normalized.message) {
+          messageEl.textContent = normalized.message;
+          messageEl.classList.add("is-visible");
+        } else {
+          messageEl.textContent = "";
+          messageEl.classList.remove("is-visible");
+        }
+      }
+
+      var progressEl = resultEl.querySelector("[data-progress]");
+      if (progressEl) {
+        var pct = typeof normalized.progress === "number" && !isNaN(normalized.progress)
+          ? normalized.progress
+          : getStatusProgress(status);
+        pct = Math.max(0, Math.min(100, pct));
+        progressEl.style.width = pct + "%";
+        progressEl.setAttribute("data-progress", String(pct));
+      }
+
+      var actionsEl = resultEl.querySelector("[data-actions]");
+      if (actionsEl) {
+        if (normalized.download_url) {
+          actionsEl.innerHTML =
+            '<a href="' +
+            escapeHtml(normalized.download_url) +
+            '" target="_blank" rel="noopener" class="stock-order-result-link stock-order-download-btn">' +
+            '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
+            '<span>Download now</span>' +
+            "</a>";
+        } else if (
+          status === "completed" ||
+          status === "ready" ||
+          status === "already_downloaded" ||
+          status === "failed" ||
+          status === "error" ||
+          status === "timeout"
+        ) {
+          actionsEl.innerHTML =
+            '<a href="' +
+            escapeHtml((window.artlyStockOrder && window.artlyStockOrder.historyUrl) || "/my-downloads/") +
+            '" class="stock-order-result-link">View in history →</a>';
+        } else {
+          actionsEl.innerHTML = "";
+        }
+      }
+    }
+
+    function ensureResultsList(container) {
+      if (!container) return null;
+      var list = container.querySelector(".stock-order-results-list");
+      if (!list) {
+        list = document.createElement("div");
+        list.className = "stock-order-results-list";
+        container.appendChild(list);
+      }
+      return list;
+    }
+
+    function shouldPollOrder(order) {
+      if (!order || !order.task_id) return false;
+      var status = (order.status || "").toLowerCase();
+      return status === "queued" || status === "processing" || status === "pending";
+    }
+
+    function pollOrderStatus(taskId, resultEl, attempt) {
+      if (!taskId || !resultEl) return;
+      attempt = attempt || 0;
+
+      if (attempt >= pollingConfig.maxAttempts) {
+        updateOrderResult(resultEl, {
+          status: "timeout",
+          progress: 100,
+          message: "Order took too long to process. Please check your downloads page."
+        });
+        return;
+      }
+
+      var progressPercent = Math.min(90, Math.floor((attempt / pollingConfig.maxAttempts) * 90));
+      updateOrderResult(resultEl, { progress: progressPercent });
+
+      fetch("/wp-json/artly/v1/stock-orders/" + encodeURIComponent(taskId) + "/status", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": restNonce
+        },
+        credentials: "same-origin"
+      })
+        .then(function (res) {
+          if (res.status === 401) {
+            updateOrderResult(resultEl, {
+              status: "error",
+              progress: 100,
+              message: "Your session expired. Please refresh the page and log in again."
+            });
+            throw new Error("unauthorized");
+          }
+
+          if (!res.ok) {
+            throw new Error("http_error");
+          }
+
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data) {
+            throw new Error("invalid_response");
+          }
+
+          var status = (data.status || "").toLowerCase();
+          var message = data.message || "";
+
+          if (data.success === false && status === "not_found") {
+            updateOrderResult(resultEl, {
+              status: "error",
+              progress: 100,
+              message: message || "We couldn't find this download. Please check your history."
+            });
+            return;
+          }
+
+          if (status === "ready" || status === "completed") {
+            updateOrderResult(resultEl, {
+              status: status === "ready" ? "ready" : "completed",
+              progress: 95,
+              message: message || "Preparing download link..."
+            });
+            generateDownloadLink(taskId, resultEl, 0);
+            return;
+          }
+
+          if (status === "failed" || status === "error") {
+            updateOrderResult(resultEl, {
+              status: "failed",
+              progress: 100,
+              message: message || "Order failed. Please try again."
+            });
+            return;
+          }
+
+          updateOrderResult(resultEl, {
+            status: status || "processing",
+            progress: progressPercent,
+            message: message
+          });
+
+          window.setTimeout(function () {
+            pollOrderStatus(taskId, resultEl, attempt + 1);
+          }, pollingConfig.interval);
+        })
+        .catch(function (error) {
+          if (error && error.message === "unauthorized") {
+            return;
+          }
+
+          window.setTimeout(function () {
+            pollOrderStatus(taskId, resultEl, attempt + 1);
+          }, pollingConfig.interval);
+        });
+    }
+
+    function generateDownloadLink(taskId, resultEl, retryCount) {
+      if (!taskId || !resultEl) return;
+      retryCount = retryCount || 0;
+
+      var prepMessage = retryCount ? "Finalizing download..." : "Preparing download link...";
+      var progress = 90 + Math.min(5, retryCount * 3);
+
+      updateOrderResult(resultEl, {
+        status: "processing",
+        progress: progress,
+        message: prepMessage
+      });
+
+      fetch("/wp-json/artly/v1/stock-orders/" + encodeURIComponent(taskId) + "/download", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": restNonce
+        },
+        credentials: "same-origin"
+      })
+        .then(function (res) {
+          if (res.status === 401) {
+            updateOrderResult(resultEl, {
+              status: "error",
+              progress: 100,
+              message: "Your session expired. Please refresh the page and log in again."
+            });
+            throw new Error("unauthorized");
+          }
+
+          if (!res.ok) {
+            throw new Error("http_error");
+          }
+
+          return res.json();
+        })
+        .then(function (data) {
+          if (data && data.download_url) {
+            updateOrderResult(resultEl, {
+              status: (data.status || "completed").toLowerCase(),
+              progress: 100,
+              message: data.message || "Ready to download",
+              download_url: data.download_url
+            });
+            return;
+          }
+
+          if (retryCount < pollingConfig.downloadRetries) {
+            window.setTimeout(function () {
+              generateDownloadLink(taskId, resultEl, retryCount + 1);
+            }, pollingConfig.retryDelay);
+            return;
+          }
+
+          updateOrderResult(resultEl, {
+            status: "error",
+            progress: 100,
+            message:
+              (data && data.message) ||
+              "Could not generate download link. Please try again from your downloads page."
+          });
+        })
+        .catch(function (error) {
+          if (error && error.message === "unauthorized") {
+            return;
+          }
+
+          if (retryCount < pollingConfig.downloadRetries) {
+            window.setTimeout(function () {
+              generateDownloadLink(taskId, resultEl, retryCount + 1);
+            }, pollingConfig.retryDelay);
+            return;
+          }
+
+          updateOrderResult(resultEl, {
+            status: "error",
+            progress: 100,
+            message: "Could not generate download link. Please try again from your downloads page."
+          });
+        });
+    }
+
+    function applyWalletBalance(balance) {
+      if (typeof window.updateWalletDisplay === "function") {
+        window.updateWalletDisplay(balance);
+      } else if (typeof window.artlyUpdateWalletBalance === "function") {
+        window.artlyUpdateWalletBalance(balance);
+      }
+
+      var balanceEls = document.querySelectorAll("[data-artly-wallet-balance]");
+      balanceEls.forEach(function (el) {
+        el.textContent = balance;
+      });
+    }
+
     function submitStockOrder(payload) {
       if (!endpoint) {
         console.warn("Stock order endpoint not configured.");
@@ -691,11 +1140,12 @@
       }
 
       var resultsEl = root.querySelector("[data-stock-order-results]");
+      var resultsList = null;
       if (resultsEl) {
         resultsEl.innerHTML = "";
+        resultsList = ensureResultsList(resultsEl);
       }
 
-      // Disable submit buttons
       var submitButtons = root.querySelectorAll(".stock-order-submit");
       submitButtons.forEach(function (btn) {
         btn.disabled = true;
@@ -711,96 +1161,74 @@
         body: JSON.stringify(payload)
       })
         .then(function (res) {
+          if (res.status === 401) {
+            throw new Error("unauthorized");
+          }
           if (!res.ok) {
-            if (res.status === 401) {
-              throw new Error("unauthorized");
-            }
             throw new Error("http_error");
           }
           return res.json();
         })
         .then(function (data) {
-          if (!data || !Array.isArray(data.links)) {
-            showError("Unexpected response.");
+          var orders = [];
+          if (data) {
+            if (Array.isArray(data.orders)) {
+              orders = data.orders;
+            } else if (Array.isArray(data.links)) {
+              orders = data.links;
+            }
+          }
+
+          if (!orders.length) {
+            showError("Unexpected response. Please try again.");
             return;
           }
 
-          var links = data.links || [];
-          var balance = data.balance || 0;
+          orders.forEach(function (order) {
+            var normalized = normalizeOrderForUI(order, null);
+            var card = createOrderResultElement(normalized);
 
-          // Render all results first
-          var html = '<ul class="stock-order-results-list">';
-          var pendingOrderIds = [];
-
-          links.forEach(function (item, index) {
-            var status = item.status || "unknown";
-            var orderId = item.order_id || "";
-            var safeUrl = item.url || "";
-            var message = item.message || "";
-
-            html += '<li class="stock-order-result stock-order-result--' + status + '"';
-            if (orderId) {
-              html += ' data-order-id="' + orderId + '"';
-            }
-            html += '>';
-
-            html += '<div class="stock-order-result-top">';
-            html += '<div class="stock-order-result-url">' + escapeHtml(safeUrl) + "</div>";
-            html +=
-              '<span class="stock-order-result-status" data-order-status>' +
-              escapeHtml(message || mapStatusToText(status)) +
-              "</span>";
-            html += "</div>";
-
-            html += '<div class="stock-order-result-progress">';
-            html +=
-              '<div class="stock-order-result-progress-bar" data-order-progress data-progress-pct="' +
-              mapStatusToProgress(status) +
-              '"></div>';
-            html += "</div>";
-
-            if (orderId) {
-              html += '<div class="stock-order-result-actions" data-order-actions>';
-              html +=
-                '<a href="' +
-                escapeHtml(window.artlyStockOrder ? window.artlyStockOrder.historyUrl : "/my-downloads/") +
-                '" class="stock-order-result-link">';
-              html += "View in history";
-              html += "</a>";
-              html += "</div>";
+            if (resultsList) {
+              resultsList.appendChild(card);
             }
 
-            html += "</li>";
+            if (normalized.download_url) {
+              updateOrderResult(card, {
+                status: normalized.status || "completed",
+                message: normalized.message || "Ready to download",
+                progress: 100,
+                download_url: normalized.download_url
+              });
+              return;
+            }
 
-            // Collect order IDs for polling
-            if (orderId && (status === "queued" || status === "processing")) {
-              pendingOrderIds.push(parseInt(orderId, 10));
+            if (normalized.status === "ready") {
+              generateDownloadLink(normalized.task_id, card, 0);
+              return;
+            }
+
+            if (normalized.status === "completed" || normalized.status === "already_downloaded") {
+              updateOrderResult(card, normalized);
+              return;
+            }
+
+            if (shouldPollOrder(normalized)) {
+              pollOrderStatus(normalized.task_id, card, 0);
+              return;
+            }
+
+            if (!normalized.task_id && normalized.status === "queued") {
+              updateOrderResult(card, {
+                status: "error",
+                progress: 100,
+                message: "We couldn't track this download. Please check your history."
+              });
             }
           });
 
-          html += "</ul>";
-
-          if (resultsEl) {
-            resultsEl.innerHTML = html;
-
-            // Initialize progress bar widths
-            var progressBars = resultsEl.querySelectorAll("[data-order-progress]");
-            progressBars.forEach(function (bar) {
-              var pct = parseInt(bar.getAttribute("data-progress-pct") || "0", 10);
-              if (pct > 0) {
-                bar.style.width = pct + "%";
-              }
-            });
-          }
-
-          // Start polling if we have pending orders
-          if (pendingOrderIds.length) {
-            startStockOrderPolling(pendingOrderIds);
-          }
-
-          // Update balance if needed (you could show this somewhere)
-          if (balance !== undefined) {
-            // Balance updated message could be shown
+          var balance = typeof data.new_balance !== "undefined" ? data.new_balance : data.balance;
+          if (typeof balance !== "undefined") {
+            applyWalletBalance(balance);
           }
         })
         .catch(function (err) {
@@ -808,11 +1236,10 @@
           if (err && err.message === "unauthorized") {
             showError("Your session expired. Please refresh the page and log in again.");
           } else {
-            showError("Failed to process orders. Please try again.");
+            showError("Failed to submit order. Please try again.");
           }
         })
         .finally(function () {
-          // Re-enable submit buttons
           submitButtons.forEach(function (btn) {
             btn.disabled = false;
           });
@@ -884,179 +1311,21 @@
       });
     }
 
-    // Polling logic
-    var pollTimer = null;
-    var activeOrderIds = [];
-
-    function startStockOrderPolling(orderIds) {
-      // Merge new IDs into active list (avoid duplicates)
-      orderIds.forEach(function (id) {
-        id = parseInt(id, 10);
-        if (!id) return;
-        if (activeOrderIds.indexOf(id) === -1) {
-          activeOrderIds.push(id);
-        }
-      });
-
-      if (!activeOrderIds.length) return;
-
-      // If timer already running, just let it continue
-      if (pollTimer) return;
-
-      pollTimer = window.setInterval(function () {
-        if (!activeOrderIds.length) {
-          stopStockOrderPolling();
-          return;
-        }
-
-        pollStockOrderStatus();
-      }, 5000); // every 5 seconds
-    }
-
-    function stopStockOrderPolling() {
-      if (pollTimer) {
-        window.clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      activeOrderIds = [];
-    }
-
-    function pollStockOrderStatus() {
-      var statusEndpoint = config.statusEndpoint || "";
-      if (!statusEndpoint) return;
-      if (!activeOrderIds.length) return;
-
-      var url =
-        statusEndpoint + "?order_ids[]=" + activeOrderIds.join("&order_ids[]=");
-
-      fetch(url, {
-        method: "GET",
-        headers: {
-          "X-WP-Nonce": restNonce
-        },
-        credentials: "same-origin"
-      })
-        .then(function (res) {
-          if (!res.ok) throw new Error("http");
-          return res.json();
-        })
-        .then(function (data) {
-          if (!data || !Array.isArray(data.orders)) return;
-
-          var finalStates = ["completed", "failed", "already_downloaded"];
-
-          data.orders.forEach(function (order) {
-            updateOrderProgressUI(order);
-
-            if (finalStates.indexOf(order.status) !== -1) {
-              // Remove from active list
-              activeOrderIds = activeOrderIds.filter(function (id) {
-                return id !== order.id;
-              });
-            }
-          });
-
-          if (!activeOrderIds.length) {
-            stopStockOrderPolling();
-          }
-        })
-        .catch(function () {
-          // Soft-fail: do not break UI; just stop polling on repeated failures.
-        });
-    }
-
-    function mapStatusToProgress(status) {
-      switch (status) {
-        case "queued":
-          return 25;
-        case "processing":
-          return 60;
-        case "completed":
-        case "already_downloaded":
-          return 100;
-        case "failed":
-          return 100;
-        default:
-          return 40;
-      }
-    }
-
-    function mapStatusToText(status) {
-      switch (status) {
-        case "queued":
-          return "Queued";
-        case "processing":
-          return "Processing";
-        case "completed":
-          return "Ready";
-        case "already_downloaded":
-          return "Already downloaded";
-        case "failed":
-          return "Failed";
-        default:
-          return "Pending";
-      }
-    }
-
-    function updateOrderProgressUI(order) {
-      if (!order || !order.id) return;
-
-      var selector = '[data-order-id="' + order.id + '"]';
-      var row = root.querySelector(selector);
-      if (!row) return;
-
-      var statusEl = row.querySelector("[data-order-status]");
-      var barEl = row.querySelector("[data-order-progress]");
-      var actionsEl = row.querySelector("[data-order-actions]");
-
-      var pct = mapStatusToProgress(order.status);
-      var label = mapStatusToText(order.status);
-
-      if (barEl) {
-        barEl.style.width = pct + "%";
-        barEl.setAttribute("data-progress-pct", pct);
-
-        row.classList.remove(
-          "stock-order-result--queued",
-          "stock-order-result--processing",
-          "stock-order-result--completed",
-          "stock-order-result--already_downloaded",
-          "stock-order-result--failed"
-        );
-
-        row.classList.add("stock-order-result--" + (order.status || "unknown"));
-      }
-
-      if (statusEl) {
-        statusEl.textContent = label;
-      }
-
-      // If completed with download_url, show direct download link
-      if (actionsEl && order.download_url) {
-        actionsEl.innerHTML =
-          '<a href="' +
-          escapeHtml(order.download_url) +
-          '" target="_blank" rel="noopener" class="stock-order-result-link">Download file</a>';
-      } else if (actionsEl && (order.status === "completed" || order.status === "already_downloaded")) {
-        // Show history link if no direct download URL
-        if (!actionsEl.querySelector("a")) {
-          actionsEl.innerHTML =
-            '<a href="' +
-            escapeHtml(window.artlyStockOrder ? window.artlyStockOrder.historyUrl : "/my-downloads/") +
-            '" class="stock-order-result-link">View in history</a>';
-        }
-      }
-    }
-
     function showError(message) {
       var resultsEl = root.querySelector("[data-stock-order-results]");
       if (!resultsEl) return;
 
-      var itemEl = document.createElement("div");
-      itemEl.className = "stock-order-result-item stock-order-result-item--error";
-      itemEl.innerHTML =
-        '<div class="stock-order-result-message">' + escapeHtml(message) + "</div>";
-      resultsEl.appendChild(itemEl);
+      var list = ensureResultsList(resultsEl);
+      if (!list) return;
+
+      var card = createOrderResultElement({
+        url: "Stock order",
+        status: "error",
+        message: message,
+        progress: 100
+      });
+
+      list.appendChild(card);
     }
 
     function escapeHtml(text) {
