@@ -682,162 +682,575 @@
       });
     }
 
-    // Batch mode: scan links
+    // Batch mode: enhanced previews
     var batchInput = root.querySelector("#stock-order-batch-input");
-    var batchScan = root.querySelector("[data-stock-order-scan]");
-    var batchList = root.querySelector("[data-stock-order-batch-list]");
-    var batchSubmit = root.querySelector('[data-stock-order-submit="batch"]');
-
+    var batchPreviewContainer = root.querySelector("[data-stock-order-batch-preview-container]");
+    var batchSummary = root.querySelector("[data-stock-order-batch-summary]");
+    var selectedCountEl = batchSummary ? batchSummary.querySelector("[data-selected-count]") : null;
+    var totalCostEl = batchSummary ? batchSummary.querySelector("[data-total-cost]") : null;
+    var submitBatchBtn = root.querySelector("[data-stock-order-submit-batch]");
     var batchItems = [];
+    var batchProcessTimer = null;
+    var batchLimitWarningShown = false;
+    var batchSubmitDefaultLabel = submitBatchBtn ? submitBatchBtn.textContent : "";
+    var MAX_BATCH_LINKS = 5;
 
-    // Calculate total cost for batch mode
-    function updateBatchTotalCost() {
-      if (!batchList) return;
-      var items = batchList.querySelectorAll("[data-stock-order-batch-item]");
-      var totalCost = 0;
-
-      items.forEach(function (item) {
-        var checkbox = item.querySelector('input[type="checkbox"]');
-        if (checkbox && checkbox.checked && !checkbox.disabled) {
-          var cost = parseFloat(checkbox.getAttribute("data-cost") || "0");
-          totalCost += cost;
-        }
-      });
-
-      // Show/hide total cost display
-      var totalDisplay = root.querySelector("[data-batch-total-cost]");
-      if (!totalDisplay && batchSubmit) {
-        // Create total display if it doesn't exist
-        var totalEl = document.createElement("div");
-        totalEl.className = "stock-order-batch-total";
-        totalEl.setAttribute("data-batch-total-cost", "");
-        if (batchSubmit.parentNode) {
-          batchSubmit.parentNode.insertBefore(totalEl, batchSubmit);
-        }
-        totalDisplay = totalEl;
-      }
-
-      if (totalDisplay) {
-        if (totalCost > 0) {
-          totalDisplay.innerHTML =
-            '<div class="stock-order-batch-total-label">Total: <strong>' +
-            totalCost.toFixed(1) +
-            " point(s)</strong></div>";
-          totalDisplay.style.display = "block";
-        } else {
-          totalDisplay.style.display = "none";
-        }
-      }
-
-      // Check if user has enough points
-      var insufficientEl = root.querySelector("[data-batch-insufficient-points]");
-      if (totalCost > currentWalletBalance) {
-        if (batchSubmit) {
-          batchSubmit.disabled = true;
-        }
-        if (!insufficientEl && batchSubmit) {
-          insufficientEl = document.createElement("div");
-          insufficientEl.className = "stock-order-batch-insufficient";
-          insufficientEl.setAttribute("data-batch-insufficient-points", "");
-          if (batchSubmit.parentNode) {
-            batchSubmit.parentNode.insertBefore(insufficientEl, batchSubmit);
-          }
-        }
-        if (insufficientEl) {
-          insufficientEl.textContent = "You don't have enough points to order these files.";
-          insufficientEl.style.display = "block";
-        }
-      } else {
-        if (batchSubmit) {
-          batchSubmit.disabled = false;
-        }
-        if (insufficientEl) {
-          insufficientEl.style.display = "none";
-        }
-      }
+    if (submitBatchBtn) {
+      submitBatchBtn.disabled = true;
     }
 
-    if (batchScan && batchInput && batchList) {
-      batchScan.addEventListener("click", function () {
-        var text = batchInput.value.trim();
-        if (!text) return;
+    function scheduleProcessBatch(delay) {
+      if (!batchInput) return;
+      if (batchProcessTimer) {
+        window.clearTimeout(batchProcessTimer);
+      }
+      batchProcessTimer = window.setTimeout(function () {
+        batchProcessTimer = null;
+        processBatchLinks();
+      }, typeof delay === "number" ? delay : 250);
+    }
 
-        var rawLines = text.split("\n").map(function (line) {
+    function clearBatchPreviews() {
+      batchItems = [];
+      if (batchPreviewContainer) {
+        batchPreviewContainer.innerHTML = "";
+      }
+      if (batchSummary) {
+        batchSummary.hidden = true;
+      }
+      if (selectedCountEl) {
+        selectedCountEl.textContent = "0";
+      }
+      if (totalCostEl) {
+        totalCostEl.textContent = "0.0";
+      }
+      if (submitBatchBtn) {
+        submitBatchBtn.disabled = true;
+        submitBatchBtn.textContent = batchSubmitDefaultLabel || submitBatchBtn.textContent;
+      }
+      batchLimitWarningShown = false;
+    }
+
+    function processBatchLinks() {
+      if (!batchInput || !batchPreviewContainer) return;
+
+      var text = batchInput.value || "";
+      var lines = text
+        .split(/\r?\n/)
+        .map(function (line) {
           return line.trim();
-        }).filter(function (line) {
+        })
+        .filter(function (line) {
           return line.length > 0;
         });
 
-        // Deduplicate URLs
-        var uniqueUrls = [];
-        var seenUrls = {};
-        rawLines.forEach(function (url) {
-          if (!seenUrls[url]) {
-            seenUrls[url] = true;
-            uniqueUrls.push(url);
+      var seen = {};
+      var uniqueUrls = [];
+      lines.forEach(function (line) {
+        if (!/^https?:\/\//i.test(line)) {
+          return;
+        }
+        if (seen[line]) {
+          return;
+        }
+        seen[line] = true;
+        uniqueUrls.push(line);
+      });
+
+      if (!uniqueUrls.length) {
+        clearBatchPreviews();
+        return;
+      }
+
+      if (uniqueUrls.length > MAX_BATCH_LINKS) {
+        if (!batchLimitWarningShown) {
+          showNotification("Only the first 5 links will be processed.", "warning");
+        }
+        batchLimitWarningShown = true;
+      } else {
+        batchLimitWarningShown = false;
+      }
+
+      uniqueUrls = uniqueUrls.slice(0, MAX_BATCH_LINKS);
+
+      var existingMap = {};
+      batchItems.forEach(function (item) {
+        existingMap[item.url] = item;
+      });
+
+      var newItems = [];
+
+      uniqueUrls.forEach(function (url, index) {
+        var existingItem = existingMap[url];
+        if (existingItem) {
+          existingItem.card.dataset.batchIndex = index;
+          newItems.push(existingItem);
+          batchPreviewContainer.appendChild(existingItem.card);
+        } else {
+          var created = addBatchPreviewCard(url, index);
+          if (created) {
+            newItems.push(created);
           }
+        }
+      });
+
+      batchItems.forEach(function (item) {
+        if (uniqueUrls.indexOf(item.url) === -1 && item.card && item.card.parentNode === batchPreviewContainer) {
+          batchPreviewContainer.removeChild(item.card);
+        }
+      });
+
+      batchItems = newItems;
+
+      if (!batchItems.length) {
+        clearBatchPreviews();
+        return;
+      }
+
+      batchItems.forEach(function (item, index) {
+        item.index = index;
+        item.card.dataset.batchIndex = index;
+        if (item.checkbox) {
+          item.checkbox.checked = !item.error && item.selected !== false;
+          item.checkbox.disabled = item.loading || item.error;
+        }
+        if (!item.preview && !item.fetching) {
+          fetchPreviewForBatchItem(item.url, index);
+        }
+        item.card.classList.toggle("is-selected", !item.error && (item.selected !== false));
+      });
+
+      if (batchSummary) {
+        batchSummary.hidden = false;
+      }
+
+      updateBatchSummary();
+    }
+
+    function addBatchPreviewCard(url, index) {
+      if (!batchPreviewContainer) return null;
+
+      var card = document.createElement("div");
+      card.className = "batch-preview-card is-loading is-selected";
+      card.setAttribute("data-batch-index", index);
+
+      var checkboxWrap = document.createElement("div");
+      checkboxWrap.className = "batch-preview-checkbox";
+      var checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.disabled = true;
+      checkboxWrap.appendChild(checkbox);
+
+      var imageWrap = document.createElement("div");
+      imageWrap.className = "batch-preview-image is-loading";
+      imageWrap.textContent = "Loading";
+
+      var infoWrap = document.createElement("div");
+      infoWrap.className = "batch-preview-info";
+      var titleEl = document.createElement("div");
+      titleEl.className = "batch-preview-title";
+      titleEl.textContent = url;
+      var metaEl = document.createElement("div");
+      metaEl.className = "batch-preview-meta";
+      metaEl.textContent = "Fetching details...";
+      var errorEl = document.createElement("div");
+      errorEl.className = "batch-preview-error";
+      infoWrap.appendChild(titleEl);
+      infoWrap.appendChild(metaEl);
+      infoWrap.appendChild(errorEl);
+
+      var actionsWrap = document.createElement("div");
+      actionsWrap.className = "batch-preview-actions";
+      var confirmBtn = document.createElement("button");
+      confirmBtn.type = "button";
+      confirmBtn.className = "batch-preview-confirm";
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = "Fetching...";
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "batch-preview-remove";
+      removeBtn.setAttribute("aria-label", "Remove link");
+      removeBtn.innerHTML = "&times;";
+      actionsWrap.appendChild(confirmBtn);
+      actionsWrap.appendChild(removeBtn);
+
+      card.appendChild(checkboxWrap);
+      card.appendChild(imageWrap);
+      card.appendChild(infoWrap);
+      card.appendChild(actionsWrap);
+
+      batchPreviewContainer.appendChild(card);
+
+      var item = {
+        url: url,
+        card: card,
+        checkbox: checkbox,
+        imageEl: imageWrap,
+        infoEl: infoWrap,
+        titleEl: titleEl,
+        metaEl: metaEl,
+        errorEl: errorEl,
+        confirmBtn: confirmBtn,
+        removeBtn: removeBtn,
+        selected: true,
+        preview: null,
+        loading: true,
+        fetching: false,
+        error: false
+      };
+
+      checkbox.addEventListener("change", function () {
+        item.selected = checkbox.checked;
+        if (item.error) {
+          item.selected = false;
+          checkbox.checked = false;
+        }
+        card.classList.toggle("is-selected", item.selected && !item.error);
+        updateBatchSummary();
+      });
+
+      confirmBtn.addEventListener("click", function () {
+        if (confirmBtn.disabled) return;
+        var idx = batchItems.indexOf(item);
+        if (idx === -1) return;
+        orderSingleBatchItem(idx);
+      });
+
+      removeBtn.addEventListener("click", function () {
+        var idx = batchItems.indexOf(item);
+        if (idx === -1) return;
+        removeBatchItem(idx);
+      });
+
+      return item;
+    }
+
+    function fetchPreviewForBatchItem(url, index) {
+      if (!previewEndpoint) return;
+      var item = batchItems[index];
+      if (!item || item.url !== url) return;
+
+      item.fetching = true;
+      item.loading = true;
+      item.error = false;
+      if (item.card) {
+        item.card.classList.remove("has-error");
+        item.card.classList.add("is-loading");
+      }
+      if (item.checkbox) {
+        item.checkbox.disabled = true;
+        item.checkbox.checked = true;
+      }
+      if (item.imageEl) {
+        item.imageEl.classList.add("is-loading");
+        item.imageEl.textContent = "Loading";
+      }
+      if (item.metaEl) {
+        item.metaEl.textContent = "Fetching details...";
+      }
+      if (item.errorEl) {
+        item.errorEl.textContent = "";
+      }
+      if (item.confirmBtn) {
+        item.confirmBtn.disabled = true;
+        item.confirmBtn.textContent = "Fetching...";
+      }
+
+      fetch(previewEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-WP-Nonce": restNonce || ""
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ url: url })
+      })
+        .then(function (res) {
+          if (res.status === 401) {
+            throw new Error("unauthorized");
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data || !data.success) {
+            var message = (data && data.message) || "Preview unavailable.";
+            throw new Error(message);
+          }
+          handleBatchItemPreview(index, data);
+        })
+        .catch(function (err) {
+          var friendly = err && err.message ? err.message : "Failed to fetch preview.";
+          if (friendly === "unauthorized") {
+            friendly = "Your session expired. Please refresh the page and log in again.";
+            showNotification(friendly, "error");
+          }
+          handleBatchItemError(index, friendly);
+        });
+    }
+
+    function handleBatchItemPreview(index, previewData) {
+      var item = batchItems[index];
+      if (!item) return;
+
+      item.preview = previewData;
+      item.loading = false;
+      item.fetching = false;
+      item.error = false;
+      item.selected = true;
+
+      var siteLabel = previewData.site_label || previewData.site || "";
+      var stockId = previewData.stock_id || previewData.id || "";
+      var costRaw = typeof previewData.cost_points !== "undefined" ? parseFloat(previewData.cost_points) : 0;
+      if (isNaN(costRaw)) {
+        costRaw = 0;
+      }
+      var costText = costRaw.toFixed(1);
+
+      if (item.card) {
+        item.card.classList.remove("is-loading");
+        item.card.classList.remove("has-error");
+        item.card.classList.add("is-selected");
+      }
+      if (item.checkbox) {
+        item.checkbox.disabled = false;
+        item.checkbox.checked = true;
+      }
+      if (item.imageEl) {
+        item.imageEl.classList.remove("is-loading");
+        item.imageEl.innerHTML = "";
+        if (previewData.preview_thumb) {
+          var img = document.createElement("img");
+          img.src = previewData.preview_thumb;
+          img.alt = siteLabel ? siteLabel + " preview" : "Stock preview";
+          item.imageEl.appendChild(img);
+        } else {
+          item.imageEl.textContent = "No preview";
+        }
+      }
+      if (item.titleEl) {
+        item.titleEl.textContent = siteLabel && stockId ? siteLabel + " – " + stockId : siteLabel || item.url;
+      }
+      if (item.metaEl) {
+        item.metaEl.innerHTML = "";
+        if (siteLabel) {
+          var sourceSpan = document.createElement("span");
+          sourceSpan.textContent = siteLabel;
+          item.metaEl.appendChild(sourceSpan);
+        }
+        if (stockId) {
+          var idSpan = document.createElement("span");
+          idSpan.textContent = "#" + stockId;
+          item.metaEl.appendChild(idSpan);
+        }
+        var costSpan = document.createElement("span");
+        costSpan.className = "batch-preview-cost";
+        costSpan.textContent = costText + " point(s)";
+        item.metaEl.appendChild(costSpan);
+      }
+      if (item.errorEl) {
+        item.errorEl.textContent = "";
+      }
+
+      if (item.confirmBtn) {
+        if (previewData.enough_points === false) {
+          item.confirmBtn.disabled = true;
+          item.confirmBtn.textContent = "Not enough points";
+          if (item.checkbox) {
+            item.checkbox.checked = false;
+            item.checkbox.disabled = true;
+          }
+          item.selected = false;
+          if (item.card) {
+            item.card.classList.remove("is-selected");
+          }
+        } else {
+          item.confirmBtn.disabled = false;
+          item.confirmBtn.textContent = "Confirm (" + costText + " pt)";
+        }
+      }
+
+      updateBatchSummary();
+    }
+
+    function handleBatchItemError(index, errorMessage) {
+      var item = batchItems[index];
+      if (!item) return;
+
+      item.preview = null;
+      item.loading = false;
+      item.fetching = false;
+      item.error = true;
+      item.selected = false;
+
+      if (item.card) {
+        item.card.classList.remove("is-loading");
+        item.card.classList.add("has-error");
+        item.card.classList.remove("is-selected");
+      }
+      if (item.checkbox) {
+        item.checkbox.checked = false;
+        item.checkbox.disabled = true;
+      }
+      if (item.imageEl) {
+        item.imageEl.classList.remove("is-loading");
+        item.imageEl.textContent = "--";
+      }
+      if (item.metaEl) {
+        item.metaEl.textContent = "";
+      }
+      if (item.errorEl) {
+        item.errorEl.textContent = errorMessage || "Preview unavailable.";
+      }
+      if (item.confirmBtn) {
+        item.confirmBtn.disabled = true;
+        item.confirmBtn.textContent = "Unavailable";
+      }
+
+      updateBatchSummary();
+    }
+
+    function updateBatchSummary() {
+      var selectedCount = 0;
+      var totalCost = 0;
+
+      batchItems.forEach(function (item) {
+        if (item.preview && !item.error && item.selected) {
+          selectedCount += 1;
+          var cost = parseFloat(item.preview.cost_points || 0);
+          if (!isNaN(cost)) {
+            totalCost += cost;
+          }
+        }
+      });
+
+      if (selectedCountEl) {
+        selectedCountEl.textContent = String(selectedCount);
+      }
+      if (totalCostEl) {
+        totalCostEl.textContent = totalCost.toFixed(1);
+      }
+      if (batchSummary) {
+        batchSummary.hidden = batchItems.length === 0;
+      }
+      if (submitBatchBtn) {
+        submitBatchBtn.disabled = !selectedCount || totalCost > currentWalletBalance;
+      }
+    }
+
+    function removeBatchItem(index) {
+      if (index < 0 || index >= batchItems.length) return;
+      var item = batchItems[index];
+      if (item.card && item.card.parentNode === batchPreviewContainer) {
+        batchPreviewContainer.removeChild(item.card);
+      }
+      batchItems.splice(index, 1);
+
+      if (!batchItems.length) {
+        if (batchInput) {
+          batchInput.value = "";
+        }
+        clearBatchPreviews();
+      } else {
+        if (batchInput) {
+          batchInput.value = batchItems.map(function (entry) {
+            return entry.url;
+          }).join("\n");
+        }
+        batchItems.forEach(function (entry, idx) {
+          entry.card.dataset.batchIndex = idx;
+        });
+        updateBatchSummary();
+      }
+    }
+
+    function orderSingleBatchItem(index) {
+      var item = batchItems[index];
+      if (!item || !item.preview || item.error || item.loading) return;
+
+      var confirmBtn = item.confirmBtn;
+      var originalText = confirmBtn ? confirmBtn.textContent : "";
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Ordering...";
+      }
+
+      var payload = {
+        links: [
+          {
+            url: item.url,
+            selected: true
+          }
+        ]
+      };
+
+      submitStockOrder(payload, function (success) {
+        if (success) {
+          showNotification("Order placed for 1 link.", "success");
+          removeBatchItem(index);
+        } else if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = originalText || "Confirm";
+        }
+      });
+    }
+
+    if (batchInput) {
+      batchInput.addEventListener("input", function () {
+        scheduleProcessBatch();
+      });
+      batchInput.addEventListener("paste", function () {
+        scheduleProcessBatch(150);
+      });
+      batchInput.addEventListener("blur", function () {
+        scheduleProcessBatch();
+      });
+    }
+
+    if (submitBatchBtn) {
+      submitBatchBtn.addEventListener("click", function () {
+        if (submitBatchBtn.disabled) return;
+
+        var selectedItems = batchItems.filter(function (item) {
+          return item.preview && !item.error && item.selected;
         });
 
-        // Enforce 5-link limit
-        if (uniqueUrls.length > 5) {
-          showError("You can only process up to 5 links at once.");
-          uniqueUrls = uniqueUrls.slice(0, 5);
+        if (!selectedItems.length) {
+          showNotification("Please select at least one link to order.", "warning");
+          return;
         }
 
-        var lines = uniqueUrls;
+        var links = selectedItems.map(function (item) {
+          return {
+            url: item.url,
+            selected: true
+          };
+        });
 
-        batchItems = [];
-        batchList.innerHTML = "";
+        var payload = { links: links };
 
-        lines.forEach(function (line) {
-          var url = line.trim();
-          var info = detectFromIdExtractor(url);
+        submitBatchBtn.disabled = true;
+        submitBatchBtn.textContent = "Ordering...";
 
-          if (info) {
-            var item = {
-              url: url,
-              site: info.source,
-              label: info.label,
-              points: info.points
-            };
-            batchItems.push(item);
-
-            var itemEl = document.createElement("div");
-            itemEl.className = "stock-order-batch-item";
-            itemEl.setAttribute("data-stock-order-batch-item", "");
-            itemEl.setAttribute("data-url", url);
-
-            itemEl.innerHTML = [
-              '<input type="checkbox" checked />',
-              '<div class="stock-order-batch-item-content">',
-              '  <div class="stock-order-batch-item-url">' + escapeHtml(url) + "</div>",
-              '  <div class="stock-order-batch-item-meta">' + escapeHtml(info.label) + " – " + info.points + " point(s)</div>",
-              "</div>"
-            ].join("");
-
-            batchList.appendChild(itemEl);
-          } else {
-            // Show unsupported link
-            var itemEl = document.createElement("div");
-            itemEl.className = "stock-order-batch-item";
-            itemEl.setAttribute("data-stock-order-batch-item", "");
-            itemEl.setAttribute("data-url", url);
-
-            itemEl.innerHTML = [
-              '<input type="checkbox" disabled />',
-              '<div class="stock-order-batch-item-thumb-placeholder"></div>',
-              '<div class="stock-order-batch-item-content">',
-              '  <div class="stock-order-batch-item-url">' + escapeHtml(url) + "</div>",
-              '  <div class="stock-order-batch-item-meta" style="color: rgba(248, 113, 113, 0.9);">Unsupported or invalid link</div>',
-              "</div>"
-            ].join("");
-
-            batchList.appendChild(itemEl);
-            finishScan();
+        submitStockOrder(payload, function (success) {
+          submitBatchBtn.disabled = false;
+          submitBatchBtn.textContent = batchSubmitDefaultLabel || "Order Selected Links";
+          if (success) {
+            showNotification("Order placed for selected links.", "success");
+            if (batchInput) {
+              batchInput.value = "";
+            }
+            clearBatchPreviews();
           }
         });
       });
     }
+
+    if (batchInput && batchInput.value.trim()) {
+      processBatchLinks();
+    }
+
+    fetchWalletBalance();
 
     function normalizeOrderForUI(order, resultEl) {
       var normalized = {
@@ -1270,21 +1683,78 @@
     }
 
     function applyWalletBalance(balance) {
+      var numericBalance = parseFloat(balance);
+      if (isNaN(numericBalance)) {
+        numericBalance = 0;
+      }
+      currentWalletBalance = numericBalance;
+
       if (typeof window.updateWalletDisplay === "function") {
-        window.updateWalletDisplay(balance);
+        window.updateWalletDisplay(numericBalance);
       } else if (typeof window.artlyUpdateWalletBalance === "function") {
-        window.artlyUpdateWalletBalance(balance);
+        window.artlyUpdateWalletBalance(numericBalance);
       }
 
       var balanceEls = document.querySelectorAll("[data-artly-wallet-balance]");
       balanceEls.forEach(function (el) {
-        el.textContent = balance;
+        el.textContent = numericBalance.toFixed(1);
       });
+
+      var walletBalanceEl = root.querySelector("[data-wallet-balance]");
+      if (walletBalanceEl) {
+        walletBalanceEl.textContent = numericBalance.toFixed(1);
+      }
+
+      updateBatchSummary();
     }
 
-    function submitStockOrder(payload) {
+    function fetchWalletBalance() {
+      if (!walletEndpoint) {
+        return Promise.resolve();
+      }
+
+      return fetch(walletEndpoint, {
+        method: "GET",
+        headers: {
+          "X-WP-Nonce": restNonce || ""
+        },
+        credentials: "same-origin"
+      })
+        .then(function (res) {
+          if (res.status === 401) {
+            throw new Error("unauthorized");
+          }
+          if (!res.ok) {
+            throw new Error("http_error");
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          if (typeof data.balance !== "undefined") {
+            applyWalletBalance(data.balance);
+          }
+          var billingEl = root.querySelector("[data-wallet-next-billing]");
+          if (billingEl) {
+            billingEl.textContent = data && data.next_billing ? data.next_billing : "--";
+          }
+          return data;
+        })
+        .catch(function (err) {
+          if (err && err.message === "unauthorized") {
+            console.warn("Wallet info request unauthorized.");
+          } else {
+            console.error("Wallet fetch error:", err);
+          }
+        });
+    }
+
+    function submitStockOrder(payload, callback) {
+      var callbackFn = typeof callback === "function" ? callback : null;
       if (!endpoint) {
         console.warn("Stock order endpoint not configured.");
+        if (callbackFn) {
+          callbackFn(false);
+        }
         return;
       }
 
@@ -1330,6 +1800,9 @@
 
           if (!orders.length) {
             showError("Unexpected response. Please try again.");
+            if (callbackFn) {
+              callbackFn(false, data);
+            }
             return;
           }
 
@@ -1379,13 +1852,22 @@
           if (typeof balance !== "undefined") {
             applyWalletBalance(balance);
           }
+          fetchWalletBalance();
+
+          if (callbackFn) {
+            callbackFn(true, data);
+          }
         })
         .catch(function (err) {
           console.error("Stock order error:", err);
+          var friendlyMessage = "Failed to submit order. Please try again.";
           if (err && err.message === "unauthorized") {
-            showError("Your session expired. Please refresh the page and log in again.");
-          } else {
-            showError("Failed to submit order. Please try again.");
+            friendlyMessage = "Your session expired. Please refresh the page and log in again.";
+          }
+          showError(friendlyMessage);
+          showNotification(friendlyMessage, "error");
+          if (callbackFn) {
+            callbackFn(false, err);
           }
         })
         .finally(function () {
@@ -1653,6 +2135,33 @@
       });
 
       list.appendChild(card);
+    }
+
+    function showNotification(message, type) {
+      if (!document || !document.body) return;
+      var validTypes = ["success", "error", "warning", "info"];
+      var notificationType = typeof type === "string" && validTypes.indexOf(type) !== -1 ? type : "info";
+      var note = document.createElement("div");
+      note.className = "artly-notification artly-notification-" + notificationType;
+      note.textContent = message;
+
+      var existing = document.querySelectorAll(".artly-notification").length;
+      note.style.top = 24 + existing * 72 + "px";
+
+      document.body.appendChild(note);
+
+      window.requestAnimationFrame(function () {
+        note.classList.add("is-visible");
+      });
+
+      window.setTimeout(function () {
+        note.classList.remove("is-visible");
+        window.setTimeout(function () {
+          if (note && note.parentNode) {
+            note.parentNode.removeChild(note);
+          }
+        }, 320);
+      }, 4000);
     }
 
     function escapeHtml(text) {

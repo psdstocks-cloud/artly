@@ -260,7 +260,7 @@ function artly_enqueue_assets() {
                 'endpoint'        => esc_url_raw( rest_url( 'artly/v1/stock-order' ) ),
                 'statusEndpoint'  => esc_url_raw( rest_url( 'artly/v1/stock-order-status' ) ),
                 'previewEndpoint' => esc_url_raw( rest_url( 'artly/v1/stock-order-preview' ) ),
-                'walletEndpoint'  => esc_url_raw( rest_url( 'artly/v1/wallet' ) ),
+                'walletEndpoint'  => esc_url_raw( rest_url( 'artly/v1/wallet-info' ) ),
                 'restNonce'       => wp_create_nonce( 'wp_rest' ),
                 'sites'           => $sites_config,
                 'historyUrl'      => esc_url_raw( $history_url ),

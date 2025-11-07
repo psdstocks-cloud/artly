@@ -1019,6 +1019,18 @@ function nehtw_gateway_register_rest_routes() {
         )
     );
 
+    register_rest_route(
+        'artly/v1',
+        '/wallet-info',
+        array(
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => 'artly_get_wallet_info',
+            'permission_callback' => function () {
+                return is_user_logged_in();
+            },
+        )
+    );
+
     // Artly-branded stock order status polling endpoint
     register_rest_route( 'artly/v1', '/stock-order-status', array(
         'methods'             => WP_REST_Server::READABLE,
@@ -1067,6 +1079,78 @@ function nehtw_gateway_register_rest_routes() {
     );
 }
 add_action( 'rest_api_init', 'nehtw_gateway_register_rest_routes' );
+
+function artly_get_wallet_info( WP_REST_Request $request ) {
+    $user_id = get_current_user_id();
+
+    if ( ! $user_id ) {
+        return new WP_Error(
+            'artly_wallet_not_logged_in',
+            __( 'You must be logged in to view wallet information.', 'nehtw-gateway' ),
+            array( 'status' => 401 )
+        );
+    }
+
+    $balance = function_exists( 'nehtw_gateway_get_balance' )
+        ? nehtw_gateway_get_balance( $user_id )
+        : 0.0;
+
+    $next_billing = get_user_meta( $user_id, '_artly_next_billing_date', true );
+
+    if ( empty( $next_billing ) && function_exists( 'wcs_get_users_subscriptions' ) ) {
+        $subscriptions = wcs_get_users_subscriptions( $user_id );
+
+        if ( ! empty( $subscriptions ) && is_array( $subscriptions ) ) {
+            foreach ( $subscriptions as $subscription ) {
+                if ( ! is_object( $subscription ) ) {
+                    continue;
+                }
+
+                if ( method_exists( $subscription, 'has_status' ) && ! $subscription->has_status( array( 'active', 'pending-cancel' ) ) ) {
+                    continue;
+                }
+
+                $timestamp = false;
+                if ( method_exists( $subscription, 'get_time' ) ) {
+                    $timestamp = $subscription->get_time( 'next_payment' );
+                } elseif ( method_exists( $subscription, 'get_date' ) ) {
+                    $date = $subscription->get_date( 'next_payment' );
+                    if ( $date ) {
+                        $timestamp = strtotime( $date );
+                    }
+                }
+
+                if ( $timestamp ) {
+                    $next_billing = gmdate( 'Y-m-d H:i:s', $timestamp );
+                    break;
+                }
+            }
+        }
+    }
+
+    if ( empty( $next_billing ) ) {
+        $future = strtotime( '+30 days' );
+        if ( $future ) {
+            $next_billing = gmdate( 'Y-m-d H:i:s', $future );
+        }
+    }
+
+    $formatted_next = 'N/A';
+    if ( ! empty( $next_billing ) ) {
+        $timestamp = is_numeric( $next_billing ) ? (int) $next_billing : strtotime( $next_billing );
+        if ( $timestamp ) {
+            $formatted_next = date_i18n( 'M j, Y', $timestamp );
+        }
+    }
+
+    return new WP_REST_Response(
+        array(
+            'balance'      => (float) $balance,
+            'next_billing' => $formatted_next,
+        ),
+        200
+    );
+}
 
 function nehtw_gateway_rest_stock_order( WP_REST_Request $request ) {
     $user_id = get_current_user_id();
