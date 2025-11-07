@@ -766,14 +766,37 @@ function nehtw_gateway_api_get( $path, $query_args = array() ) {
 
     $code = wp_remote_retrieve_response_code( $response );
     $body = wp_remote_retrieve_body( $response );
+
+    if ( $code < 200 || $code >= 300 ) {
+        $decoded = json_decode( $body, true );
+        $message = '';
+
+        if ( is_array( $decoded ) && ! empty( $decoded['message'] ) ) {
+            $message = (string) $decoded['message'];
+        } elseif ( '' !== trim( $body ) ) {
+            $message = $body;
+        } else {
+            $message = sprintf( 'Nehtw API error (HTTP %d).', $code );
+        }
+
+        return new WP_Error(
+            'nehtw_http_error',
+            $message,
+            array(
+                'status'        => (int) $code,
+                'response_body' => $body,
+                'response_json' => $decoded,
+                'endpoint'      => $path,
+            )
+        );
+    }
+
     $data = json_decode( $body, true );
 
     if ( null === $data ) {
         return new WP_Error( 'nehtw_bad_json', sprintf( 'Nehtw API returned invalid JSON (HTTP %d).', $code ) );
     }
-    if ( $code < 200 || $code >= 300 ) {
-        return new WP_Error( 'nehtw_http_error', sprintf( 'Nehtw API error (HTTP %d).', $code ), $data );
-    }
+
     return $data;
 }
 
@@ -2479,15 +2502,74 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         );
     }
 
+    if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
+        $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
+
+        if ( Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
+            $formatted    = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
+            $download_url = '';
+
+            if ( ! empty( $formatted['download_link'] ) && is_string( $formatted['download_link'] ) ) {
+                $download_url = esc_url_raw( $formatted['download_link'] );
+            }
+
+            if ( '' !== $download_url ) {
+                return new WP_REST_Response(
+                    array(
+                        'success'      => true,
+                        'download_url' => $download_url,
+                        'cached'       => true,
+                    ),
+                    200
+                );
+            }
+        }
+    }
+
     // Call Nehtw API to get fresh download link (does not charge again)
     $api = nehtw_gateway_api_order_download( $task_id, 'any' );
 
     if ( is_wp_error( $api ) ) {
-        error_log( 'Nehtw re-download error for task_id ' . $task_id . ': ' . $api->get_error_message() );
-        return new WP_REST_Response(
-            array( 'message' => __( 'We couldn\'t generate a download link right now. Please try again later.', 'nehtw-gateway' ) ),
-            502
-        );
+        $error_data = $api->get_error_data();
+        $status     = 0;
+
+        if ( is_array( $error_data ) && isset( $error_data['status'] ) ) {
+            $status = (int) $error_data['status'];
+        }
+
+        $error_message = $api->get_error_message();
+
+        if ( 409 === $status ) {
+            error_log( 'Nehtw re-download 409 for task_id ' . $task_id . ': ' . $error_message );
+            return new WP_REST_Response(
+                array( 'message' => __( 'Download not ready.', 'nehtw-gateway' ) ),
+                409
+            );
+        }
+
+        if ( $status >= 500 || 0 === $status ) {
+            $api_retry = nehtw_gateway_api_order_download( $task_id, 'any' );
+
+            if ( ! is_wp_error( $api_retry ) ) {
+                $api = $api_retry;
+            } else {
+                $error_message = $api_retry->get_error_message();
+                $error_data    = $api_retry->get_error_data();
+                if ( is_array( $error_data ) && isset( $error_data['status'] ) ) {
+                    $status = (int) $error_data['status'];
+                }
+                $api = $api_retry;
+            }
+        }
+
+        if ( is_wp_error( $api ) ) {
+            error_log( 'Nehtw re-download error for task_id ' . $task_id . ' (status ' . $status . '): ' . $error_message );
+
+            return new WP_REST_Response(
+                array( 'message' => __( 'Failed to generate download link.', 'nehtw-gateway' ) ),
+                502
+            );
+        }
     }
 
     if ( isset( $api['error'] ) && $api['error'] ) {
@@ -2500,7 +2582,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
     }
 
     $download_url = '';
-    $candidates = array( 'download_link', 'url', 'link' );
+    $candidates   = array( 'downloadLink', 'download_link', 'url', 'link' );
     foreach ( $candidates as $candidate ) {
         if ( isset( $api[ $candidate ] ) && '' !== $api[ $candidate ] ) {
             $maybe = esc_url_raw( (string) $api[ $candidate ] );
@@ -2525,8 +2607,8 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
 
     if ( '' === $download_url ) {
         return new WP_REST_Response(
-            array( 'message' => __( 'Download not ready.', 'nehtw-gateway' ) ),
-            409
+            array( 'message' => __( 'Download link not available at the moment. Please try again later.', 'nehtw-gateway' ) ),
+            502
         );
     }
 
