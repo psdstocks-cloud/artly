@@ -250,6 +250,8 @@
   );
   border: 1px solid rgba(30, 64, 175, 0.7);
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.85);
+  position: relative;
+  overflow: hidden;
 }
 
 .stock-order-result-top {
@@ -320,6 +322,38 @@
   text-decoration: underline;
 }
 
+.stock-order-result-message {
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.9);
+  margin-top: 0.35rem;
+  min-height: 0.95rem;
+}
+
+.stock-order-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #02131f;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  box-shadow: 0 12px 30px rgba(22, 163, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.16);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.stock-order-download-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 18px 38px rgba(22, 163, 255, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.stock-order-download-icon {
+  font-size: 0.85rem;
+}
+
 /* Status color tweaks */
 .stock-order-result--queued .stock-order-result-status {
   border-color: rgba(56, 189, 248, 0.7);
@@ -327,8 +361,9 @@
 }
 
 .stock-order-result--processing .stock-order-result-status {
-  border-color: rgba(248, 250, 252, 0.7);
-  color: #e5e7eb;
+  border-color: rgba(125, 211, 252, 0.85);
+  color: #bae6fd;
+  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.4);
 }
 
 .stock-order-result--completed .stock-order-result-status,
@@ -344,6 +379,62 @@
 
 .stock-order-result--failed .stock-order-result-progress-bar {
   background: linear-gradient(90deg, #f97373, #ef4444);
+}
+
+.stock-order-result--processing {
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 14px 36px rgba(13, 148, 136, 0.25), 0 0 0 1px rgba(56, 189, 248, 0.25);
+}
+
+.stock-order-result--processing .stock-order-result-progress-bar {
+  background: linear-gradient(135deg, rgba(6, 245, 232, 0.7), rgba(22, 163, 255, 0.9), rgba(168, 85, 247, 0.6));
+  background-size: 200% 100%;
+  animation: stock-order-stripes 1.4s linear infinite;
+}
+
+.stock-order-result--completed {
+  border-color: rgba(34, 197, 94, 0.8);
+  box-shadow: 0 18px 44px rgba(34, 197, 94, 0.25), 0 0 0 1px rgba(34, 197, 94, 0.3);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(34, 197, 94, 0.18), transparent 60%),
+    radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.12), transparent 65%),
+    linear-gradient(155deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+}
+
+.stock-order-result--completed .stock-order-result-progress-bar,
+.stock-order-result--already_downloaded .stock-order-result-progress-bar {
+  background: linear-gradient(135deg, #34d399, #a7f3d0);
+}
+
+.stock-order-result--error,
+.stock-order-result--failed,
+.stock-order-result--timeout {
+  border-color: rgba(248, 113, 113, 0.75);
+  box-shadow: 0 16px 38px rgba(248, 113, 113, 0.22), 0 0 0 1px rgba(248, 113, 113, 0.28);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(248, 113, 113, 0.14), transparent 55%),
+    radial-gradient(circle at 100% 30%, rgba(59, 130, 246, 0.1), transparent 65%),
+    linear-gradient(160deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.98));
+}
+
+.stock-order-result--error .stock-order-result-progress-bar,
+.stock-order-result--failed .stock-order-result-progress-bar,
+.stock-order-result--timeout .stock-order-result-progress-bar {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+}
+
+.stock-order-result--timeout .stock-order-result-status {
+  border-color: rgba(248, 113, 113, 0.8);
+  color: #fecaca;
+}
+
+@keyframes stock-order-stripes {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
 }
 
 .stock-order-sidebar {
