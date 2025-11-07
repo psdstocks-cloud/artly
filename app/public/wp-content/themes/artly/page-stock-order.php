@@ -37,6 +37,17 @@ $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
       </p>
     </section>
 
+    <div class="stock-order-wallet-summary" data-stock-order-wallet>
+      <div class="wallet-info">
+        <span class="wallet-label"><?php esc_html_e( 'Your balance:', 'artly' ); ?></span>
+        <span class="wallet-balance" data-wallet-balance>--</span>
+      </div>
+      <div class="wallet-next-billing">
+        <span class="wallet-label"><?php esc_html_e( 'Next billing:', 'artly' ); ?></span>
+        <span class="wallet-date" data-wallet-next-billing>--</span>
+      </div>
+    </div>
+
     <div class="stock-order-layout">
       <section class="stock-order-main">
         <div class="stock-order-tabs" data-stock-order-tabs>
@@ -64,11 +75,12 @@ $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
           <button type="button" class="stock-order-submit" data-stock-order-submit="single">
             <?php esc_html_e( 'Order download', 'artly' ); ?>
           </button>
+          <div class="stock-order-preview-inline" data-stock-order-preview></div>
         </div>
 
         <div class="stock-order-card" data-stock-order-panel="batch" hidden>
           <label for="stock-order-batch-input" class="stock-order-label">
-            <?php esc_html_e( 'Paste up to 5 links (one per line)', 'artly' ); ?>
+            <?php esc_html_e( 'Paste up to 5 unique links (one per line). Duplicate links will be ignored.', 'artly' ); ?>
           </label>
           <textarea
             id="stock-order-batch-input"

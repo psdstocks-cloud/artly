@@ -7,7 +7,9 @@
     var sitesConfig = config.sites || {};
     var endpoint = config.endpoint || "";
     var previewEndpoint = config.previewEndpoint || "";
+    var walletEndpoint = config.walletEndpoint || "";
     var restNonce = config.restNonce || "";
+    var currentWalletBalance = 0;
 
     var pollingConfig = {
       interval: 2000,
@@ -575,6 +577,64 @@
       };
     }
 
+    // Load wallet info on page load
+    function loadWalletInfo() {
+      if (!walletEndpoint) return;
+
+      fetch(walletEndpoint, {
+        method: "GET",
+        headers: {
+          "X-WP-Nonce": restNonce
+        },
+        credentials: "same-origin"
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("http");
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data || !data.success) return;
+
+          var balance = typeof data.balance === "number" ? data.balance : 0;
+          currentWalletBalance = balance;
+
+          var balanceEl = root.querySelector("[data-wallet-balance]");
+          if (balanceEl) {
+            balanceEl.textContent = balance.toFixed(1) + " point(s)";
+          }
+
+          var billingEl = root.querySelector("[data-wallet-next-billing]");
+          if (billingEl) {
+            var nextBilling = data.next_billing || null;
+            if (nextBilling && nextBilling !== "0000-00-00 00:00:00") {
+              try {
+                var date = new Date(nextBilling);
+                if (!isNaN(date.getTime())) {
+                  var formatted = date.toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric"
+                  });
+                  billingEl.textContent = formatted;
+                } else {
+                  billingEl.textContent = "—";
+                }
+              } catch (e) {
+                billingEl.textContent = "—";
+              }
+            } else {
+              billingEl.textContent = "—";
+            }
+          }
+        })
+        .catch(function () {
+          // Soft-fail: don't break the page if wallet fetch fails
+        });
+    }
+
+    // Load wallet info on page load
+    loadWalletInfo();
+
     // Tab switching
     var tabs = root.querySelectorAll(".stock-order-tab");
     var panels = root.querySelectorAll("[data-stock-order-panel]");
@@ -630,14 +690,101 @@
 
     var batchItems = [];
 
+    // Calculate total cost for batch mode
+    function updateBatchTotalCost() {
+      if (!batchList) return;
+      var items = batchList.querySelectorAll("[data-stock-order-batch-item]");
+      var totalCost = 0;
+
+      items.forEach(function (item) {
+        var checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.checked && !checkbox.disabled) {
+          var cost = parseFloat(checkbox.getAttribute("data-cost") || "0");
+          totalCost += cost;
+        }
+      });
+
+      // Show/hide total cost display
+      var totalDisplay = root.querySelector("[data-batch-total-cost]");
+      if (!totalDisplay && batchSubmit) {
+        // Create total display if it doesn't exist
+        var totalEl = document.createElement("div");
+        totalEl.className = "stock-order-batch-total";
+        totalEl.setAttribute("data-batch-total-cost", "");
+        if (batchSubmit.parentNode) {
+          batchSubmit.parentNode.insertBefore(totalEl, batchSubmit);
+        }
+        totalDisplay = totalEl;
+      }
+
+      if (totalDisplay) {
+        if (totalCost > 0) {
+          totalDisplay.innerHTML =
+            '<div class="stock-order-batch-total-label">Total: <strong>' +
+            totalCost.toFixed(1) +
+            " point(s)</strong></div>";
+          totalDisplay.style.display = "block";
+        } else {
+          totalDisplay.style.display = "none";
+        }
+      }
+
+      // Check if user has enough points
+      var insufficientEl = root.querySelector("[data-batch-insufficient-points]");
+      if (totalCost > currentWalletBalance) {
+        if (batchSubmit) {
+          batchSubmit.disabled = true;
+        }
+        if (!insufficientEl && batchSubmit) {
+          insufficientEl = document.createElement("div");
+          insufficientEl.className = "stock-order-batch-insufficient";
+          insufficientEl.setAttribute("data-batch-insufficient-points", "");
+          if (batchSubmit.parentNode) {
+            batchSubmit.parentNode.insertBefore(insufficientEl, batchSubmit);
+          }
+        }
+        if (insufficientEl) {
+          insufficientEl.textContent = "You don't have enough points to order these files.";
+          insufficientEl.style.display = "block";
+        }
+      } else {
+        if (batchSubmit) {
+          batchSubmit.disabled = false;
+        }
+        if (insufficientEl) {
+          insufficientEl.style.display = "none";
+        }
+      }
+    }
+
     if (batchScan && batchInput && batchList) {
       batchScan.addEventListener("click", function () {
         var text = batchInput.value.trim();
         if (!text) return;
 
-        var lines = text.split("\n").filter(function (line) {
-          return line.trim().length > 0;
-        }).slice(0, 5); // Max 5 links
+        var rawLines = text.split("\n").map(function (line) {
+          return line.trim();
+        }).filter(function (line) {
+          return line.length > 0;
+        });
+
+        // Deduplicate URLs
+        var uniqueUrls = [];
+        var seenUrls = {};
+        rawLines.forEach(function (url) {
+          if (!seenUrls[url]) {
+            seenUrls[url] = true;
+            uniqueUrls.push(url);
+          }
+        });
+
+        // Enforce 5-link limit
+        if (uniqueUrls.length > 5) {
+          showError("You can only process up to 5 links at once.");
+          uniqueUrls = uniqueUrls.slice(0, 5);
+        }
+
+        var lines = uniqueUrls;
 
         batchItems = [];
         batchList.innerHTML = "";
@@ -678,13 +825,15 @@
 
             itemEl.innerHTML = [
               '<input type="checkbox" disabled />',
+              '<div class="stock-order-batch-item-thumb-placeholder"></div>',
               '<div class="stock-order-batch-item-content">',
               '  <div class="stock-order-batch-item-url">' + escapeHtml(url) + "</div>",
-              '  <div class="stock-order-batch-item-meta" style="color: rgba(248, 113, 113, 0.9);">Unsupported or unknown website</div>',
+              '  <div class="stock-order-batch-item-meta" style="color: rgba(248, 113, 113, 0.9);">Unsupported or invalid link</div>',
               "</div>"
             ].join("");
 
             batchList.appendChild(itemEl);
+            finishScan();
           }
         });
       });
@@ -1311,6 +1460,184 @@
       });
     }
 
+    // Polling logic
+    var pollTimer = null;
+    var activeOrderIds = [];
+
+    function startStockOrderPolling(orderIds) {
+      // Merge new IDs into active list (avoid duplicates)
+      orderIds.forEach(function (id) {
+        id = parseInt(id, 10);
+        if (!id) return;
+        if (activeOrderIds.indexOf(id) === -1) {
+          activeOrderIds.push(id);
+        }
+      });
+
+      if (!activeOrderIds.length) return;
+
+      // If timer already running, just let it continue
+      if (pollTimer) return;
+
+      pollTimer = window.setInterval(function () {
+        if (!activeOrderIds.length) {
+          stopStockOrderPolling();
+          return;
+        }
+
+        pollStockOrderStatus();
+      }, 5000); // every 5 seconds
+    }
+
+    function stopStockOrderPolling() {
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      activeOrderIds = [];
+    }
+
+    function pollStockOrderStatus() {
+      var statusEndpoint = config.statusEndpoint || "";
+      if (!statusEndpoint) return;
+      if (!activeOrderIds.length) return;
+
+      var url =
+        statusEndpoint + "?order_ids[]=" + activeOrderIds.join("&order_ids[]=");
+
+      fetch(url, {
+        method: "GET",
+        headers: {
+          "X-WP-Nonce": restNonce
+        },
+        credentials: "same-origin"
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("http");
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data || !Array.isArray(data.orders)) return;
+
+          var finalStates = ["completed", "failed", "already_downloaded"];
+
+          data.orders.forEach(function (order) {
+            updateOrderProgressUI(order);
+
+            if (finalStates.indexOf(order.status) !== -1) {
+              // Remove from active list
+              activeOrderIds = activeOrderIds.filter(function (id) {
+                return id !== order.id;
+              });
+            }
+          });
+
+          if (!activeOrderIds.length) {
+            stopStockOrderPolling();
+          }
+        })
+        .catch(function () {
+          // Soft-fail: do not break UI; just stop polling on repeated failures.
+        });
+    }
+
+    function mapStatusToProgress(status, percentage) {
+      switch (status) {
+        case "pending":
+          return 10;
+        case "queued":
+          return 10;
+        case "processing":
+          if (typeof percentage === "number" && percentage >= 0 && percentage <= 100) {
+            return Math.max(10, Math.min(90, percentage));
+          }
+          return 50;
+        case "completed":
+        case "already_downloaded":
+        case "ready":
+          return 100;
+        case "failed":
+          return 100;
+        default:
+          return 40;
+      }
+    }
+
+    function mapStatusToText(status) {
+      switch (status) {
+        case "pending":
+          return "Queued…";
+        case "queued":
+          return "Queued…";
+        case "processing":
+          return "Processing";
+        case "completed":
+        case "ready":
+          return "Completed";
+        case "already_downloaded":
+          return "Already downloaded";
+        case "failed":
+          return "Failed";
+        default:
+          return "Pending";
+      }
+    }
+
+    function updateOrderProgressUI(order) {
+      if (!order || !order.id) return;
+
+      var selector = '[data-order-id="' + order.id + '"]';
+      var row = root.querySelector(selector);
+      if (!row) return;
+
+      var statusEl = row.querySelector("[data-order-status]");
+      var barEl = row.querySelector("[data-order-progress]");
+      var actionsEl = row.querySelector("[data-order-actions]");
+
+      var percentage = order.percentage !== undefined ? order.percentage : null;
+      var pct = mapStatusToProgress(order.status, percentage);
+      var label = mapStatusToText(order.status);
+      
+      if (order.status === "processing" && percentage !== null) {
+        label = percentage + "%";
+      }
+
+      if (barEl) {
+        barEl.style.width = pct + "%";
+        barEl.setAttribute("data-progress-pct", pct);
+
+        row.classList.remove(
+          "stock-order-result--queued",
+          "stock-order-result--processing",
+          "stock-order-result--completed",
+          "stock-order-result--already_downloaded",
+          "stock-order-result--failed"
+        );
+
+        row.classList.add("stock-order-result--" + (order.status || "unknown"));
+      }
+
+      if (statusEl) {
+        statusEl.textContent = label;
+      }
+
+      // If completed with download_url, show direct download link
+      if (actionsEl && order.download_url) {
+        actionsEl.innerHTML =
+          '<a href="' +
+          escapeHtml(order.download_url) +
+          '" target="_blank" rel="noopener" class="stock-order-result-link">Download file</a>';
+      } else if (actionsEl && (order.status === "completed" || order.status === "already_downloaded")) {
+        // Show history link if no direct download URL
+        if (!actionsEl.querySelector("a")) {
+          actionsEl.innerHTML =
+            '<a href="' +
+            escapeHtml(window.artlyStockOrder ? window.artlyStockOrder.historyUrl : "/my-downloads/") +
+            '" class="stock-order-result-link">View in history</a>';
+        }
+      }
+    }
+
     function showError(message) {
       var resultsEl = root.querySelector("[data-stock-order-results]");
       if (!resultsEl) return;
@@ -1451,7 +1778,67 @@
       modal.classList.add("is-visible");
     }
 
-    // Single mode submit WITH preview + confirm
+    // Show inline preview card
+    function showInlinePreview(preview) {
+      var previewContainer = root.querySelector("[data-stock-order-preview]");
+      if (!previewContainer) return;
+
+      var siteLabel = preview.site_label || preview.site || "";
+      var stockId = preview.stock_id || "";
+      var costValue = preview.cost_points || 0;
+      var thumbUrl = preview.preview_thumb || "";
+
+      var title = siteLabel + " – " + stockId;
+      var costText = "Cost: " + costValue + " point(s)";
+      var confirmText = "Confirm order (" + costValue + " point" + (costValue !== 1 ? "s" : "") + ")";
+
+      previewContainer.innerHTML =
+        '<div class="stock-order-preview-card-inline">' +
+        '<img src="' + escapeHtml(thumbUrl || "/wp-content/themes/artly/assets/img/placeholder.svg") + '" alt="Preview" />' +
+        '<div class="stock-order-preview-info-inline">' +
+        '<h4>' + escapeHtml(title) + "</h4>" +
+        "<p>" + escapeHtml(costText) + "</p>" +
+        '<button type="button" class="stock-order-preview-confirm-inline" data-preview-confirm-inline ' +
+        (preview.enough_points ? "" : "disabled") + ">" +
+        escapeHtml(confirmText) +
+        "</button>" +
+        "</div>" +
+        "</div>";
+
+      previewContainer.classList.add("is-visible");
+
+      var confirmBtn = previewContainer.querySelector("[data-preview-confirm-inline]");
+      if (confirmBtn) {
+        confirmBtn.addEventListener("click", function () {
+          if (confirmBtn.disabled) return;
+
+          var url = singleInput ? singleInput.value.trim() : "";
+          if (!url) return;
+
+          var payload = {
+            links: [
+              {
+                url: url,
+                selected: true
+              }
+            ]
+          };
+
+          previewContainer.classList.remove("is-visible");
+          previewContainer.innerHTML = "";
+          submitStockOrder(payload);
+        });
+      }
+
+      if (!preview.enough_points) {
+        var infoEl = previewContainer.querySelector(".stock-order-preview-info-inline p");
+        if (infoEl) {
+          infoEl.textContent = costText + " – You don't have enough points to order this file.";
+        }
+      }
+    }
+
+    // Single mode submit WITH inline preview + confirm
     if (singleSubmit && singleInput) {
       singleSubmit.addEventListener("click", function () {
         var url = singleInput.value.trim();
@@ -1459,24 +1846,15 @@
 
         fetchPreviewForUrl(url)
           .then(function (preview) {
-            openPreviewModal(root, preview, function () {
-              var payload = {
-                links: [
-                  {
-                    url: url,
-                    selected: true
-                  }
-                ]
-              };
-
-              submitStockOrder(payload);
-            });
+            showInlinePreview(preview);
           })
           .catch(function (err) {
             if (err && err.message === "unauthorized") {
               showError(
                 "Your session expired. Please refresh the page and log in again."
               );
+            } else {
+              showError("Failed to fetch preview. Please check the URL and try again.");
             }
           });
       });
@@ -1524,4 +1902,3 @@
     }
   });
 })();
-
