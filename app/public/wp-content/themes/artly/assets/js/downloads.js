@@ -49,6 +49,7 @@
 
       var kind = button.getAttribute('data-download-kind');
       var id = button.getAttribute('data-download-id');
+      var historyId = button.getAttribute('data-history-id');
 
       if (!kind || !id) {
         return;
@@ -58,13 +59,10 @@
         return;
       }
 
+      var originalText = button.textContent;
       button.disabled = true;
       button.classList.add('is-loading');
-
-      var payload = {
-        kind: kind,
-        id: id
-      };
+      button.textContent = 'Generating link…';
 
       var headers = {
         'Content-Type': 'application/json'
@@ -74,7 +72,20 @@
         headers['X-WP-Nonce'] = nonce;
       }
 
-      fetch(restBase + 'download-link', {
+      // Use new re-download endpoint for stock files with history_id
+      var endpoint = '';
+      var payload = {};
+      
+      if (kind === 'stock' && historyId) {
+        endpoint = restBase.replace('/nehtw/v1/', '/artly/v1/') + 'download-redownload';
+        payload = { history_id: parseInt(historyId, 10) };
+      } else {
+        // Fallback to old endpoint for AI or stock without history_id
+        endpoint = restBase + 'download-link';
+        payload = { kind: kind, id: id };
+      }
+
+      fetch(endpoint, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload),
@@ -91,23 +102,40 @@
             });
         })
         .then(function (result) {
-          if (!result || !result.ok || !result.data || !result.data.url) {
+          if (!result || !result.ok) {
+            var errorMsg = result && result.data && result.data.message 
+              ? result.data.message 
+              : 'We couldn\'t generate a download link right now. Please try again later.';
+            alert(errorMsg);
             button.disabled = false;
             button.classList.remove('is-loading');
+            button.textContent = originalText;
             return;
           }
 
-          window.location.href = result.data.url;
-        })
-        .catch(function () {
+          var downloadUrl = '';
+          if (result.data && result.data.download_url) {
+            downloadUrl = result.data.download_url;
+          } else if (result.data && result.data.url) {
+            downloadUrl = result.data.url;
+          }
+
+          if (downloadUrl) {
+            window.open(downloadUrl, '_blank');
+          } else {
+            alert('We couldn\'t generate a download link right now. Please try again later.');
+          }
+
           button.disabled = false;
           button.classList.remove('is-loading');
+          button.textContent = originalText;
         })
-        .finally(function () {
-          setTimeout(function () {
-            button.disabled = false;
-            button.classList.remove('is-loading');
-          }, 1500);
+        .catch(function (err) {
+          console.error('Download error:', err);
+          alert('We couldn\'t generate a download link right now. Please try again later.');
+          button.disabled = false;
+          button.classList.remove('is-loading');
+          button.textContent = originalText;
         });
     });
   });

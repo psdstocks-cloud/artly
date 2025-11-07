@@ -247,20 +247,59 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
         $status = isset( $order['status'] ) ? $order['status'] : '';
 
         $thumbnail = '';
-        if ( isset( $order['preview_thumb'] ) && $order['preview_thumb'] ) {
+        if ( isset( $row['preview_thumb'] ) && $row['preview_thumb'] ) {
+            $thumbnail = esc_url_raw( (string) $row['preview_thumb'] );
+        } elseif ( isset( $order['preview_thumb'] ) && $order['preview_thumb'] ) {
             $thumbnail = esc_url_raw( (string) $order['preview_thumb'] );
+        }
+        
+        $provider_label = '';
+        if ( isset( $row['provider_label'] ) && $row['provider_label'] ) {
+            $provider_label = sanitize_text_field( (string) $row['provider_label'] );
+        } elseif ( isset( $order['site'] ) ) {
+            // Fallback: try to get label from config
+            if ( function_exists( 'nehtw_gateway_get_stock_sites_config' ) ) {
+                $sites_config = nehtw_gateway_get_stock_sites_config();
+                if ( isset( $sites_config[ $order['site'] ]['label'] ) ) {
+                    $provider_label = sanitize_text_field( $sites_config[ $order['site'] ]['label'] );
+                }
+            }
+            // If still empty, use site key formatted
+            if ( empty( $provider_label ) ) {
+                $provider_label = ucwords( str_replace( array( '-', '_' ), ' ', (string) $order['site'] ) );
+            }
+        }
+        
+        $stock_url = '';
+        if ( isset( $row['source_url'] ) && $row['source_url'] ) {
+            $stock_url = esc_url_raw( (string) $row['source_url'] );
+        } elseif ( isset( $order['source_url'] ) && $order['source_url'] ) {
+            $stock_url = esc_url_raw( (string) $order['source_url'] );
+        }
+        
+        $updated_at = 0;
+        if ( isset( $row['updated_at'] ) ) {
+            $updated_at = nehtw_gateway_history_parse_datetime( $row['updated_at'] );
+        }
+        if ( $updated_at === 0 && $created_at > 0 ) {
+            $updated_at = $created_at;
         }
 
         return array(
-            'kind'       => 'stock',
-            'id'         => (string) ( $row['task_id'] ?? '' ),
-            'title'      => $title,
-            'site'       => isset( $order['site'] ) ? (string) $order['site'] : '',
-            'thumbnail'  => $thumbnail,
-            'status'     => nehtw_gateway_history_format_status( $status ),
-            'points'     => isset( $order['cost_points'] ) ? floatval( $order['cost_points'] ) : 0.0,
-            'created_at' => $created_at,
-            'task_id'    => isset( $row['task_id'] ) ? (string) $row['task_id'] : '',
+            'kind'          => 'stock',
+            'id'            => (string) ( $row['task_id'] ?? '' ),
+            'history_id'    => isset( $row['db_id'] ) ? (int) $row['db_id'] : 0,
+            'title'         => $title,
+            'site'          => isset( $order['site'] ) ? (string) $order['site'] : '',
+            'provider_label' => $provider_label,
+            'remote_id'     => isset( $row['stock_id'] ) ? (string) $row['stock_id'] : ( isset( $order['stock_id'] ) ? (string) $order['stock_id'] : '' ),
+            'stock_url'     => $stock_url,
+            'thumbnail'     => $thumbnail,
+            'status'        => nehtw_gateway_history_format_status( $status ),
+            'points'        => isset( $order['cost_points'] ) ? floatval( $order['cost_points'] ) : 0.0,
+            'created_at'    => $created_at,
+            'updated_at'    => $updated_at,
+            'task_id'       => isset( $row['task_id'] ) ? (string) $row['task_id'] : '',
             'download_link' => isset( $order['download_link'] ) ? (string) $order['download_link'] : '',
         );
     }
@@ -306,6 +345,7 @@ if ( ! function_exists( 'nehtw_gateway_history_format_ai_item' ) ) {
 if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
     /**
      * Fetch paginated unified download history for a user.
+     * For stock orders, deduplicates by user_id + site + stock_id (shows only most recent per unique file).
      *
      * @param int    $user_id  User ID.
      * @param int    $page     Page number (1-based).
@@ -336,15 +376,30 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
         $selects = array();
 
         if ( ( 'all' === $type || 'stock' === $type ) && $table_stock ) {
+            // Deduplicate stock orders: get only the most recent per user+site+stock_id
             $selects[] = $wpdb->prepare(
-                "SELECT 'stock' AS kind, id AS db_id, task_id, site, file_name, stock_id, status, cost_points, created_at, raw_response, download_link, NULL AS prompt, NULL AS files FROM {$table_stock} WHERE user_id = %d",
+                "SELECT 'stock' AS kind, s1.id AS db_id, s1.task_id, s1.site, s1.provider_label, s1.file_name, s1.stock_id, s1.source_url, s1.preview_thumb, s1.status, s1.cost_points, s1.created_at, s1.updated_at, s1.raw_response, s1.download_link, NULL AS prompt, NULL AS files 
+                FROM {$table_stock} s1
+                INNER JOIN (
+                    SELECT user_id, site, stock_id, MAX(updated_at) AS max_updated
+                    FROM {$table_stock}
+                    WHERE user_id = %d AND stock_id IS NOT NULL
+                    GROUP BY user_id, site, stock_id
+                ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.updated_at = s2.max_updated
+                WHERE s1.user_id = %d
+                UNION ALL
+                SELECT 'stock' AS kind, id AS db_id, task_id, site, provider_label, file_name, stock_id, source_url, preview_thumb, status, cost_points, created_at, updated_at, raw_response, download_link, NULL AS prompt, NULL AS files 
+                FROM {$table_stock} 
+                WHERE user_id = %d AND stock_id IS NULL",
+                $user_id,
+                $user_id,
                 $user_id
             );
         }
 
         if ( ( 'all' === $type || 'ai' === $type ) && $table_ai ) {
             $selects[] = $wpdb->prepare(
-                "SELECT 'ai' AS kind, id AS db_id, job_id, NULL AS site, NULL AS file_name, NULL AS stock_id, status, cost_points, created_at, NULL AS raw_response, NULL AS download_link, prompt, files FROM {$table_ai} WHERE user_id = %d",
+                "SELECT 'ai' AS kind, id AS db_id, job_id, NULL AS site, NULL AS provider_label, NULL AS file_name, NULL AS stock_id, NULL AS source_url, NULL AS preview_thumb, status, cost_points, created_at, updated_at, NULL AS raw_response, NULL AS download_link, prompt, files FROM {$table_ai} WHERE user_id = %d",
                 $user_id
             );
         }
@@ -360,7 +415,7 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
         $union = implode( ' UNION ALL ', $selects );
 
         $offset = ( $page - 1 ) * $per_page;
-        $order_clause = $wpdb->prepare( 'ORDER BY created_at DESC, db_id DESC LIMIT %d OFFSET %d', $per_page, $offset );
+        $order_clause = $wpdb->prepare( 'ORDER BY updated_at DESC, created_at DESC, db_id DESC LIMIT %d OFFSET %d', $per_page, $offset );
         $sql          = 'SELECT * FROM ( ' . $union . ' ) AS history ' . $order_clause;
         $rows         = $wpdb->get_results( $sql, ARRAY_A );
 
@@ -375,12 +430,19 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
             }
         }
 
+        // Count deduplicated stock orders
         $count_stock = 0;
         $count_ai    = 0;
 
         if ( $table_stock && ( 'all' === $type || 'stock' === $type ) ) {
+            // Count unique stock orders (deduplicated)
             $count_stock = (int) $wpdb->get_var(
-                $wpdb->prepare( "SELECT COUNT(*) FROM {$table_stock} WHERE user_id = %d", $user_id )
+                $wpdb->prepare(
+                    "SELECT COUNT(DISTINCT CONCAT(user_id, '-', site, '-', COALESCE(stock_id, ''))) 
+                    FROM {$table_stock} 
+                    WHERE user_id = %d",
+                    $user_id
+                )
             );
         }
 

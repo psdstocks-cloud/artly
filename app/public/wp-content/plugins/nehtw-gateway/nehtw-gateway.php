@@ -40,6 +40,11 @@ function nehtw_gateway_activate() {
     $table_ai          = $wpdb->prefix . 'nehtw_ai_jobs';
     $table_stock_sites = $wpdb->prefix . 'nehtw_stock_sites';
     $table_subscriptions = $wpdb->prefix . 'nehtw_subscriptions';
+    
+    // Check if we need to add new columns to stock_orders table
+    $stock_columns = $wpdb->get_col( "DESC {$table_stock}", 0 );
+    $needs_preview_thumb = ! in_array( 'preview_thumb', $stock_columns, true );
+    $needs_provider_label = ! in_array( 'provider_label', $stock_columns, true );
 
     $sql_wallet = "CREATE TABLE {$table_wallet} (
         id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -60,8 +65,10 @@ function nehtw_gateway_activate() {
         id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
         user_id BIGINT(20) UNSIGNED NOT NULL,
         site VARCHAR(50) NOT NULL,
+        provider_label VARCHAR(100) NULL,
         stock_id VARCHAR(191) NULL,
         source_url TEXT NULL,
+        preview_thumb TEXT NULL,
         task_id VARCHAR(191) NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'pending',
         cost_points DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -77,7 +84,8 @@ function nehtw_gateway_activate() {
         KEY task_id (task_id),
         KEY site (site),
         KEY status (status),
-        KEY created_at (created_at)
+        KEY created_at (created_at),
+        KEY user_site_stock (user_id, site, stock_id)
     ) {$charset_collate};";
 
     $sql_ai = "CREATE TABLE {$table_ai} (
@@ -137,7 +145,34 @@ function nehtw_gateway_activate() {
     dbDelta( $sql_ai );
     dbDelta( $sql_stock_sites );
     dbDelta( $sql_subscriptions );
+    
+    // Add new columns if they don't exist
+    if ( $needs_preview_thumb ) {
+        $wpdb->query( "ALTER TABLE {$table_stock} ADD COLUMN preview_thumb TEXT NULL AFTER source_url" );
+    }
+    if ( $needs_provider_label ) {
+        $wpdb->query( "ALTER TABLE {$table_stock} ADD COLUMN provider_label VARCHAR(100) NULL AFTER site" );
+    }
 }
+
+// Migration function to add new columns on plugin update
+function nehtw_gateway_maybe_migrate_stock_orders() {
+    global $wpdb;
+    $table_stock = $wpdb->prefix . 'nehtw_stock_orders';
+    
+    $stock_columns = $wpdb->get_col( "DESC {$table_stock}", 0 );
+    $needs_preview_thumb = ! in_array( 'preview_thumb', $stock_columns, true );
+    $needs_provider_label = ! in_array( 'provider_label', $stock_columns, true );
+    
+    if ( $needs_preview_thumb ) {
+        $wpdb->query( "ALTER TABLE {$table_stock} ADD COLUMN preview_thumb TEXT NULL AFTER source_url" );
+    }
+    if ( $needs_provider_label ) {
+        $wpdb->query( "ALTER TABLE {$table_stock} ADD COLUMN provider_label VARCHAR(100) NULL AFTER site" );
+    }
+}
+add_action( 'admin_init', 'nehtw_gateway_maybe_migrate_stock_orders' );
+
 register_activation_hook( NEHTW_GATEWAY_PLUGIN_FILE, 'nehtw_gateway_activate' );
 
 function nehtw_gateway_get_table_name( $alias ) {
@@ -403,15 +438,97 @@ function nehtw_gateway_create_stock_order( $user_id, $site, $stock_id, $source_u
     $link_type     = isset( $extra['link_type'] ) ? sanitize_text_field( $extra['link_type'] ) : null;
     $download_link = isset( $extra['download_link'] ) ? esc_url_raw( $extra['download_link'] ) : null;
     $raw_response  = isset( $extra['raw_response'] ) ? maybe_serialize( $extra['raw_response'] ) : null;
+    $preview_thumb = isset( $extra['preview_thumb'] ) ? esc_url_raw( $extra['preview_thumb'] ) : null;
+    $provider_label = isset( $extra['provider_label'] ) ? sanitize_text_field( $extra['provider_label'] ) : null;
+    
+    // Get provider label from config if not provided
+    if ( empty( $provider_label ) && function_exists( 'nehtw_gateway_get_stock_sites_config' ) ) {
+        $sites_config = nehtw_gateway_get_stock_sites_config();
+        if ( isset( $sites_config[ $site ]['label'] ) ) {
+            $provider_label = sanitize_text_field( $sites_config[ $site ]['label'] );
+        }
+    }
 
     $now = current_time( 'mysql' );
+    
+    // Check if a record already exists for this user+site+stock_id (deduplication)
+    $existing = null;
+    if ( $stock_id ) {
+        $existing = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT id, updated_at FROM {$table} WHERE user_id = %d AND site = %s AND stock_id = %s ORDER BY updated_at DESC LIMIT 1",
+                $user_id,
+                $site,
+                $stock_id
+            ),
+            ARRAY_A
+        );
+    }
+    
+    if ( $existing ) {
+        // Update existing record instead of creating duplicate
+        $update_data = array(
+            'task_id'     => $task_id,
+            'status'     => $status,
+            'cost_points' => $cost_points,
+            'updated_at'  => $now,
+        );
+        $update_format = array( '%s', '%s', '%f', '%s' );
+        
+        if ( null !== $nehtw_cost ) {
+            $update_data['nehtw_cost'] = $nehtw_cost;
+            $update_format[] = '%f';
+        }
+        if ( null !== $download_link ) {
+            $update_data['download_link'] = $download_link;
+            $update_format[] = '%s';
+        }
+        if ( null !== $file_name ) {
+            $update_data['file_name'] = $file_name;
+            $update_format[] = '%s';
+        }
+        if ( null !== $link_type ) {
+            $update_data['link_type'] = $link_type;
+            $update_format[] = '%s';
+        }
+        if ( null !== $raw_response ) {
+            $update_data['raw_response'] = $raw_response;
+            $update_format[] = '%s';
+        }
+        if ( null !== $preview_thumb ) {
+            $update_data['preview_thumb'] = $preview_thumb;
+            $update_format[] = '%s';
+        }
+        if ( null !== $provider_label ) {
+            $update_data['provider_label'] = $provider_label;
+            $update_format[] = '%s';
+        }
+        if ( null !== $source_url ) {
+            $update_data['source_url'] = $source_url;
+            $update_format[] = '%s';
+        }
+        
+        $updated = $wpdb->update(
+            $table,
+            $update_data,
+            array( 'id' => $existing['id'] ),
+            $update_format,
+            array( '%d' )
+        );
+        
+        return $updated !== false ? (int) $existing['id'] : false;
+    }
+    
+    // Insert new record
     $inserted = $wpdb->insert(
         $table,
         array(
             'user_id'       => $user_id,
             'site'          => $site,
+            'provider_label' => $provider_label,
             'stock_id'      => $stock_id,
             'source_url'    => $source_url,
+            'preview_thumb' => $preview_thumb,
             'task_id'       => $task_id,
             'status'        => $status,
             'cost_points'   => $cost_points,
@@ -423,7 +540,7 @@ function nehtw_gateway_create_stock_order( $user_id, $site, $stock_id, $source_u
             'created_at'    => $now,
             'updated_at'    => $now,
         ),
-        array( '%d', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%s' )
+        array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%s' )
     );
 
     if ( ! $inserted ) return false;
@@ -834,6 +951,15 @@ function nehtw_gateway_register_rest_routes() {
         'callback'            => 'nehtw_rest_get_download_link',
         'permission_callback' => function () { return is_user_logged_in(); },
     ) );
+    
+    // Artly-branded re-download endpoint using history_id
+    register_rest_route( 'artly/v1', '/download-redownload', array(
+        'methods'             => WP_REST_Server::CREATABLE,
+        'callback'            => 'nehtw_gateway_rest_download_redownload',
+        'permission_callback' => function () {
+            return is_user_logged_in();
+        },
+    ) );
 
     register_rest_route( 'nehtw/v1', '/wallet-transactions', array(
         'methods'             => WP_REST_Server::READABLE,
@@ -1164,6 +1290,18 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
             continue;
         }
 
+        // Get preview thumbnail if available
+        $preview_thumb = null;
+        if ( function_exists( 'nehtw_gateway_api_stock_preview' ) ) {
+            $preview_data = nehtw_gateway_api_stock_preview( $site, $remote_id, $url );
+            if ( ! is_wp_error( $preview_data ) && isset( $preview_data['image'] ) && ! empty( $preview_data['image'] ) ) {
+                $preview_thumb = esc_url_raw( $preview_data['image'] );
+            }
+        }
+        
+        // Get provider label
+        $provider_label = isset( $sites_config[ $site ]['label'] ) ? sanitize_text_field( $sites_config[ $site ]['label'] ) : null;
+
         // Create order record in database
         $order_id = function_exists( 'nehtw_gateway_create_stock_order' )
             ? nehtw_gateway_create_stock_order(
@@ -1175,7 +1313,11 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
                 $cost_points,
                 null,
                 'pending',
-                array( 'raw_response' => $api_resp )
+                array(
+                    'raw_response' => $api_resp,
+                    'preview_thumb' => $preview_thumb,
+                    'provider_label' => $provider_label,
+                )
             )
             : 0;
 
@@ -1758,7 +1900,7 @@ function nehtw_rest_get_download_history( WP_REST_Request $request ) {
     $items = array();
     if ( ! empty( $history['items'] ) && is_array( $history['items'] ) ) {
         foreach ( $history['items'] as $item ) {
-            $items[] = array(
+            $formatted = array(
                 'kind'       => isset( $item['kind'] ) ? sanitize_key( $item['kind'] ) : '',
                 'id'         => isset( $item['id'] ) ? sanitize_text_field( $item['id'] ) : '',
                 'title'      => isset( $item['title'] ) ? wp_strip_all_tags( $item['title'] ) : '',
@@ -1770,6 +1912,17 @@ function nehtw_rest_get_download_history( WP_REST_Request $request ) {
                 'task_id'    => isset( $item['task_id'] ) ? sanitize_text_field( $item['task_id'] ) : '',
                 'job_id'     => isset( $item['job_id'] ) ? sanitize_text_field( $item['job_id'] ) : '',
             );
+            
+            // Add stock-specific fields
+            if ( 'stock' === $formatted['kind'] ) {
+                $formatted['history_id'] = isset( $item['history_id'] ) ? intval( $item['history_id'] ) : 0;
+                $formatted['provider_label'] = isset( $item['provider_label'] ) ? wp_strip_all_tags( $item['provider_label'] ) : '';
+                $formatted['remote_id'] = isset( $item['remote_id'] ) ? sanitize_text_field( $item['remote_id'] ) : '';
+                $formatted['stock_url'] = isset( $item['stock_url'] ) && $item['stock_url'] ? esc_url_raw( $item['stock_url'] ) : '';
+                $formatted['updated_at'] = isset( $item['updated_at'] ) ? intval( $item['updated_at'] ) : $formatted['created_at'];
+            }
+            
+            $items[] = $formatted;
         }
     }
 
@@ -1780,6 +1933,150 @@ function nehtw_rest_get_download_history( WP_REST_Request $request ) {
             'total_pages' => isset( $history['total_pages'] ) ? (int) $history['total_pages'] : 0,
             'page'        => $page,
             'per_page'    => $per_page,
+        ),
+        200
+    );
+}
+
+/**
+ * Re-download endpoint for stock files using history_id.
+ * Does NOT charge points again - just generates a fresh download link.
+ *
+ * POST /wp-json/artly/v1/download-redownload
+ * Body: { "history_id": 123 }
+ */
+function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Unauthorized', 'nehtw-gateway' ) ),
+            401
+        );
+    }
+
+    $user_id = get_current_user_id();
+
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
+
+    $history_id = (int) $request->get_param( 'history_id' );
+    if ( $history_id <= 0 ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Invalid history ID.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    global $wpdb;
+    $table = nehtw_gateway_get_table_name( 'stock_orders' );
+    if ( ! $table ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Database error.', 'nehtw-gateway' ) ),
+            500
+        );
+    }
+
+    // Get order by history_id and verify it belongs to current user
+    $order = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE id = %d AND user_id = %d LIMIT 1",
+            $history_id,
+            $user_id
+        ),
+        ARRAY_A
+    );
+
+    if ( ! $order ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Download not found.', 'nehtw-gateway' ) ),
+            404
+        );
+    }
+
+    $task_id = isset( $order['task_id'] ) ? sanitize_text_field( $order['task_id'] ) : '';
+    if ( '' === $task_id ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Invalid order.', 'nehtw-gateway' ) ),
+            400
+        );
+    }
+
+    // Call Nehtw API to get fresh download link (does not charge again)
+    $api = nehtw_gateway_api_order_download( $task_id, 'any' );
+
+    if ( is_wp_error( $api ) ) {
+        error_log( 'Nehtw re-download error for task_id ' . $task_id . ': ' . $api->get_error_message() );
+        return new WP_REST_Response(
+            array( 'message' => __( 'We couldn\'t generate a download link right now. Please try again later.', 'nehtw-gateway' ) ),
+            502
+        );
+    }
+
+    if ( isset( $api['error'] ) && $api['error'] ) {
+        $message = isset( $api['message'] ) ? (string) $api['message'] : '';
+        error_log( 'Nehtw re-download error response for task_id ' . $task_id . ': ' . $message );
+        return new WP_REST_Response(
+            array( 'message' => __( 'We couldn\'t generate a download link right now. Please try again later.', 'nehtw-gateway' ) ),
+            502
+        );
+    }
+
+    $download_url = '';
+    $candidates = array( 'download_link', 'url', 'link' );
+    foreach ( $candidates as $candidate ) {
+        if ( isset( $api[ $candidate ] ) && '' !== $api[ $candidate ] ) {
+            $maybe = esc_url_raw( (string) $api[ $candidate ] );
+            if ( '' !== $maybe ) {
+                $download_url = $maybe;
+                break;
+            }
+        }
+    }
+
+    if ( '' === $download_url && isset( $api['data'] ) ) {
+        foreach ( $candidates as $candidate ) {
+            if ( isset( $api['data'][ $candidate ] ) && '' !== $api['data'][ $candidate ] ) {
+                $maybe = esc_url_raw( (string) $api['data'][ $candidate ] );
+                if ( '' !== $maybe ) {
+                    $download_url = $maybe;
+                    break;
+                }
+            }
+        }
+    }
+
+    if ( '' === $download_url ) {
+        return new WP_REST_Response(
+            array( 'message' => __( 'Download not ready.', 'nehtw-gateway' ) ),
+            409
+        );
+    }
+
+    // Update the order record with the new download link
+    $update_fields = array(
+        'download_link' => $download_url,
+        'raw_response'  => class_exists( 'Nehtw_Gateway_Stock_Orders' ) ? Nehtw_Gateway_Stock_Orders::merge_raw_response_with_download( isset( $order['raw_response'] ) ? $order['raw_response'] : array(), $api ) : $api,
+    );
+
+    if ( isset( $api['file_name'] ) && '' !== $api['file_name'] ) {
+        $update_fields['file_name'] = $api['file_name'];
+    } elseif ( isset( $api['filename'] ) && '' !== $api['filename'] ) {
+        $update_fields['file_name'] = $api['filename'];
+    }
+
+    if ( isset( $api['link_type'] ) && '' !== $api['link_type'] ) {
+        $update_fields['link_type'] = $api['link_type'];
+    }
+
+    $current_status = isset( $order['status'] ) && '' !== $order['status'] ? $order['status'] : 'completed';
+    nehtw_gateway_update_stock_order_status( $task_id, $current_status, $update_fields );
+
+    return new WP_REST_Response(
+        array(
+            'success'      => true,
+            'download_url' => $download_url,
         ),
         200
     );

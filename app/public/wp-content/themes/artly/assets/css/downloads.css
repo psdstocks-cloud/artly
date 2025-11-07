@@ -193,6 +193,52 @@
   font-size: 0.85rem;
 }
 
+.artly-downloads-page .downloads-item-status-pill--completed {
+  background: rgba(0, 255, 120, 0.15);
+  border-color: rgba(0, 255, 120, 0.3);
+  color: #7dffb3;
+}
+
+.artly-downloads-page .downloads-item-status-pill--processing {
+  background: rgba(0, 255, 255, 0.12);
+  border-color: rgba(0, 255, 255, 0.25);
+  color: #bdefff;
+}
+
+.artly-downloads-page .downloads-item-status-pill--error {
+  background: rgba(255, 80, 80, 0.18);
+  border-color: rgba(255, 80, 80, 0.3);
+  color: #ff9b9b;
+}
+
+.artly-downloads-page .downloads-thumb-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.artly-downloads-page .downloads-thumb-placeholder::after {
+  content: '';
+  width: 40%;
+  height: 40%;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+}
+
+.artly-downloads-page .downloads-item-kind-pill {
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.artly-downloads-page .downloads-item-kind-pill:hover {
+  opacity: 0.8;
+}
+
 .artly-downloads-page .downloads-item-actions {
   display: grid;
   gap: 12px;

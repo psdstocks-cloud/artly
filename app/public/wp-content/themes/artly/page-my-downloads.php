@@ -59,31 +59,69 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
         $status     = isset( $item['status'] ) ? $item['status'] : '';
         $points     = isset( $item['points'] ) ? floatval( $item['points'] ) : 0.0;
         $created_at = isset( $item['created_at'] ) ? intval( $item['created_at'] ) : 0;
+        $updated_at = isset( $item['updated_at'] ) ? intval( $item['updated_at'] ) : $created_at;
         $thumb      = isset( $item['thumbnail'] ) ? $item['thumbnail'] : '';
         $task_id    = isset( $item['task_id'] ) ? $item['task_id'] : '';
         $job_id     = isset( $item['job_id'] ) ? $item['job_id'] : '';
         $identifier = 'ai' === $kind ? $job_id : $task_id;
+        
+        // Stock-specific fields
+        $history_id = isset( $item['history_id'] ) ? intval( $item['history_id'] ) : 0;
+        $provider_label = isset( $item['provider_label'] ) ? $item['provider_label'] : '';
+        $remote_id = isset( $item['remote_id'] ) ? $item['remote_id'] : '';
+        $stock_url = isset( $item['stock_url'] ) ? $item['stock_url'] : '';
+        
+        // Use provider_label if available, otherwise format site
+        $display_provider = ! empty( $provider_label ) ? $provider_label : ( $site ? ucwords( str_replace( array( '-', '_' ), ' ', $site ) ) : '' );
+        
+        // Format date/time - use updated_at for stock, created_at for AI
+        $display_date = $updated_at > 0 ? $updated_at : $created_at;
+        
+        // Status class for styling
+        $status_class = 'downloads-item-status-pill';
+        if ( $status ) {
+            $status_lower = strtolower( $status );
+            if ( in_array( $status_lower, array( 'ready', 'completed', 'complete' ), true ) ) {
+                $status_class .= ' downloads-item-status-pill--completed';
+            } elseif ( in_array( $status_lower, array( 'processing', 'pending', 'queued' ), true ) ) {
+                $status_class .= ' downloads-item-status-pill--processing';
+            } elseif ( in_array( $status_lower, array( 'failed', 'error' ), true ) ) {
+                $status_class .= ' downloads-item-status-pill--error';
+            }
+        }
         ?>
         <li class="downloads-item">
             <?php if ( $thumb ) : ?>
                 <div class="downloads-thumb">
                     <img src="<?php echo esc_url( $thumb ); ?>" alt="" loading="lazy" />
                 </div>
+            <?php else : ?>
+                <div class="downloads-thumb downloads-thumb-placeholder"></div>
             <?php endif; ?>
 
             <div class="downloads-item-main">
                 <div class="downloads-item-title">
-                    <?php echo esc_html( $title ); ?>
+                    <?php if ( 'stock' === $kind && $remote_id ) : ?>
+                        <?php echo esc_html( $remote_id ); ?>
+                    <?php else : ?>
+                        <?php echo esc_html( $title ); ?>
+                    <?php endif; ?>
                 </div>
                 <div class="downloads-item-meta">
-                    <?php if ( $site ) : ?>
-                        <span class="downloads-item-kind-pill">
-                            <?php echo esc_html( 'ai' === $kind ? __( 'AI', 'artly' ) : ucwords( str_replace( array( '-', '_' ), ' ', $site ) ) ); ?>
-                        </span>
+                    <?php if ( $display_provider ) : ?>
+                        <?php if ( 'stock' === $kind && $stock_url ) : ?>
+                            <a href="<?php echo esc_url( $stock_url ); ?>" target="_blank" rel="noopener" class="downloads-item-kind-pill">
+                                <?php echo esc_html( $display_provider ); ?>
+                            </a>
+                        <?php else : ?>
+                            <span class="downloads-item-kind-pill">
+                                <?php echo esc_html( 'ai' === $kind ? __( 'AI', 'artly' ) : $display_provider ); ?>
+                            </span>
+                        <?php endif; ?>
                     <?php endif; ?>
-                    <?php if ( $created_at ) : ?>
+                    <?php if ( $display_date ) : ?>
                         <span>
-                            <?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $created_at ) ); ?>
+                            <?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $display_date ) ); ?>
                         </span>
                     <?php endif; ?>
                 </div>
@@ -91,7 +129,7 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
 
             <div class="downloads-item-actions">
                 <?php if ( $status ) : ?>
-                    <div class="downloads-item-status-pill">
+                    <div class="<?php echo esc_attr( $status_class ); ?>">
                         <?php echo esc_html( $status ); ?>
                     </div>
                 <?php endif; ?>
@@ -104,6 +142,9 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
                         type="button"
                         data-download-kind="<?php echo esc_attr( $kind ); ?>"
                         data-download-id="<?php echo esc_attr( $identifier ); ?>"
+                        <?php if ( 'stock' === $kind && $history_id > 0 ) : ?>
+                            data-history-id="<?php echo esc_attr( $history_id ); ?>"
+                        <?php endif; ?>
                     >
                         <?php esc_html_e( 'Re-download', 'artly' ); ?>
                     </button>
