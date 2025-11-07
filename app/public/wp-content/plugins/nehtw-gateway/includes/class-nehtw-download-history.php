@@ -153,6 +153,87 @@ if ( ! function_exists( 'nehtw_gateway_history_decode_maybe_json' ) ) {
     }
 }
 
+if ( ! function_exists( 'nehtw_gateway_history_validate_image_url' ) ) {
+    /**
+     * Validate and sanitize a possible image URL.
+     *
+     * @param mixed $url Raw value.
+     *
+     * @return string
+     */
+    function nehtw_gateway_history_validate_image_url( $url ) {
+        $url = esc_url_raw( (string) $url );
+
+        if ( '' === $url ) {
+            return '';
+        }
+
+        if ( function_exists( 'wp_http_validate_url' ) && ! wp_http_validate_url( $url ) ) {
+            return '';
+        }
+
+        $scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+        if ( $scheme && ! in_array( strtolower( $scheme ), array( 'http', 'https' ), true ) ) {
+            return '';
+        }
+
+        return $url;
+    }
+}
+
+if ( ! function_exists( 'nehtw_gateway_history_search_thumbnail_candidate' ) ) {
+    /**
+     * Recursively search a payload for a thumbnail candidate.
+     *
+     * @param mixed $payload Payload to search.
+     * @param array $keys     Candidate keys.
+     *
+     * @return string
+     */
+    function nehtw_gateway_history_search_thumbnail_candidate( $payload, $keys = array() ) {
+        if ( empty( $payload ) ) {
+            return '';
+        }
+
+        if ( empty( $keys ) ) {
+            $keys = array( 'thumb_sm', 'thumbnail', 'thumb', 'preview', 'preview_url', 'image_thumb', 'image', 'small', 'url', 'src' );
+        }
+
+        if ( is_object( $payload ) ) {
+            $payload = nehtw_gateway_history_decode_maybe_json( $payload );
+        }
+
+        if ( is_string( $payload ) ) {
+            $candidate = nehtw_gateway_history_validate_image_url( $payload );
+            return $candidate;
+        }
+
+        if ( ! is_array( $payload ) ) {
+            return '';
+        }
+
+        foreach ( $keys as $key ) {
+            if ( isset( $payload[ $key ] ) ) {
+                $candidate = nehtw_gateway_history_validate_image_url( $payload[ $key ] );
+                if ( '' !== $candidate ) {
+                    return $candidate;
+                }
+            }
+        }
+
+        foreach ( $payload as $value ) {
+            if ( is_array( $value ) || is_object( $value ) || is_string( $value ) ) {
+                $candidate = nehtw_gateway_history_search_thumbnail_candidate( $value, $keys );
+                if ( '' !== $candidate ) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return '';
+    }
+}
+
 if ( ! function_exists( 'nehtw_gateway_history_extract_ai_thumbnail' ) ) {
     /**
      * Extract a thumbnail URL from AI job files payload.
@@ -163,21 +244,19 @@ if ( ! function_exists( 'nehtw_gateway_history_extract_ai_thumbnail' ) ) {
      */
     function nehtw_gateway_history_extract_ai_thumbnail( $files ) {
         $files = nehtw_gateway_history_decode_maybe_json( $files );
-        if ( isset( $files[0] ) && is_array( $files[0] ) ) {
-            $file = $files[0];
-            $candidates = array( 'thumb_sm', 'thumbnail', 'thumb', 'preview', 'preview_url' );
-            foreach ( $candidates as $key ) {
-                if ( ! empty( $file[ $key ] ) ) {
-                    $url = esc_url_raw( (string) $file[ $key ] );
-                    if ( '' !== $url ) {
-                        return $url;
-                    }
-                }
+
+        if ( isset( $files[0] ) ) {
+            $candidate = nehtw_gateway_history_search_thumbnail_candidate( $files[0] );
+            if ( '' !== $candidate ) {
+                return $candidate;
             }
         }
 
-        if ( isset( $files['files'] ) ) {
-            return nehtw_gateway_history_extract_ai_thumbnail( $files['files'] );
+        if ( is_array( $files ) ) {
+            $candidate = nehtw_gateway_history_search_thumbnail_candidate( $files );
+            if ( '' !== $candidate ) {
+                return $candidate;
+            }
         }
 
         return '';
@@ -248,9 +327,23 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
 
         $thumbnail = '';
         if ( isset( $row['preview_thumb'] ) && $row['preview_thumb'] ) {
-            $thumbnail = esc_url_raw( (string) $row['preview_thumb'] );
-        } elseif ( isset( $order['preview_thumb'] ) && $order['preview_thumb'] ) {
-            $thumbnail = esc_url_raw( (string) $order['preview_thumb'] );
+            $thumbnail = nehtw_gateway_history_validate_image_url( $row['preview_thumb'] );
+        }
+
+        if ( '' === $thumbnail && isset( $order['preview_thumb'] ) && $order['preview_thumb'] ) {
+            $thumbnail = nehtw_gateway_history_validate_image_url( $order['preview_thumb'] );
+        }
+
+        if ( '' === $thumbnail && isset( $row['raw_response'] ) ) {
+            $thumbnail = nehtw_gateway_history_search_thumbnail_candidate( $row['raw_response'] );
+        }
+
+        if ( '' === $thumbnail && isset( $order['raw_response'] ) ) {
+            $thumbnail = nehtw_gateway_history_search_thumbnail_candidate( $order['raw_response'] );
+        }
+
+        if ( '' === $thumbnail && isset( $order['files'] ) ) {
+            $thumbnail = nehtw_gateway_history_search_thumbnail_candidate( $order['files'] );
         }
         
         $provider_label = '';

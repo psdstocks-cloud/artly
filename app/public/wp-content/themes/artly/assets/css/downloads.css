@@ -138,12 +138,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .artly-downloads-page .downloads-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+
+.artly-downloads-page .downloads-thumb.is-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(6, 245, 232, 0.08), rgba(22, 163, 255, 0.16));
+  animation: artlyThumbShimmer 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes artlyThumbShimmer {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.7;
+  }
 }
 
 .artly-downloads-page .downloads-item-main {
@@ -211,23 +230,49 @@
   color: #ff9b9b;
 }
 
-.artly-downloads-page .downloads-thumb-placeholder {
+.artly-downloads-page .downloads-thumb-placeholder,
+.artly-downloads-page .downloads-thumb.downloads-thumb-placeholder {
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 20px;
-  background: rgba(15, 23, 42, 0.6);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.58));
+  border: 1px dashed rgba(148, 163, 184, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
 
-.artly-downloads-page .downloads-thumb-placeholder::after {
+.artly-downloads-page .downloads-thumb-placeholder::before,
+.artly-downloads-page .downloads-thumb.downloads-thumb-placeholder::before {
   content: '';
-  width: 40%;
-  height: 40%;
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 4px;
+  width: 58%;
+  max-width: 72px;
+  aspect-ratio: 1 / 1;
+  background: linear-gradient(135deg, rgba(6, 245, 232, 0.18), rgba(22, 163, 255, 0.28));
+  border-radius: 16px;
+  position: absolute;
+  z-index: 1;
+  filter: drop-shadow(0 12px 24px rgba(6, 245, 232, 0.18));
+}
+
+.artly-downloads-page .downloads-thumb-placeholder::after,
+.artly-downloads-page .downloads-thumb.downloads-thumb-placeholder::after {
+  content: '';
+  width: 26px;
+  height: 26px;
+  position: absolute;
+  z-index: 2;
+  background: linear-gradient(135deg, #06f5e8 0%, #16a3ff 100%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.6' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 6.75A2.25 2.25 0 016 4.5h12a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0118 19.5H6a2.25 2.25 0 01-2.25-2.25V6.75z'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 13.5l3.72-3.72a1.5 1.5 0 012.121 0l3.659 3.659a1.5 1.5 0 002.121 0l3.379-3.379'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 7.5h.008v.008H8.25V7.5z'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  -webkit-mask-position: center;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.6' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 6.75A2.25 2.25 0 016 4.5h12a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0118 19.5H6a2.25 2.25 0 01-2.25-2.25V6.75z'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 13.5l3.72-3.72a1.5 1.5 0 012.121 0l3.659 3.659a1.5 1.5 0 002.121 0l3.379-3.379'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 7.5h.008v.008H8.25V7.5z'/%3E%3C/svg%3E");
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  mask-position: center;
 }
 
 .artly-downloads-page .downloads-item-kind-pill {
@@ -378,5 +423,142 @@
     width: 100%;
     max-width: 180px;
     margin: 0 auto;
+  }
+}
+
+/* ===================== */
+/* Modal styles          */
+/* ===================== */
+
+.artly-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 18, 0.88);
+  backdrop-filter: blur(14px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  animation: artlyModalFadeIn 0.22s ease forwards;
+}
+
+.artly-modal-overlay.is-closing {
+  animation: artlyModalFadeOut 0.18s ease forwards;
+}
+
+@keyframes artlyModalFadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes artlyModalFadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+.artly-modal-container {
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 24px;
+  border: 1px solid rgba(6, 245, 232, 0.25);
+  box-shadow: 0 24px 64px rgba(6, 245, 232, 0.18);
+  backdrop-filter: blur(24px);
+  max-width: 480px;
+  width: 100%;
+  transform: translateY(12px) scale(0.96);
+  animation: artlyModalScaleIn 0.24s ease forwards;
+}
+
+@keyframes artlyModalScaleIn {
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.artly-modal-header {
+  padding: 28px 28px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.artly-modal-header h3 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.artly-modal-body {
+  padding: 20px 28px 24px;
+  color: rgba(226, 232, 240, 0.85);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.artly-modal-body p {
+  margin: 0;
+}
+
+.artly-modal-footer {
+  padding: 16px 28px 28px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.artly-modal-btn-primary {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: #0f172a;
+  background: linear-gradient(135deg, #06f5e8 0%, #16a3ff 100%);
+  box-shadow: 0 12px 28px rgba(6, 245, 232, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.artly-modal-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(22, 163, 255, 0.3);
+}
+
+.artly-modal-btn-primary:focus-visible {
+  outline: 2px solid rgba(6, 245, 232, 0.8);
+  outline-offset: 3px;
+}
+
+.artly-modal-btn-secondary {
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: rgba(226, 232, 240, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.artly-modal-btn-secondary:hover {
+  border-color: rgba(6, 245, 232, 0.4);
+  color: #06f5e8;
+}
+
+@media (max-width: 640px) {
+  .artly-modal-container {
+    max-width: calc(100% - 32px);
+  }
+
+  .artly-modal-footer {
+    flex-direction: column;
+  }
+
+  .artly-modal-btn-primary,
+  .artly-modal-btn-secondary {
+    width: 100%;
   }
 }
