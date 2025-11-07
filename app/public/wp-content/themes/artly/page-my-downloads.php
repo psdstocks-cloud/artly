@@ -92,8 +92,15 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
         ?>
         <li class="downloads-item">
             <?php if ( $thumb ) : ?>
-                <div class="downloads-thumb">
-                    <img src="<?php echo esc_url( $thumb ); ?>" alt="" loading="lazy" />
+                <div class="downloads-thumb is-loading">
+                    <img
+                        src="<?php echo esc_url( $thumb ); ?>"
+                        alt="<?php echo esc_attr( $title ? $title : __( 'Download preview', 'artly' ) ); ?>"
+                        loading="lazy"
+                        decoding="async"
+                        onload="this.parentElement.classList.remove('is-loading');"
+                        onerror="this.parentElement.classList.add('downloads-thumb-placeholder'); this.parentElement.classList.remove('is-loading'); this.style.display='none';"
+                    />
                 </div>
             <?php else : ?>
                 <div class="downloads-thumb downloads-thumb-placeholder"></div>
