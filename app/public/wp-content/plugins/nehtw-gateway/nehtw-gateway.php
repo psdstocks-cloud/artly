@@ -2479,6 +2479,25 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         );
     }
 
+    // Attempt to reuse an existing download link before calling the API.
+    $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
+
+    if ( Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
+        $formatted    = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
+        $download_url = ! empty( $formatted['download_link'] ) ? esc_url_raw( $formatted['download_link'] ) : '';
+
+        if ( '' !== $download_url ) {
+            return new WP_REST_Response(
+                array(
+                    'success'      => true,
+                    'download_url' => $download_url,
+                    'cached'       => true,
+                ),
+                200
+            );
+        }
+    }
+
     // Call Nehtw API to get fresh download link (does not charge again)
     $api = nehtw_gateway_api_order_download( $task_id, 'any' );
 
