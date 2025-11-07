@@ -16,7 +16,7 @@ define( 'NEHTW_GATEWAY_PLUGIN_FILE', __FILE__ );
 define( 'NEHTW_GATEWAY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NEHTW_GATEWAY_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'NEHTW_GATEWAY_API_BASE', 'https://nehtw.com' );
-define( 'NEHTW_GATEWAY_API_KEY', 'A8K9bV5s2OX12E8cmS4I96mtmSNzv7' );
+define( 'NEHTW_GATEWAY_OPTION_API_KEY', 'nehtw_gateway_api_key' );
 
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
@@ -570,8 +570,26 @@ function nehtw_gateway_api_ai_public( $job_id ) {
 }
 
 function nehtw_gateway_get_api_key() {
-    $key = defined( 'NEHTW_GATEWAY_API_KEY' ) ? NEHTW_GATEWAY_API_KEY : '';
-    return trim( (string) $key );
+    $key = get_option( NEHTW_GATEWAY_OPTION_API_KEY, '' );
+
+    if ( ! is_string( $key ) ) {
+        $key = '';
+    }
+
+    return trim( $key );
+}
+
+function nehtw_gateway_require_api_key() {
+    $key = nehtw_gateway_get_api_key();
+
+    if ( '' === $key ) {
+        return new WP_Error(
+            'nehtw_no_api_key',
+            __( 'Nehtw API key is not configured. Please add it in the Artly / Nehtw settings page.', 'nehtw-gateway' )
+        );
+    }
+
+    return true;
 }
 
 function nehtw_gateway_build_api_headers() {
@@ -583,14 +601,44 @@ function nehtw_gateway_build_api_headers() {
     return $headers;
 }
 
+function nehtw_gateway_admin_notice_missing_key() {
+    if ( ! is_admin() ) {
+        return;
+    }
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    if ( '' !== nehtw_gateway_get_api_key() ) {
+        return;
+    }
+
+    echo '<div class="notice notice-warning"><p>';
+    echo esc_html__( 'Nehtw API key is not configured. Artly stock downloads will not work until you add your key.', 'nehtw-gateway' );
+    echo '</p></div>';
+}
+add_action( 'admin_notices', 'nehtw_gateway_admin_notice_missing_key' );
+
 function nehtw_gateway_api_get( $path, $query_args = array() ) {
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        return $key_check;
+    }
+
+    $api_key = nehtw_gateway_get_api_key();
+
     $base = rtrim( NEHTW_GATEWAY_API_BASE, '/' );
     $path = '/' . ltrim( $path, '/' );
     $url  = $base . $path;
 
-    if ( ! empty( $query_args ) ) {
-        $url = add_query_arg( $query_args, $url );
+    if ( ! is_array( $query_args ) ) {
+        $query_args = array();
     }
+
+    $query_args['apikey'] = $api_key;
+
+    $url = add_query_arg( $query_args, $url );
 
     $response = wp_remote_get( $url, array(
         'headers' => nehtw_gateway_build_api_headers(),
@@ -613,13 +661,24 @@ function nehtw_gateway_api_get( $path, $query_args = array() ) {
 }
 
 function nehtw_gateway_api_post_json( $path, $body = array(), $query_args = array() ) {
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        return $key_check;
+    }
+
+    $api_key = nehtw_gateway_get_api_key();
+
     $base = rtrim( NEHTW_GATEWAY_API_BASE, '/' );
     $path = '/' . ltrim( $path, '/' );
     $url  = $base . $path;
 
-    if ( ! empty( $query_args ) ) {
-        $url = add_query_arg( $query_args, $url );
+    if ( ! is_array( $query_args ) ) {
+        $query_args = array();
     }
+
+    $query_args['apikey'] = $api_key;
+
+    $url = add_query_arg( $query_args, $url );
 
     $headers = nehtw_gateway_build_api_headers();
     $headers['Content-Type'] = 'application/json';
@@ -852,6 +911,12 @@ function nehtw_gateway_rest_stock_order( WP_REST_Request $request ) {
         return new WP_Error( 'nehtw_not_logged_in', __( 'You must be logged in to place a stock order.', 'nehtw-gateway' ), array( 'status' => 401 ) );
     }
 
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
+
     $site        = sanitize_key( (string) $request->get_param( 'site' ) );
     $stock_id    = sanitize_text_field( (string) $request->get_param( 'stock_id' ) );
     $source_url  = $request->get_param( 'source_url' );
@@ -948,6 +1013,13 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
     }
 
     $user_id = get_current_user_id();
+
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
+
     $payload_links = $request->get_param( 'links' );
 
     if ( ! is_array( $payload_links ) || empty( $payload_links ) ) {
@@ -1141,6 +1213,13 @@ function nehtw_gateway_rest_stock_order_status( WP_REST_Request $request ) {
     }
 
     $user_id   = get_current_user_id();
+
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
+
     $order_ids = $request->get_param( 'order_ids' );
 
     if ( ! is_array( $order_ids ) || empty( $order_ids ) ) {
@@ -1269,6 +1348,12 @@ function nehtw_gateway_rest_stock_order_preview( WP_REST_Request $request ) {
 
     $user_id = get_current_user_id();
     $url     = trim( (string) $request->get_param( 'url' ) );
+
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
 
     if ( '' === $url ) {
         return new WP_REST_Response(
@@ -1558,6 +1643,12 @@ function nehtw_gateway_rest_redownload_order( WP_REST_Request $request ) {
         return new WP_Error( 'nehtw_not_logged_in', __( 'You must be logged in to access this download.', 'nehtw-gateway' ), array( 'status' => 401 ) );
     }
 
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
+
     $task_id = sanitize_text_field( (string) $request->get_param( 'task_id' ) );
 
     $order = nehtw_gateway_get_order_by_task_id( $task_id );
@@ -1730,6 +1821,12 @@ function nehtw_rest_get_download_link( WP_REST_Request $request ) {
     }
 
     $download_url = '';
+
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
+        $key_check->add_data( array( 'status' => 400 ) );
+        return $key_check;
+    }
 
     if ( 'stock' === $kind ) {
         $order = nehtw_gateway_get_order_by_task_id( $id );
@@ -2992,6 +3089,29 @@ function nehtw_gateway_render_admin_page() {
         wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
     }
 
+    $api_settings_notice       = '';
+    $api_settings_notice_class = 'notice-success';
+    $has_api_key               = '' !== nehtw_gateway_get_api_key();
+
+    if ( isset( $_POST['nehtw_gateway_action'] ) && 'save_api_key' === $_POST['nehtw_gateway_action'] ) {
+        check_admin_referer( 'nehtw_gateway_save_api_key', 'nehtw_gateway_api_nonce' );
+
+        $raw_key   = isset( $_POST['nehtw_gateway_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['nehtw_gateway_api_key'] ) ) : '';
+        $clean_key = trim( $raw_key );
+
+        if ( '' === $clean_key ) {
+            delete_option( NEHTW_GATEWAY_OPTION_API_KEY );
+            $api_settings_notice       = __( 'Nehtw API key removed. Remote requests will be disabled until you add a key.', 'nehtw-gateway' );
+            $api_settings_notice_class = 'notice-warning';
+        } else {
+            update_option( NEHTW_GATEWAY_OPTION_API_KEY, $clean_key );
+            $api_settings_notice       = __( 'Nehtw API key updated successfully.', 'nehtw-gateway' );
+            $api_settings_notice_class = 'notice-success';
+        }
+
+        $has_api_key = '' !== nehtw_gateway_get_api_key();
+    }
+
     $current_user_id = get_current_user_id();
     $wallet_message = $api_error = $api_result = $stock_order_message = $stock_order_error = $stock_order_result = $download_check_error = $download_check_result = '';
 
@@ -3026,6 +3146,32 @@ function nehtw_gateway_render_admin_page() {
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Nehtw Gateway – Wallet & API Debug', 'nehtw-gateway' ); ?></h1>
+
+        <?php if ( ! empty( $api_settings_notice ) ) : ?>
+            <div class="notice <?php echo esc_attr( $api_settings_notice_class ); ?> is-dismissible">
+                <p><?php echo esc_html( $api_settings_notice ); ?></p>
+            </div>
+        <?php endif; ?>
+
+        <h2><?php esc_html_e( 'Nehtw API Settings', 'nehtw-gateway' ); ?></h2>
+        <form method="post">
+            <?php wp_nonce_field( 'nehtw_gateway_save_api_key', 'nehtw_gateway_api_nonce' ); ?>
+            <input type="hidden" name="nehtw_gateway_action" value="save_api_key" />
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><label for="nehtw_gateway_api_key"><?php esc_html_e( 'API Key', 'nehtw-gateway' ); ?></label></th>
+                    <td>
+                        <input type="password" class="regular-text" id="nehtw_gateway_api_key" name="nehtw_gateway_api_key" autocomplete="new-password" placeholder="<?php esc_attr_e( 'Enter your Nehtw API key', 'nehtw-gateway' ); ?>" />
+                        <?php if ( $has_api_key ) : ?>
+                            <p class="description"><?php esc_html_e( 'A key is currently saved. Saving a new value will replace it. Leave the field blank to remove the existing key.', 'nehtw-gateway' ); ?></p>
+                        <?php else : ?>
+                            <p class="description"><?php esc_html_e( 'Paste the Nehtw API key provided to you. It will be stored securely and not displayed in the admin again.', 'nehtw-gateway' ); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button( __( 'Save API Key', 'nehtw-gateway' ) ); ?>
+        </form>
 
         <?php if ( ! empty( $wallet_message ) ) : ?>
             <div class="notice notice-success is-dismissible">
@@ -3271,10 +3417,12 @@ function nehtw_gateway_send_points_to_nehtw( $user_id, $points, $sub ) {
         return;
     }
 
-    $api_key = nehtw_gateway_get_api_key();
-    if ( empty( $api_key ) ) {
+    $key_check = nehtw_gateway_require_api_key();
+    if ( is_wp_error( $key_check ) ) {
         return;
     }
+
+    $api_key = nehtw_gateway_get_api_key();
 
     $url = add_query_arg(
         array(
@@ -3289,6 +3437,7 @@ function nehtw_gateway_send_points_to_nehtw( $user_id, $points, $sub ) {
         $url,
         array(
             'timeout' => 10,
+            'headers' => nehtw_gateway_build_api_headers(),
         )
     );
 
