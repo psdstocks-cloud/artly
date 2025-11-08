@@ -2555,6 +2555,87 @@ function nehtw_rest_get_download_history( WP_REST_Request $request ) {
  * POST /wp-json/artly/v1/download-redownload
  * Body: { "history_id": 123 }
  */
+/**
+ * Simple per-user rate limiting for re-download requests.
+ *
+ * Limit: max 10 re-downloads per rolling 60 seconds per user.
+ *
+ * @param int $user_id User ID.
+ *
+ * @return true|WP_Error True if allowed, WP_Error if rate limit exceeded.
+ */
+function nehtw_gateway_check_redownload_rate_limit( $user_id ) {
+    if ( ! $user_id ) {
+        // Should not happen, endpoint already requires logged-in user,
+        // but fail-safe: block anonymous flood.
+        return new WP_Error(
+            'too_many_requests',
+            __( 'You are making too many download requests. Please wait a moment and try again.', 'nehtw-gateway' ),
+            array(
+                'status'  => 429,
+                'user_id' => 0,
+                'reason'  => 'no_user_id',
+            )
+        );
+    }
+
+    $key            = 'nehtw_redownload_rate_' . (int) $user_id;
+    $window_seconds = 60;   // 1 minute window
+    $max_requests   = 10;   // max 10 requests per window
+    $now            = time();
+    $state          = get_transient( $key );
+
+    // State structure: array( 'count' => int, 'start' => timestamp )
+    if ( empty( $state ) || ! is_array( $state ) || empty( $state['start'] ) || ( $now - (int) $state['start'] ) >= $window_seconds ) {
+        // New window
+        $state = array(
+            'count' => 1,
+            'start' => $now,
+        );
+
+        // Expire slightly after window end
+        set_transient( $key, $state, $window_seconds + 10 );
+
+        return true;
+    }
+
+    // Existing window
+    $count = (int) $state['count'];
+
+    if ( $count >= $max_requests ) {
+        // Log for monitoring
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            error_log(
+                sprintf(
+                    '[nehtw-gateway] Re-download rate limit hit for user_id=%d (count=%d in %d seconds)',
+                    $user_id,
+                    $count,
+                    $window_seconds
+                )
+            );
+        }
+
+        return new WP_Error(
+            'too_many_requests',
+            __( 'You are making too many download requests. Please wait a moment and try again.', 'nehtw-gateway' ),
+            array(
+                'status'  => 429,
+                'user_id' => $user_id,
+                'reason' => 'rate_limit_exceeded',
+                'window'  => $window_seconds,
+                'max'     => $max_requests,
+                'count'   => $count,
+            )
+        );
+    }
+
+    // Increment count in same window
+    $state['count'] = $count + 1;
+    set_transient( $key, $state, $window_seconds + 10 );
+
+    return true;
+}
+
 function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
     if ( ! is_user_logged_in() ) {
         return new WP_REST_Response(
@@ -2636,6 +2717,13 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
                 );
             }
         }
+    }
+
+    // Rate limiting: prevent re-download abuse (max 10/min per user).
+    $rate_check = nehtw_gateway_check_redownload_rate_limit( $user_id );
+    if ( is_wp_error( $rate_check ) ) {
+        // Just bubble up as REST error.
+        return $rate_check;
     }
 
     // Call Nehtw API to get fresh download link (does not charge again)
