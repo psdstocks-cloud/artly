@@ -505,6 +505,126 @@
   }
 }
 
+/* ============================================
+   Downloads Toolbar (Search / Filter / Sort)
+   ============================================ */
+.artly-downloads-toolbar {
+  margin-top: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(6, 245, 232, 0.05), rgba(22, 163, 255, 0.05)),
+    rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.artly-downloads-toolbar-left,
+.artly-downloads-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.artly-downloads-toolbar-right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Search input */
+.artly-downloads-search {
+  min-width: 220px;
+  flex: 1 1 auto;
+}
+
+.artly-downloads-search-input {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.16s ease;
+}
+
+.artly-downloads-search-input::placeholder {
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.artly-downloads-search-input:focus {
+  border-color: rgba(6, 245, 232, 0.8);
+  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.4);
+}
+
+/* Filter and sort dropdowns */
+.artly-downloads-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.artly-downloads-filter-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.artly-downloads-select {
+  min-width: 160px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.95);
+  color: #e2e8f0;
+  padding: 0.45rem 0.95rem;
+  padding-right: 2.5rem;
+  font-size: 0.86rem;
+  outline: none;
+  transition: all 0.16s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #06f5e8 50%),
+                    linear-gradient(135deg, #06f5e8 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.artly-downloads-select:focus {
+  border-color: rgba(6, 245, 232, 0.8);
+  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .artly-downloads-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .artly-downloads-toolbar-right,
+  .artly-downloads-toolbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .artly-downloads-filter-group {
+    flex: 1 1 50%;
+  }
+
+  .artly-downloads-select {
+    width: 100%;
+  }
+}
+
 @media (max-width: 900px) {
   .artly-downloads-page {
     padding: 96px 18px 60px;

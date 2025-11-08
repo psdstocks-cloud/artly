@@ -105,10 +105,12 @@
 
     var tabs = root.querySelectorAll('[data-downloads-tab]');
     var lists = root.querySelectorAll('[data-downloads-list]');
+    var currentTab = 'all';
 
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () {
         var target = tab.getAttribute('data-downloads-tab');
+        currentTab = target || 'all';
         tabs.forEach(function (btn) {
           btn.classList.remove('is-active');
         });
@@ -122,8 +124,168 @@
           }
           list.style.display = type === target ? '' : 'none';
         });
+
+        // Apply filters after tab change
+        applyFiltersAndSort();
       });
     });
+
+    // ========== SEARCH / FILTER / SORT ==========
+
+    var searchInput = root.querySelector('[data-downloads-search]');
+    var statusSelect = root.querySelector('[data-downloads-status-filter]');
+    var sortSelect = root.querySelector('[data-downloads-sort]');
+    var allItems = Array.prototype.slice.call(
+      root.querySelectorAll('.artly-download-item')
+    );
+
+    var currentSearch = '';
+    var currentStatus = '';
+    var currentSort = 'date_desc';
+
+    // Get all list containers
+    var listContainers = Array.prototype.slice.call(lists);
+
+    function applyFiltersAndSort() {
+      if (allItems.length === 0) {
+        return;
+      }
+
+      // Process each list container separately
+      listContainers.forEach(function (container) {
+        var listType = container.getAttribute('data-downloads-list');
+        var isVisible =
+          currentTab === 'all' ||
+          (currentTab === 'stock' && listType === 'stock') ||
+          (currentTab === 'ai' && listType === 'ai');
+
+        // Skip hidden containers
+        if (!isVisible || container.style.display === 'none') {
+          return;
+        }
+
+        var listElement = container.querySelector('.downloads-list');
+        if (!listElement) {
+          return;
+        }
+
+        // Get items in this list
+        var itemsInList = Array.prototype.slice.call(
+          listElement.querySelectorAll('.artly-download-item')
+        );
+
+        if (itemsInList.length === 0) {
+          return;
+        }
+
+        // 1) Filter by search
+        itemsInList.forEach(function (item) {
+          var text = (currentSearch || '').trim();
+          if (!text) {
+            item.__matchesSearch = true;
+          } else {
+            var title = (item.getAttribute('data-download-title') || '').toLowerCase();
+            var provider = (item.getAttribute('data-download-provider') || '').toLowerCase();
+            var remoteId = (item.getAttribute('data-download-remote-id') || '').toLowerCase();
+            var url = (item.getAttribute('data-download-url') || '').toLowerCase();
+
+            var haystack = [title, provider, remoteId, url].join(' ');
+            item.__matchesSearch = haystack.indexOf(text) !== -1;
+          }
+        });
+
+        // 2) Filter by status
+        itemsInList.forEach(function (item) {
+          if (!currentStatus) {
+            item.__matchesStatus = true;
+          } else {
+            var status = (item.getAttribute('data-download-status') || '').toLowerCase();
+            item.__matchesStatus = status === currentStatus;
+          }
+        });
+
+        // 3) Determine visible items
+        var visibleItems = itemsInList.filter(function (item) {
+          return item.__matchesSearch && item.__matchesStatus;
+        });
+
+        // 4) Sort visible items
+        visibleItems.sort(function (a, b) {
+          var aDate = parseInt(a.getAttribute('data-download-date-ts') || '0', 10);
+          var bDate = parseInt(b.getAttribute('data-download-date-ts') || '0', 10);
+          var aProvider = (a.getAttribute('data-download-provider') || '').toLowerCase();
+          var bProvider = (b.getAttribute('data-download-provider') || '').toLowerCase();
+          var aStatus = (a.getAttribute('data-download-status') || '').toLowerCase();
+          var bStatus = (b.getAttribute('data-download-status') || '').toLowerCase();
+          var aPoints = parseFloat(a.getAttribute('data-download-points') || '0');
+          var bPoints = parseFloat(b.getAttribute('data-download-points') || '0');
+
+          switch (currentSort) {
+            case 'date_asc':
+              return aDate - bDate;
+            case 'provider_asc':
+              if (aProvider < bProvider) return -1;
+              if (aProvider > bProvider) return 1;
+              return 0;
+            case 'provider_desc':
+              if (aProvider > bProvider) return -1;
+              if (aProvider < bProvider) return 1;
+              return 0;
+            case 'status_asc':
+              if (aStatus < bStatus) return -1;
+              if (aStatus > bStatus) return 1;
+              return 0;
+            case 'status_desc':
+              if (aStatus > bStatus) return -1;
+              if (aStatus < bStatus) return 1;
+              return 0;
+            case 'points_asc':
+              return aPoints - bPoints;
+            case 'points_desc':
+              return bPoints - aPoints;
+            case 'date_desc':
+            default:
+              return bDate - aDate;
+          }
+        });
+
+        // 5) Hide all items first
+        itemsInList.forEach(function (item) {
+          item.style.display = 'none';
+        });
+
+        // 6) Append in new order & show
+        visibleItems.forEach(function (item) {
+          listElement.appendChild(item);
+          item.style.display = '';
+        });
+      });
+    }
+
+    // Attach listeners
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        currentSearch = searchInput.value.trim().toLowerCase();
+        applyFiltersAndSort();
+      });
+    }
+
+    if (statusSelect) {
+      statusSelect.addEventListener('change', function () {
+        currentStatus = statusSelect.value.trim().toLowerCase();
+        applyFiltersAndSort();
+      });
+    }
+
+    if (sortSelect) {
+      sortSelect.addEventListener('change', function () {
+        currentSort = sortSelect.value || 'date_desc';
+        applyFiltersAndSort();
+      });
+    }
+
+    // Initial run
+    applyFiltersAndSort();
 
     // ========== DOWNLOAD HANDLERS ==========
 

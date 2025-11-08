@@ -107,6 +107,12 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
         $status_raw = isset( $item['status'] ) ? $item['status'] : '';
         $status_normalized = strtolower( trim( $status_raw ) );
         
+        // Normalize provider/site for search/filter
+        $provider = strtolower( trim( $site ) );
+        
+        // Prepare data attributes for client-side filtering/sorting
+        $created_ts = $created_at > 0 ? $created_at : 0;
+        
         // Determine which statuses allow re-download
         $status_can_redownload = in_array(
             $status_normalized,
@@ -146,7 +152,16 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
             }
         }
         ?>
-        <li class="downloads-item">
+        <li class="downloads-item artly-download-item"
+            data-download-kind="<?php echo esc_attr( $kind ); ?>"
+            data-download-provider="<?php echo esc_attr( $provider ); ?>"
+            data-download-status="<?php echo esc_attr( $status_normalized ); ?>"
+            data-download-remote-id="<?php echo esc_attr( $remote_id ); ?>"
+            data-download-title="<?php echo esc_attr( $title ); ?>"
+            data-download-url="<?php echo esc_url( $stock_url ); ?>"
+            data-download-points="<?php echo esc_attr( $points ); ?>"
+            data-download-date-ts="<?php echo esc_attr( $created_ts ); ?>"
+        >
             <?php if ( $thumb ) : ?>
                 <div class="downloads-thumb is-loading">
                     <img
@@ -252,6 +267,51 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
         <?php esc_html_e( 'AI images', 'artly' ); ?>
       </button>
     </section>
+
+    <div class="artly-downloads-toolbar" data-downloads-toolbar>
+      <div class="artly-downloads-toolbar-left">
+        <div class="artly-downloads-search">
+          <input
+            type="text"
+            class="artly-downloads-search-input"
+            data-downloads-search
+            placeholder="<?php esc_attr_e( 'Search by name, provider, ID or link…', 'artly' ); ?>"
+          />
+        </div>
+      </div>
+      <div class="artly-downloads-toolbar-right">
+        <div class="artly-downloads-filter-group">
+          <label class="artly-downloads-filter-label" for="downloads-status-filter">
+            <?php esc_html_e( 'Status', 'artly' ); ?>
+          </label>
+          <select id="downloads-status-filter" class="artly-downloads-select" data-downloads-status-filter>
+            <option value=""><?php esc_html_e( 'All statuses', 'artly' ); ?></option>
+            <option value="completed"><?php esc_html_e( 'Completed', 'artly' ); ?></option>
+            <option value="ready"><?php esc_html_e( 'Ready', 'artly' ); ?></option>
+            <option value="processing"><?php esc_html_e( 'Processing', 'artly' ); ?></option>
+            <option value="pending"><?php esc_html_e( 'Pending', 'artly' ); ?></option>
+            <option value="queued"><?php esc_html_e( 'Queued', 'artly' ); ?></option>
+            <option value="failed"><?php esc_html_e( 'Failed', 'artly' ); ?></option>
+            <option value="error"><?php esc_html_e( 'Error', 'artly' ); ?></option>
+          </select>
+        </div>
+        <div class="artly-downloads-filter-group">
+          <label class="artly-downloads-filter-label" for="downloads-sort">
+            <?php esc_html_e( 'Sort', 'artly' ); ?>
+          </label>
+          <select id="downloads-sort" class="artly-downloads-select" data-downloads-sort>
+            <option value="date_desc"><?php esc_html_e( 'Newest first', 'artly' ); ?></option>
+            <option value="date_asc"><?php esc_html_e( 'Oldest first', 'artly' ); ?></option>
+            <option value="provider_asc"><?php esc_html_e( 'Provider A–Z', 'artly' ); ?></option>
+            <option value="provider_desc"><?php esc_html_e( 'Provider Z–A', 'artly' ); ?></option>
+            <option value="status_asc"><?php esc_html_e( 'Status A–Z', 'artly' ); ?></option>
+            <option value="status_desc"><?php esc_html_e( 'Status Z–A', 'artly' ); ?></option>
+            <option value="points_asc"><?php esc_html_e( 'Points low → high', 'artly' ); ?></option>
+            <option value="points_desc"><?php esc_html_e( 'Points high → low', 'artly' ); ?></option>
+          </select>
+        </div>
+      </div>
+    </div>
 
     <section class="downloads-section" data-downloads-list="all">
       <?php if ( ! empty( $items ) ) : ?>
