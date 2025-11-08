@@ -263,6 +263,197 @@ if ( ! function_exists( 'nehtw_gateway_history_extract_ai_thumbnail' ) ) {
     }
 }
 
+if ( ! function_exists( 'nehtw_gateway_history_build_provider_fallback_url' ) ) {
+    /**
+     * Build a provider-specific fallback thumbnail URL based on site and stock ID.
+     *
+     * @param string $site    Provider site key (e.g. 'shutterstock', 'adobestock').
+     * @param string $stock_id Stock ID from the provider.
+     *
+     * @return string Fallback URL or empty string if no pattern matches.
+     */
+    function nehtw_gateway_history_build_provider_fallback_url( $site, $stock_id ) {
+        if ( empty( $site ) || empty( $stock_id ) ) {
+            return '';
+        }
+
+        $site = strtolower( sanitize_key( $site ) );
+        $stock_id = sanitize_text_field( $stock_id );
+
+        // Provider-specific fallback URL patterns.
+        $fallback_patterns = array(
+            'shutterstock' => 'https://image.shutterstock.com/image-photo/id-' . $stock_id . '-260nw.jpg',
+            'adobestock'   => 'https://as1.ftcdn.net/v2/jpg/' . $stock_id . '/500_F_' . $stock_id . '.jpg',
+            'pngtree'      => 'https://pngtree.com/freepng/' . $stock_id . '.jpg',
+            'storyblocks'  => 'https://media.storyblocks.com/stock-images/' . $stock_id . '.jpg',
+            'getty'        => 'https://media.gettyimages.com/id/' . $stock_id . '/photo',
+            'istock'       => 'https://media.istockphoto.com/id/' . $stock_id . '/photo',
+            'depositphotos' => 'https://st.depositphotos.com/' . $stock_id . '/stock-photo',
+            'pexels'       => 'https://images.pexels.com/photos/' . $stock_id,
+            'pixabay'      => 'https://pixabay.com/get/' . $stock_id,
+            'unsplash'     => 'https://images.unsplash.com/' . $stock_id,
+        );
+
+        if ( isset( $fallback_patterns[ $site ] ) ) {
+            return $fallback_patterns[ $site ];
+        }
+
+        return '';
+    }
+}
+
+if ( ! function_exists( 'nehtw_gateway_history_check_image_accessibility' ) ) {
+    /**
+     * Check if an image URL is accessible and valid.
+     *
+     * Uses cached transient results to avoid repeated HTTP requests.
+     * Performs lightweight HEAD request to check accessibility.
+     *
+     * @param string $url Image URL to check.
+     * @param bool   $force_check If true, bypass cache and force check.
+     *
+     * @return bool True if accessible, false otherwise.
+     */
+    function nehtw_gateway_history_check_image_accessibility( $url, $force_check = false ) {
+        if ( empty( $url ) ) {
+            return false;
+        }
+
+        // Validate URL format first.
+        $url = nehtw_gateway_history_validate_image_url( $url );
+        if ( '' === $url ) {
+            return false;
+        }
+
+        // Check cache first (unless force_check is true).
+        if ( ! $force_check ) {
+            $cache_key = 'artly_thumb_check_' . md5( $url );
+            $cached = get_transient( $cache_key );
+            if ( false !== $cached ) {
+                return '1' === $cached;
+            }
+        }
+
+        // Use a HEAD request to check if the image exists (lightweight check).
+        $response = wp_remote_head( $url, array(
+            'timeout'     => 3,
+            'redirection' => 2,
+        ) );
+
+        $is_accessible = false;
+
+        if ( is_wp_error( $response ) ) {
+            $is_accessible = false;
+        } else {
+            $code = wp_remote_retrieve_response_code( $response );
+            if ( $code >= 200 && $code < 300 ) {
+                $content_type = wp_remote_retrieve_header( $response, 'content-type' );
+                // Verify it's an image.
+                if ( $content_type && strpos( strtolower( $content_type ), 'image/' ) === 0 ) {
+                    $is_accessible = true;
+                }
+            }
+        }
+
+        // Cache result for 24 hours.
+        if ( ! $force_check ) {
+            $cache_key = 'artly_thumb_check_' . md5( $url );
+            set_transient( $cache_key, $is_accessible ? '1' : '0', DAY_IN_SECONDS );
+        }
+
+        return $is_accessible;
+    }
+}
+
+if ( ! function_exists( 'nehtw_gateway_history_get_cached_placeholder' ) ) {
+    /**
+     * Get or create a cached placeholder image for broken thumbnails.
+     *
+     * @return string URL to cached placeholder or empty string on failure.
+     */
+    function nehtw_gateway_history_get_cached_placeholder() {
+        $upload_dir = wp_upload_dir();
+        if ( $upload_dir['error'] ) {
+            return '';
+        }
+
+        $cache_dir = $upload_dir['basedir'] . '/artly-cache';
+        $cache_url = $upload_dir['baseurl'] . '/artly-cache';
+        $placeholder_file = $cache_dir . '/placeholder.svg';
+
+        // Check if placeholder already exists and is fresh (within 24 hours).
+        if ( file_exists( $placeholder_file ) ) {
+            $file_age = time() - filemtime( $placeholder_file );
+            if ( $file_age < DAY_IN_SECONDS ) {
+                return $cache_url . '/placeholder.svg';
+            }
+        }
+
+        // Create cache directory if it doesn't exist.
+        if ( ! file_exists( $cache_dir ) ) {
+            wp_mkdir_p( $cache_dir );
+        }
+
+        // Generate placeholder SVG with Artly theme colors (dark theme primary, respects CSS overrides).
+        $svg_content = '<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
+  <rect width="300" height="200" fill="#0f172a" stroke="#06f5e8" stroke-width="2" stroke-dasharray="5,5"/>
+  <circle cx="150" cy="80" r="25" fill="none" stroke="#06f5e8" stroke-width="2"/>
+  <path d="M 120 120 L 150 100 L 180 120 L 180 150 L 120 150 Z" fill="none" stroke="#06f5e8" stroke-width="2"/>
+  <text x="150" y="170" text-anchor="middle" fill="#06f5e8" font-family="Arial, sans-serif" font-size="12">Image Preview</text>
+</svg>';
+
+        // Write placeholder using WP_Filesystem if available, otherwise use file_put_contents.
+        global $wp_filesystem;
+        if ( ! $wp_filesystem ) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+
+        if ( $wp_filesystem ) {
+            $wp_filesystem->put_contents( $placeholder_file, $svg_content, FS_CHMOD_FILE );
+        } else {
+            file_put_contents( $placeholder_file, $svg_content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
+        }
+
+        if ( file_exists( $placeholder_file ) ) {
+            return $cache_url . '/placeholder.svg';
+        }
+
+        return '';
+    }
+}
+
+if ( ! function_exists( 'nehtw_gateway_history_proxy_image' ) ) {
+    /**
+     * Proxy and cache an image URL, returning cached version if original is broken.
+     *
+     * @param string $url Original image URL.
+     *
+     * @return string URL to accessible image (original, cached, or placeholder).
+     */
+    function nehtw_gateway_history_proxy_image( $url ) {
+        if ( empty( $url ) ) {
+            return nehtw_gateway_history_get_cached_placeholder();
+        }
+
+        // Validate URL format.
+        $url = nehtw_gateway_history_validate_image_url( $url );
+        if ( '' === $url ) {
+            return nehtw_gateway_history_get_cached_placeholder();
+        }
+
+        // Check if image is accessible.
+        $is_accessible = nehtw_gateway_history_check_image_accessibility( $url );
+        if ( $is_accessible ) {
+            return $url;
+        }
+
+        // Image is broken, return placeholder.
+        return nehtw_gateway_history_get_cached_placeholder();
+    }
+}
+
 if ( ! function_exists( 'nehtw_gateway_history_extract_ai_download_link' ) ) {
     /**
      * Extract download link from AI job files payload.
@@ -326,6 +517,8 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
         $status = isset( $order['status'] ) ? $order['status'] : '';
 
         $thumbnail = '';
+
+        // Try existing thumbnail sources first.
         if ( isset( $row['preview_thumb'] ) && $row['preview_thumb'] ) {
             $thumbnail = nehtw_gateway_history_validate_image_url( $row['preview_thumb'] );
         }
@@ -344,6 +537,99 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
 
         if ( '' === $thumbnail && isset( $order['files'] ) ) {
             $thumbnail = nehtw_gateway_history_search_thumbnail_candidate( $order['files'] );
+        }
+
+        // Get site and stock_id for fallback logic.
+        $site = isset( $order['site'] ) ? (string) $order['site'] : ( isset( $row['site'] ) ? (string) $row['site'] : '' );
+        $stock_id = isset( $row['stock_id'] ) ? (string) $row['stock_id'] : ( isset( $order['stock_id'] ) ? (string) $order['stock_id'] : '' );
+
+        // If we have a thumbnail, validate it and try fallback if broken.
+        if ( '' !== $thumbnail ) {
+            // Skip accessibility check for our own cached placeholder (always accessible).
+            $upload_dir = wp_upload_dir();
+            $is_placeholder = false;
+            if ( ! $upload_dir['error'] && strpos( $thumbnail, $upload_dir['baseurl'] . '/artly-cache/placeholder.svg' ) !== false ) {
+                $is_placeholder = true;
+            }
+
+            $is_accessible = true;
+            if ( ! $is_placeholder ) {
+                // Check accessibility (function handles caching internally).
+                $is_accessible = nehtw_gateway_history_check_image_accessibility( $thumbnail );
+            }
+
+            if ( ! $is_accessible ) {
+                // Original thumbnail is broken, try provider fallback.
+                if ( $site && $stock_id ) {
+                    $fallback_url = nehtw_gateway_history_build_provider_fallback_url( $site, $stock_id );
+                    if ( '' !== $fallback_url ) {
+                        // Check fallback accessibility (function handles caching internally).
+                        $fallback_accessible = nehtw_gateway_history_check_image_accessibility( $fallback_url );
+
+                        if ( $fallback_accessible ) {
+                            $thumbnail = $fallback_url;
+
+                            // Log fallback usage if WP_DEBUG is enabled.
+                            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                                $user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : get_current_user_id();
+                                error_log( '[artly-thumb-fallback] User ' . $user_id . ' - replaced broken thumb for ' . $site . ' ID ' . $stock_id . ' with fallback URL' );
+                            }
+                        } else {
+                            // Fallback also broken, use placeholder.
+                            $thumbnail = nehtw_gateway_history_get_cached_placeholder();
+
+                            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                                $user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : get_current_user_id();
+                                error_log( '[artly-thumb-fallback] User ' . $user_id . ' - replaced broken thumb for ' . $site . ' ID ' . $stock_id . ' with placeholder (fallback also broken)' );
+                            }
+                        }
+                    } else {
+                        // No fallback pattern available, use placeholder.
+                        $thumbnail = nehtw_gateway_history_get_cached_placeholder();
+
+                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                            $user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : get_current_user_id();
+                            error_log( '[artly-thumb-fallback] User ' . $user_id . ' - replaced broken thumb for ' . $site . ' ID ' . $stock_id . ' with placeholder (no fallback pattern)' );
+                        }
+                    }
+                } else {
+                    // No site/stock_id available, use placeholder.
+                    $thumbnail = nehtw_gateway_history_get_cached_placeholder();
+                }
+            }
+            // If thumbnail is accessible, keep it as-is (no need to proxy on every request).
+        } else {
+            // No thumbnail found, try provider fallback before using placeholder.
+            if ( $site && $stock_id ) {
+                $fallback_url = nehtw_gateway_history_build_provider_fallback_url( $site, $stock_id );
+                if ( '' !== $fallback_url ) {
+                    // Check fallback accessibility (function handles caching internally).
+                    $fallback_accessible = nehtw_gateway_history_check_image_accessibility( $fallback_url );
+
+                    if ( $fallback_accessible ) {
+                        $thumbnail = $fallback_url;
+
+                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                            $user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : get_current_user_id();
+                            error_log( '[artly-thumb-fallback] User ' . $user_id . ' - using provider fallback thumb for ' . $site . ' ID ' . $stock_id );
+                        }
+                    } else {
+                        // Fallback not accessible, use placeholder.
+                        $thumbnail = nehtw_gateway_history_get_cached_placeholder();
+
+                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                            $user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : get_current_user_id();
+                            error_log( '[artly-thumb-fallback] User ' . $user_id . ' - using placeholder for ' . $site . ' ID ' . $stock_id . ' (fallback not accessible)' );
+                        }
+                    }
+                } else {
+                    // No fallback pattern, use placeholder.
+                    $thumbnail = nehtw_gateway_history_get_cached_placeholder();
+                }
+            } else {
+                // No site/stock_id, use placeholder.
+                $thumbnail = nehtw_gateway_history_get_cached_placeholder();
+            }
         }
         
         $provider_label = '';
