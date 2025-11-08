@@ -103,6 +103,36 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
         // Format date/time - use updated_at for stock, created_at for AI
         $display_date = $updated_at > 0 ? $updated_at : $created_at;
         
+        // Normalize status for comparison
+        $status_raw = isset( $item['status'] ) ? $item['status'] : '';
+        $status_normalized = strtolower( trim( $status_raw ) );
+        
+        // Determine which statuses allow re-download
+        $status_can_redownload = in_array(
+            $status_normalized,
+            array(
+                'completed',
+                'ready',
+                'downloaded',
+                'success',
+                'complete',
+            ),
+            true
+        );
+        
+        // Determine which statuses indicate failure/error (no re-download available)
+        $status_is_failed = in_array(
+            $status_normalized,
+            array(
+                'failed',
+                'error',
+                'cancelled',
+                'refunded',
+                'timeout',
+            ),
+            true
+        );
+        
         // Status class for styling
         $status_class = 'downloads-item-status-pill';
         if ( $status ) {
@@ -169,19 +199,29 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
                 <div class="downloads-item-points">
                     <?php printf( esc_html__( '%s pts', 'artly' ), esc_html( number_format_i18n( $points, 2 ) ) ); ?>
                 </div>
-                <?php if ( $identifier ) : ?>
-                    <button
-                        class="downloads-btn-primary"
-                        type="button"
-                        data-download-kind="<?php echo esc_attr( $kind ); ?>"
-                        data-download-id="<?php echo esc_attr( $identifier ); ?>"
-                        <?php if ( 'stock' === $kind && $history_id > 0 ) : ?>
-                            data-history-id="<?php echo esc_attr( $history_id ); ?>"
-                        <?php endif; ?>
-                    >
-                        <?php esc_html_e( 'Re-download', 'artly' ); ?>
-                    </button>
-                <?php endif; ?>
+                <div class="artly-download-actions">
+                    <?php if ( $identifier && $status_can_redownload ) : ?>
+                        <button
+                            class="downloads-btn-primary artly-download-button"
+                            type="button"
+                            data-download-kind="<?php echo esc_attr( $kind ); ?>"
+                            data-download-id="<?php echo esc_attr( $identifier ); ?>"
+                            <?php if ( 'stock' === $kind && $history_id > 0 ) : ?>
+                                data-history-id="<?php echo esc_attr( $history_id ); ?>"
+                            <?php endif; ?>
+                        >
+                            <?php esc_html_e( 'Re-download', 'artly' ); ?>
+                        </button>
+                    <?php elseif ( $status_is_failed ) : ?>
+                        <div class="artly-download-status-pill artly-download-status-pill--unavailable">
+                            <?php esc_html_e( 'Re-download unavailable', 'artly' ); ?>
+                        </div>
+                    <?php elseif ( $status_normalized && ! $status_can_redownload && ! $status_is_failed ) : ?>
+                        <div class="artly-download-status-pill artly-download-status-pill--intermediate">
+                            <?php echo esc_html( ucfirst( $status_normalized ) ); ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </li>
         <?php

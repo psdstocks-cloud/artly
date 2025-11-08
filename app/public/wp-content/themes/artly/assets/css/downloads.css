@@ -320,6 +320,58 @@
   box-shadow: none;
 }
 
+/* ============================================
+   Artly Download Actions & Status Pills
+   ============================================ */
+.artly-download-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Base pill */
+.artly-download-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: rgba(226, 232, 240, 0.85);
+  background: rgba(15, 23, 42, 0.9);
+  white-space: nowrap;
+}
+
+/* Unavailable / failed */
+.artly-download-status-pill--unavailable {
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #fecaca;
+  background: radial-gradient(
+    circle at 0 0,
+    rgba(239, 68, 68, 0.2),
+    rgba(15, 23, 42, 0.98)
+  );
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Intermediate statuses (processing, queued, etc.) */
+.artly-download-status-pill--intermediate {
+  border-color: rgba(148, 163, 184, 0.4);
+  color: rgba(203, 213, 225, 0.9);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+/* Re-download button (enhanced - works with existing downloads-btn-primary) */
+.artly-download-button {
+  /* Inherits base styles from .downloads-btn-primary */
+  /* Additional enhancements can be added here if needed */
+}
+
 .artly-downloads-page .downloads-btn-secondary {
   border-radius: 999px;
   padding: 10px 20px;
