@@ -2502,6 +2502,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         );
     }
 
+    // Attempt to reuse an existing download link before calling the API.
     if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
         $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
 

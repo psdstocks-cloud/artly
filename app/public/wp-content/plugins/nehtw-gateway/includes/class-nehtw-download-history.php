@@ -435,6 +435,149 @@ if ( ! function_exists( 'nehtw_gateway_history_format_ai_item' ) ) {
     }
 }
 
+if ( ! function_exists( 'nehtw_gateway_history_refresh_stock_statuses' ) ) {
+    /**
+     * Refresh stock order statuses for a set of history rows.
+     *
+     * For non-final statuses, check Nehtw API once (with basic caching) and
+     * update the local order + history row with the latest status.
+     *
+     * @param array $rows    Raw DB rows from stock history.
+     * @param int   $user_id Current user ID.
+     *
+     * @return array Updated rows.
+     */
+    function nehtw_gateway_history_refresh_stock_statuses( $rows, $user_id ) {
+        if ( empty( $rows ) || ! function_exists( 'nehtw_gateway_api_order_status' ) ) {
+            return $rows;
+        }
+
+        // Define non-final statuses that should be refreshed.
+        $non_final_statuses = array( 'queued', 'pending', 'processing', 'requesting' );
+
+        // Limit how many orders we refresh per page load to avoid API spam.
+        $max_checks = 20;
+        $checks_done = 0;
+
+        foreach ( $rows as $index => $row ) {
+            // Safety checks.
+            if ( $checks_done >= $max_checks ) {
+                break;
+            }
+
+            if ( empty( $row['kind'] ) || 'stock' !== $row['kind'] ) {
+                continue;
+            }
+
+            // Current status as stored in history.
+            $status = isset( $row['status'] ) ? strtolower( trim( (string) $row['status'] ) ) : '';
+
+            // Skip if status is empty, final, or not in our list of non-final statuses.
+            if ( '' === $status || ! in_array( $status, $non_final_statuses, true ) ) {
+                // Already final or unknown status, skip.
+                continue;
+            }
+
+            // Task ID should be present for stock orders.
+            $task_id = isset( $row['task_id'] ) ? $row['task_id'] : '';
+
+            if ( ! $task_id ) {
+                continue;
+            }
+
+            // Basic per-task caching to avoid calling API too frequently.
+            $cache_key = 'nehtw_status_sync_' . md5( $user_id . '|' . $task_id );
+            $recent    = get_transient( $cache_key );
+
+            if ( $recent ) {
+                // We refreshed recently, skip for now.
+                continue;
+            }
+
+            // Mark as checked for the next 30 seconds.
+            set_transient( $cache_key, 1, 30 );
+
+            // Call Nehtw API for this order status.
+            $api_response = nehtw_gateway_api_order_status( $task_id, 'any' );
+
+            if ( is_wp_error( $api_response ) ) {
+                // Do not fail the whole page on API errors; just skip.
+                continue;
+            }
+
+            // Normalize the API response.
+            if ( function_exists( 'nehtw_gateway_normalize_api_payload' ) ) {
+                $api_data = nehtw_gateway_normalize_api_payload( $api_response );
+            } else {
+                $api_data = is_array( $api_response ) ? $api_response : array();
+            }
+
+            $remote_status = isset( $api_data['status'] ) ? $api_data['status'] : '';
+
+            // Normalize the status.
+            if ( function_exists( 'nehtw_gateway_normalize_remote_status' ) ) {
+                $new_status = nehtw_gateway_normalize_remote_status( $remote_status );
+            } else {
+                $new_status = strtolower( (string) $remote_status );
+            }
+
+            // Skip if no valid new status or status hasn't changed.
+            if ( '' === $new_status || $new_status === $status ) {
+                // No change or empty status.
+                continue;
+            }
+
+            // Update local stock order record, if the helper class exists.
+            if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
+                // Try to fetch the full order row by task_id to make sure it belongs to this user.
+                $order = Nehtw_Gateway_Stock_Orders::get_by_task_id( $task_id );
+
+                if ( $order && (int) $order['user_id'] === (int) $user_id ) {
+                    // Merge raw data with last status check info.
+                    $raw_data = isset( $order['raw_response'] ) ? maybe_unserialize( $order['raw_response'] ) : array();
+
+                    if ( ! is_array( $raw_data ) ) {
+                        $raw_data = array();
+                    }
+
+                    $status_payload = array(
+                        'checked_at' => current_time( 'mysql' ),
+                        'response'   => $api_data,
+                    );
+
+                    // Merge raw response with status data.
+                    if ( method_exists( 'Nehtw_Gateway_Stock_Orders', 'merge_raw_response_with_status' ) ) {
+                        $raw_merged = Nehtw_Gateway_Stock_Orders::merge_raw_response_with_status(
+                            $raw_data,
+                            $status_payload
+                        );
+                    } else {
+                        $raw_merged = $raw_data;
+                        if ( ! empty( $status_payload ) ) {
+                            $raw_merged['last_status'] = $status_payload;
+                        }
+                    }
+
+                    // Update the order status in the database.
+                    Nehtw_Gateway_Stock_Orders::update_status(
+                        $task_id,
+                        $new_status,
+                        array(
+                            'raw_response' => maybe_serialize( $raw_merged ),
+                        )
+                    );
+                }
+            }
+
+            // Reflect the new status back into the history row so the UI is correct in this request.
+            $rows[ $index ]['status'] = $new_status;
+            $checks_done++;
+        }
+
+        return $rows;
+    }
+}
+
 if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
     /**
      * Fetch paginated unified download history for a user.
@@ -511,6 +654,11 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
         $order_clause = $wpdb->prepare( 'ORDER BY updated_at DESC, created_at DESC, db_id DESC LIMIT %d OFFSET %d', $per_page, $offset );
         $sql          = 'SELECT * FROM ( ' . $union . ' ) AS history ' . $order_clause;
         $rows         = $wpdb->get_results( $sql, ARRAY_A );
+
+        // Refresh stock order statuses for non-final statuses before formatting.
+        if ( ! empty( $rows ) && function_exists( 'nehtw_gateway_history_refresh_stock_statuses' ) ) {
+            $rows = nehtw_gateway_history_refresh_stock_statuses( $rows, $user_id );
+        }
 
         $items = array();
         if ( is_array( $rows ) ) {

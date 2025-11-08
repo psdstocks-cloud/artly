@@ -221,4 +221,3 @@ $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
 
 <?php
 get_footer();
-
