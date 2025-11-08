@@ -12,6 +12,23 @@
     }
     var nonce = settings.nonce || '';
 
+    // ========== LIVE REGION FOR STATUS ANNOUNCEMENTS ==========
+
+    var statusRegion = root.querySelector('.downloads-status-region');
+
+    function announceStatus(message) {
+      if (!statusRegion) {
+        return;
+      }
+      statusRegion.textContent = message || '';
+      // Clear after a short delay to allow re-announcement of same message
+      setTimeout(function () {
+        if (statusRegion.textContent === message) {
+          statusRegion.textContent = '';
+        }
+      }, 1000);
+    }
+
     // ========== RETRY HELPER ==========
 
     /**
@@ -103,11 +120,15 @@
     function showModal(title, message, primaryButtonText, onPrimaryClick) {
       removeExistingModal();
 
+      // Remember previously focused element
+      var previouslyFocused = document.activeElement;
+
       var overlay = document.createElement('div');
       overlay.className = 'artly-modal-overlay';
       overlay.setAttribute('role', 'dialog');
       overlay.setAttribute('aria-modal', 'true');
       overlay.setAttribute('aria-labelledby', 'artly-modal-title');
+      overlay.setAttribute('aria-describedby', 'artly-modal-message');
 
       var container = document.createElement('div');
       container.className = 'artly-modal-container';
@@ -122,6 +143,7 @@
       var body = document.createElement('div');
       body.className = 'artly-modal-body';
       var messageEl = document.createElement('p');
+      messageEl.id = 'artly-modal-message';
       messageEl.textContent = message;
       body.appendChild(messageEl);
 
@@ -140,9 +162,63 @@
       overlay.appendChild(container);
       document.body.appendChild(overlay);
 
+      // Collect focusable elements for focus trap
+      var focusableSelectors = [
+        'a[href]',
+        'button:not([disabled])',
+        'textarea:not([disabled])',
+        'input[type="text"]:not([disabled])',
+        'input[type="email"]:not([disabled])',
+        'input[type="button"]:not([disabled])',
+        'input[type="submit"]:not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(',');
+      var focusableEls = container.querySelectorAll(focusableSelectors);
+      focusableEls = Array.prototype.slice.call(focusableEls);
+      var firstFocusable = focusableEls[0];
+      var lastFocusable = focusableEls[focusableEls.length - 1];
+
+      // Set initial focus
       setTimeout(function () {
-        primaryBtn.focus();
+        if (firstFocusable) {
+          firstFocusable.focus();
+        } else if (primaryBtn) {
+          primaryBtn.focus();
+        }
       }, 100);
+
+      // Focus trap handler
+      function handleKeyDown(e) {
+        if (e.key === 'Tab' || e.keyCode === 9) {
+          if (focusableEls.length === 0) {
+            e.preventDefault();
+            return;
+          }
+
+          if (e.shiftKey) {
+            // Shift + Tab
+            if (document.activeElement === firstFocusable) {
+              e.preventDefault();
+              if (lastFocusable) {
+                lastFocusable.focus();
+              }
+            }
+          } else {
+            // Tab
+            if (document.activeElement === lastFocusable) {
+              e.preventDefault();
+              if (firstFocusable) {
+                firstFocusable.focus();
+              }
+            }
+          }
+        }
+
+        if (e.key === 'Escape' || e.keyCode === 27) {
+          closeModal();
+        }
+      }
 
       function closeModal() {
         overlay.classList.add('is-closing');
@@ -150,8 +226,13 @@
           if (overlay.parentNode) {
             overlay.parentNode.removeChild(overlay);
           }
+          document.removeEventListener('keydown', handleKeyDown);
+
+          // Restore focus to previously focused element
+          if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+            previouslyFocused.focus();
+          }
         }, 200);
-        document.removeEventListener('keydown', escapeHandler);
       }
 
       primaryBtn.addEventListener('click', function () {
@@ -167,13 +248,7 @@
         }
       });
 
-      var escapeHandler = function (event) {
-        if (event.key === 'Escape' || event.keyCode === 27) {
-          closeModal();
-        }
-      };
-
-      document.addEventListener('keydown', escapeHandler);
+      document.addEventListener('keydown', handleKeyDown);
 
       return {
         close: closeModal,
@@ -186,26 +261,79 @@
     var lists = root.querySelectorAll('[data-downloads-list]');
     var currentTab = 'all';
 
+    // Function to activate a tab
+    function activateTab(activeTab) {
+      var target = activeTab.getAttribute('data-downloads-tab') || 'all';
+      currentTab = target;
+
+      // Update tab buttons
+      tabs.forEach(function (tab) {
+        var isActive = tab === activeTab;
+        tab.classList.toggle('is-active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        tab.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
+
+      // Update tab panels
+      lists.forEach(function (panel) {
+        var type = panel.getAttribute('data-downloads-list');
+        if (target === 'all') {
+          // Show all panel when "All" is selected
+          panel.hidden = type !== 'all';
+        } else {
+          // Show only matching panel
+          panel.hidden = type !== target;
+        }
+      });
+
+      // Announce tab change to screen readers
+      var tabLabel = activeTab.textContent.trim();
+      announceStatus('Switched to ' + tabLabel + ' downloads tab.');
+
+      // Apply filters after tab change
+      applyFiltersAndSort();
+    }
+
     tabs.forEach(function (tab) {
+      // Click handler
       tab.addEventListener('click', function () {
-        var target = tab.getAttribute('data-downloads-tab');
-        currentTab = target || 'all';
-        tabs.forEach(function (btn) {
-          btn.classList.remove('is-active');
-        });
-        tab.classList.add('is-active');
+        activateTab(tab);
+      });
 
-        lists.forEach(function (list) {
-          var type = list.getAttribute('data-downloads-list');
-          if (!target || target === 'all') {
-            list.style.display = '';
-            return;
+      // Keyboard navigation
+      tab.addEventListener('keydown', function (event) {
+        var key = event.key || event.keyCode;
+        var index = Array.prototype.indexOf.call(tabs, tab);
+
+        // Arrow keys to move between tabs
+        if (key === 'ArrowRight' || key === 39) {
+          event.preventDefault();
+          var nextIndex = index + 1;
+          if (nextIndex >= tabs.length) {
+            nextIndex = 0;
           }
-          list.style.display = type === target ? '' : 'none';
-        });
+          tabs[nextIndex].focus();
+          activateTab(tabs[nextIndex]);
+        } else if (key === 'ArrowLeft' || key === 37) {
+          event.preventDefault();
+          var prevIndex = index - 1;
+          if (prevIndex < 0) {
+            prevIndex = tabs.length - 1;
+          }
+          tabs[prevIndex].focus();
+          activateTab(tabs[prevIndex]);
+        }
 
-        // Apply filters after tab change
-        applyFiltersAndSort();
+        // Home/End keys
+        if (key === 'Home' || key === 36) {
+          event.preventDefault();
+          tabs[0].focus();
+          activateTab(tabs[0]);
+        } else if (key === 'End' || key === 35) {
+          event.preventDefault();
+          tabs[tabs.length - 1].focus();
+          activateTab(tabs[tabs.length - 1]);
+        }
       });
     });
 
@@ -239,7 +367,7 @@
           (currentTab === 'ai' && listType === 'ai');
 
         // Skip hidden containers
-        if (!isVisible || container.style.display === 'none') {
+        if (!isVisible || container.hasAttribute('hidden')) {
           return;
         }
 
@@ -392,6 +520,7 @@
       button.disabled = true;
       button.classList.add('is-loading');
       button.textContent = 'Generating link…';
+      announceStatus('Generating download link…');
 
       var headers = {
         'Content-Type': 'application/json',
@@ -453,8 +582,10 @@
           // Update button label to show retry count
           if (attempt === 1) {
             button.textContent = 'Generating link…';
+            announceStatus('Generating download link…');
           } else {
             button.textContent = 'Generating link… (retry ' + attempt + '/' + maxAttempts + ')';
+            announceStatus('Retrying to generate download link, attempt ' + attempt + ' of ' + maxAttempts + '.');
           }
         }
       )
@@ -478,26 +609,23 @@
 
           // 409: Download not ready
           if (status === 409) {
-            showModal(
-              'Download not ready',
-              data.message || 'This file is still processing. Please try again shortly.',
-              'Close'
-            );
+            var notReadyMsg = data.message || 'This file is still processing. Please try again shortly.';
+            announceStatus('Download is not ready yet. Please try again later.');
+            showModal('Download not ready', notReadyMsg, 'Close');
             return;
           }
 
           // 404: Not found
           if (status === 404) {
-            showModal(
-              'Download not found',
-              data.message || 'This download could not be found. It may have expired or been removed.',
-              'Close'
-            );
+            var notFoundMsg = data.message || 'This download could not be found. It may have expired or been removed.';
+            announceStatus('Download not found. It may have expired or been removed.');
+            showModal('Download not found', notFoundMsg, 'Close');
             return;
           }
 
           // 401/403: Auth error
           if (status === 401 || status === 403) {
+            announceStatus('Your session has expired. Please log in again to continue.');
             showModal(
               'Authentication required',
               'Your session has expired. Please log in again to continue.',
@@ -514,6 +642,7 @@
             var errorMsg =
               (data && data.message) ||
               'We couldn\'t generate a download link right now. Please try again later.';
+            announceStatus('We could not generate the download link. Please try again.');
             showModal('Server Error', errorMsg, 'Close');
             return;
           }
@@ -527,8 +656,10 @@
           }
 
           if (downloadUrl) {
+            announceStatus('Download link ready. Opening in a new tab.');
             window.open(downloadUrl, '_blank');
           } else {
+            announceStatus('We could not generate the download link. Please try again.');
             showModal(
               'Download error',
               'We couldn\'t generate a download link right now. Please try again later.',
@@ -542,6 +673,7 @@
           button.disabled = false;
           button.classList.remove('is-loading');
           button.textContent = originalText;
+          announceStatus('We could not connect to the server. Please check your internet connection and try again.');
 
           showModal(
             'Connection Error',

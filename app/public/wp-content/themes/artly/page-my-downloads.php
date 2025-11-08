@@ -246,6 +246,22 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
                 </div>
                 <div class="artly-download-actions">
                     <?php if ( $identifier && $status_can_redownload ) : ?>
+                        <?php
+                        // Build accessible label for re-download button
+                        $download_title = '';
+                        if ( 'stock' === $kind && $remote_id ) {
+                            $download_title = $remote_id;
+                        } elseif ( ! empty( $title ) ) {
+                            $download_title = $title;
+                        } else {
+                            $download_title = __( 'this file', 'artly' );
+                        }
+                        $aria_label = sprintf(
+                            /* translators: %s = download title or identifier */
+                            __( 'Re-download %s', 'artly' ),
+                            $download_title
+                        );
+                        ?>
                         <button
                             class="downloads-btn-primary artly-download-button"
                             type="button"
@@ -254,6 +270,7 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
                             <?php if ( 'stock' === $kind && $history_id > 0 ) : ?>
                                 data-history-id="<?php echo esc_attr( $history_id ); ?>"
                             <?php endif; ?>
+                            aria-label="<?php echo esc_attr( $aria_label ); ?>"
                         >
                             <?php esc_html_e( 'Re-download', 'artly' ); ?>
                         </button>
@@ -275,8 +292,19 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
 }
 ?>
 
-<main id="primary" class="site-main artly-downloads-page">
+<main id="primary" class="site-main artly-downloads-page" role="main" aria-label="<?php esc_attr_e( 'Your downloads', 'artly' ); ?>">
   <div class="artly-downloads-inner">
+
+    <!-- Live region for screen reader announcements -->
+    <div
+      class="downloads-status-region"
+      aria-live="polite"
+      aria-atomic="true"
+      role="status"
+      style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;"
+    >
+      <!-- JS will update this with status text -->
+    </div>
 
     <section class="downloads-hero">
       <p class="downloads-kicker"><?php esc_html_e( 'Library', 'artly' ); ?></p>
@@ -412,14 +440,41 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
       <?php endif; ?>
     </div>
 
-    <section class="downloads-tabs" role="tablist">
-      <button class="downloads-tab is-active" type="button" data-downloads-tab="all">
+    <section class="downloads-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Filter downloads by type', 'artly' ); ?>">
+      <button
+        class="downloads-tab is-active"
+        type="button"
+        data-downloads-tab="all"
+        role="tab"
+        aria-selected="true"
+        aria-controls="downloads-panel-all"
+        id="downloads-tab-all"
+        tabindex="0"
+      >
         <?php esc_html_e( 'All', 'artly' ); ?>
       </button>
-      <button class="downloads-tab" type="button" data-downloads-tab="stock">
+      <button
+        class="downloads-tab"
+        type="button"
+        data-downloads-tab="stock"
+        role="tab"
+        aria-selected="false"
+        aria-controls="downloads-panel-stock"
+        id="downloads-tab-stock"
+        tabindex="-1"
+      >
         <?php esc_html_e( 'Stock', 'artly' ); ?>
       </button>
-      <button class="downloads-tab" type="button" data-downloads-tab="ai">
+      <button
+        class="downloads-tab"
+        type="button"
+        data-downloads-tab="ai"
+        role="tab"
+        aria-selected="false"
+        aria-controls="downloads-panel-ai"
+        id="downloads-tab-ai"
+        tabindex="-1"
+      >
         <?php esc_html_e( 'AI images', 'artly' ); ?>
       </button>
     </section>
@@ -469,7 +524,13 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
       </div>
     </div>
 
-    <section class="downloads-section" data-downloads-list="all">
+    <section
+      class="downloads-section"
+      data-downloads-list="all"
+      id="downloads-panel-all"
+      role="tabpanel"
+      aria-labelledby="downloads-tab-all"
+    >
       <?php if ( ! empty( $items ) ) : ?>
         <ul class="downloads-list">
           <?php artly_downloads_render_items( $items ); ?>
@@ -481,7 +542,14 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
       <?php endif; ?>
     </section>
 
-    <section class="downloads-section" data-downloads-list="stock" style="display: none;">
+    <section
+      class="downloads-section"
+      data-downloads-list="stock"
+      id="downloads-panel-stock"
+      role="tabpanel"
+      aria-labelledby="downloads-tab-stock"
+      hidden
+    >
       <?php if ( ! empty( $stock_items ) ) : ?>
         <ul class="downloads-list">
           <?php artly_downloads_render_items( $stock_items, 'stock' ); ?>
@@ -493,7 +561,14 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
       <?php endif; ?>
     </section>
 
-    <section class="downloads-section" data-downloads-list="ai" style="display: none;">
+    <section
+      class="downloads-section"
+      data-downloads-list="ai"
+      id="downloads-panel-ai"
+      role="tabpanel"
+      aria-labelledby="downloads-tab-ai"
+      hidden
+    >
       <?php if ( ! empty( $ai_items ) ) : ?>
         <ul class="downloads-list">
           <?php artly_downloads_render_items( $ai_items, 'ai' ); ?>
