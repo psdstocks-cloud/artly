@@ -779,15 +779,20 @@ function nehtw_gateway_api_get( $path, $query_args = array() ) {
             $message = sprintf( 'Nehtw API error (HTTP %d).', $code );
         }
 
+        // Preserve HTTP status code and raw response data for callers.
+        $error_data = array(
+            'status'        => (int) $code,
+            'body'          => $decoded,
+            'response_body' => $body,
+            'response_json' => $decoded,
+            'endpoint'      => $path,
+            'message'       => $message,
+        );
+
         return new WP_Error(
             'nehtw_http_error',
             $message,
-            array(
-                'status'        => (int) $code,
-                'response_body' => $body,
-                'response_json' => $decoded,
-                'endpoint'      => $path,
-            )
+            $error_data
         );
     }
 
@@ -833,14 +838,42 @@ function nehtw_gateway_api_post_json( $path, $body = array(), $query_args = arra
 
     $code = wp_remote_retrieve_response_code( $response );
     $body = wp_remote_retrieve_body( $response );
+
+    if ( $code < 200 || $code >= 300 ) {
+        $decoded = json_decode( $body, true );
+        $message = '';
+
+        if ( is_array( $decoded ) && ! empty( $decoded['message'] ) ) {
+            $message = (string) $decoded['message'];
+        } elseif ( '' !== trim( $body ) ) {
+            $message = $body;
+        } else {
+            $message = sprintf( 'Nehtw API error (HTTP %d).', $code );
+        }
+
+        // Preserve HTTP status code and raw response data for callers.
+        $error_data = array(
+            'status'        => (int) $code,
+            'body'          => $decoded,
+            'response_body' => $body,
+            'response_json' => $decoded,
+            'endpoint'      => $path,
+            'message'       => $message,
+        );
+
+        return new WP_Error(
+            'nehtw_http_error',
+            $message,
+            $error_data
+        );
+    }
+
     $data = json_decode( $body, true );
 
     if ( null === $data ) {
         return new WP_Error( 'nehtw_bad_json', sprintf( 'Nehtw API returned invalid JSON (HTTP %d).', $code ) );
     }
-    if ( $code < 200 || $code >= 300 ) {
-        return new WP_Error( 'nehtw_http_error', sprintf( 'Nehtw API error (HTTP %d).', $code ), $data );
-    }
+
     return $data;
 }
 
@@ -2531,44 +2564,74 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
     $api = nehtw_gateway_api_order_download( $task_id, 'any' );
 
     if ( is_wp_error( $api ) ) {
+        $status     = 502;
         $error_data = $api->get_error_data();
-        $status     = 0;
+        $message    = $api->get_error_message();
 
-        if ( is_array( $error_data ) && isset( $error_data['status'] ) ) {
-            $status = (int) $error_data['status'];
+        // Extract HTTP status code from Nehtw API wrapper error if available.
+        if ( 'nehtw_http_error' === $api->get_error_code() && is_array( $error_data ) ) {
+            if ( ! empty( $error_data['status'] ) ) {
+                $status = (int) $error_data['status'];
+            }
+            if ( ! empty( $error_data['body']['message'] ) ) {
+                $message = (string) $error_data['body']['message'];
+            } elseif ( ! empty( $error_data['message'] ) ) {
+                $message = (string) $error_data['message'];
+            }
         }
 
-        $error_message = $api->get_error_message();
-
-        if ( 409 === $status ) {
-            error_log( 'Nehtw re-download 409 for task_id ' . $task_id . ': ' . $error_message );
-            return new WP_REST_Response(
-                array( 'message' => __( 'Download not ready.', 'nehtw-gateway' ) ),
-                409
-            );
-        }
-
-        if ( $status >= 500 || 0 === $status ) {
+        // Retry on 5xx errors only (server errors that might be transient).
+        if ( $status >= 500 ) {
             $api_retry = nehtw_gateway_api_order_download( $task_id, 'any' );
 
             if ( ! is_wp_error( $api_retry ) ) {
                 $api = $api_retry;
             } else {
-                $error_message = $api_retry->get_error_message();
-                $error_data    = $api_retry->get_error_data();
-                if ( is_array( $error_data ) && isset( $error_data['status'] ) ) {
-                    $status = (int) $error_data['status'];
+                // Retry also failed, use retry error data.
+                $retry_error_data = $api_retry->get_error_data();
+                $retry_message    = $api_retry->get_error_message();
+
+                if ( 'nehtw_http_error' === $api_retry->get_error_code() && is_array( $retry_error_data ) ) {
+                    if ( ! empty( $retry_error_data['status'] ) ) {
+                        $status = (int) $retry_error_data['status'];
+                    }
+                    if ( ! empty( $retry_error_data['body']['message'] ) ) {
+                        $message = (string) $retry_error_data['body']['message'];
+                    } elseif ( ! empty( $retry_error_data['message'] ) ) {
+                        $message = (string) $retry_error_data['message'];
+                    }
+                } else {
+                    $message = $retry_message;
                 }
-                $api = $api_retry;
+
+                // Still return error after retry.
+                $status = $status >= 500 ? 502 : $status;
             }
         }
 
+        // If still an error after potential retry, map status codes to appropriate responses.
         if ( is_wp_error( $api ) ) {
-            error_log( 'Nehtw re-download error for task_id ' . $task_id . ' (status ' . $status . '): ' . $error_message );
+            // Normalize known statuses with generic messages.
+            if ( 409 === $status ) {
+                // Download not ready yet.
+                $message = __( 'Download not ready.', 'nehtw-gateway' );
+            } elseif ( 404 === $status ) {
+                $message = __( 'Download not found.', 'nehtw-gateway' );
+            } elseif ( 401 === $status || 403 === $status ) {
+                $message = __( 'Unauthorized.', 'nehtw-gateway' );
+            } elseif ( $status >= 500 ) {
+                $message = __( 'We couldn\'t generate a download link right now. Please try again later.', 'nehtw-gateway' );
+            } else {
+                // Default for unknown statuses.
+                $message = $message ? $message : __( 'Failed to generate download link.', 'nehtw-gateway' );
+            }
 
             return new WP_REST_Response(
-                array( 'message' => __( 'Failed to generate download link.', 'nehtw-gateway' ) ),
-                502
+                array(
+                    'success' => false,
+                    'message' => $message,
+                ),
+                $status
             );
         }
     }
@@ -2577,7 +2640,10 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         $message = isset( $api['message'] ) ? (string) $api['message'] : '';
         error_log( 'Nehtw re-download error response for task_id ' . $task_id . ': ' . $message );
         return new WP_REST_Response(
-            array( 'message' => __( 'We couldn\'t generate a download link right now. Please try again later.', 'nehtw-gateway' ) ),
+            array(
+                'success' => false,
+                'message' => __( 'We couldn\'t generate a download link right now. Please try again later.', 'nehtw-gateway' ),
+            ),
             502
         );
     }
@@ -2608,7 +2674,10 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
 
     if ( '' === $download_url ) {
         return new WP_REST_Response(
-            array( 'message' => __( 'Download link not available at the moment. Please try again later.', 'nehtw-gateway' ) ),
+            array(
+                'success' => false,
+                'message' => __( 'Download link not available at the moment. Please try again later.', 'nehtw-gateway' ),
+            ),
             502
         );
     }
@@ -2715,13 +2784,55 @@ function nehtw_rest_get_download_link( WP_REST_Request $request ) {
             $api = nehtw_gateway_api_order_download( $id, 'any' );
 
             if ( is_wp_error( $api ) ) {
-                $api->add_data( array( 'status' => 502 ) );
-                return $api;
+                $status     = 502;
+                $error_data = $api->get_error_data();
+                $message    = $api->get_error_message();
+
+                // Extract HTTP status code from Nehtw API wrapper error if available.
+                if ( 'nehtw_http_error' === $api->get_error_code() && is_array( $error_data ) ) {
+                    if ( ! empty( $error_data['status'] ) ) {
+                        $status = (int) $error_data['status'];
+                    }
+                    if ( ! empty( $error_data['body']['message'] ) ) {
+                        $message = (string) $error_data['body']['message'];
+                    } elseif ( ! empty( $error_data['message'] ) ) {
+                        $message = (string) $error_data['message'];
+                    }
+                }
+
+                // Normalize known statuses with generic messages.
+                if ( 409 === $status ) {
+                    // Download not ready yet.
+                    $message = __( 'Download not ready.', 'nehtw-gateway' );
+                } elseif ( 404 === $status ) {
+                    $message = __( 'Download not found.', 'nehtw-gateway' );
+                } elseif ( 401 === $status || 403 === $status ) {
+                    $message = __( 'Unauthorized.', 'nehtw-gateway' );
+                } elseif ( $status >= 500 ) {
+                    $message = __( 'Service temporarily unavailable.', 'nehtw-gateway' );
+                } else {
+                    // Default for unknown statuses.
+                    $message = $message ? $message : __( 'Unable to refresh the download link.', 'nehtw-gateway' );
+                }
+
+                return new WP_REST_Response(
+                    array(
+                        'success' => false,
+                        'message' => $message,
+                    ),
+                    $status
+                );
             }
 
             if ( isset( $api['error'] ) && $api['error'] ) {
                 $message = isset( $api['message'] ) ? (string) $api['message'] : __( 'Unable to refresh the download link.', 'nehtw-gateway' );
-                return new WP_REST_Response( array( 'message' => $message ), 502 );
+                return new WP_REST_Response(
+                    array(
+                        'success' => false,
+                        'message' => $message,
+                    ),
+                    502
+                );
             }
 
             $candidates = array( 'download_link', 'url', 'link' );
