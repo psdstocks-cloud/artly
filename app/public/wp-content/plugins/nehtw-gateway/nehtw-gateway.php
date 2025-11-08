@@ -2502,27 +2502,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         );
     }
 
-    if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
-        $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
 
-        if ( Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
-            $formatted    = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
-            $download_url = '';
-
-            if ( ! empty( $formatted['download_link'] ) && is_string( $formatted['download_link'] ) ) {
-                $download_url = esc_url_raw( $formatted['download_link'] );
-            }
-
-            if ( '' !== $download_url ) {
-                return new WP_REST_Response(
-                    array(
-                        'success'      => true,
-                        'download_url' => $download_url,
-                        'cached'       => true,
-                    ),
-                    200
-                );
-            }
         }
     }
 
