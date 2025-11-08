@@ -737,6 +737,61 @@ function nehtw_gateway_admin_notice_missing_key() {
 }
 add_action( 'admin_notices', 'nehtw_gateway_admin_notice_missing_key' );
 
+/**
+ * Internal logging helper for Nehtw gateway debug.
+ *
+ * Only logs when WP_DEBUG is enabled. Never logs secrets (API keys, auth headers).
+ * All logs go to WordPress debug log via error_log().
+ *
+ * @param string $operation Short label for where this is logged (e.g. 'download_redownload').
+ * @param array  $context   Additional context: user_id, task_id, history_id, status, request, response, message.
+ */
+function nehtw_gateway_log_event( $operation, array $context = array() ) {
+    // Only log when WP_DEBUG is enabled.
+    if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
+        return;
+    }
+
+    // Never log secrets - remove API keys and auth headers from context.
+    if ( isset( $context['request'] ) && is_array( $context['request'] ) ) {
+        if ( isset( $context['request']['headers'] ) && is_array( $context['request']['headers'] ) ) {
+            if ( isset( $context['request']['headers']['X-Api-Key'] ) ) {
+                unset( $context['request']['headers']['X-Api-Key'] );
+            }
+            if ( isset( $context['request']['headers']['Authorization'] ) ) {
+                unset( $context['request']['headers']['Authorization'] );
+            }
+        }
+        // Remove API key from URL query params if present.
+        if ( isset( $context['request']['url'] ) ) {
+            $context['request']['url'] = preg_replace( '/[?&]apikey=[^&]*/', '', $context['request']['url'] );
+        }
+    }
+
+    // Remove API keys from response data if present.
+    if ( isset( $context['response'] ) && is_array( $context['response'] ) ) {
+        if ( isset( $context['response']['api_key'] ) ) {
+            unset( $context['response']['api_key'] );
+        }
+        if ( isset( $context['response']['apikey'] ) ) {
+            unset( $context['response']['apikey'] );
+        }
+    }
+
+    $user_id = get_current_user_id();
+
+    $base = array(
+        'operation' => sanitize_key( $operation ),
+        'user_id'   => $user_id > 0 ? $user_id : null,
+        'timestamp' => gmdate( 'Y-m-d H:i:s' ),
+    );
+
+    $log_entry = array_merge( $base, $context );
+
+    // Keep the log line compact but informative.
+    error_log( '[nehtw-gateway] ' . wp_json_encode( $log_entry ) );
+}
+
 function nehtw_gateway_api_get( $path, $query_args = array() ) {
     $key_check = nehtw_gateway_require_api_key();
     if ( is_wp_error( $key_check ) ) {
@@ -859,6 +914,20 @@ function nehtw_gateway_api_post_json( $path, $body = array(), $query_args = arra
             'response_json' => $decoded,
             'endpoint'      => $path,
             'message'       => $message,
+        );
+
+        // Log HTTP error for debugging.
+        nehtw_gateway_log_event(
+            'api_http_error',
+            array(
+                'status'   => (int) $code,
+                'request'  => array(
+                    'url'    => preg_replace( '/[?&]apikey=[^&]*/', '', $url ),
+                    'method' => 'POST',
+                    'path'   => $path,
+                ),
+                'response' => $error_data,
+            )
         );
 
         return new WP_Error(
@@ -2580,6 +2649,19 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
             }
         }
 
+        // Log WP_Error for debugging.
+        nehtw_gateway_log_event(
+            'download_redownload_error_wp_error',
+            array(
+                'history_id' => $history_id,
+                'task_id'    => $task_id,
+                'status'     => $status,
+                'error_code' => $api->get_error_code(),
+                'message'    => $message,
+                'response'   => isset( $error_data['body'] ) ? $error_data['body'] : null,
+            )
+        );
+
         // Retry on 5xx errors only (server errors that might be transient).
         if ( $status >= 500 ) {
             $api_retry = nehtw_gateway_api_order_download( $task_id, 'any' );
@@ -2638,7 +2720,19 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
 
     if ( isset( $api['error'] ) && $api['error'] ) {
         $message = isset( $api['message'] ) ? (string) $api['message'] : '';
-        error_log( 'Nehtw re-download error response for task_id ' . $task_id . ': ' . $message );
+
+        // Log API body error for debugging.
+        nehtw_gateway_log_event(
+            'download_redownload_error_api_body',
+            array(
+                'history_id' => $history_id,
+                'task_id'       => $task_id,
+                'status'        => isset( $api['status'] ) ? (int) $api['status'] : null,
+                'message'       => $message,
+                'response'      => $api,
+            )
+        );
+
         return new WP_REST_Response(
             array(
                 'success' => false,
@@ -2800,6 +2894,18 @@ function nehtw_rest_get_download_link( WP_REST_Request $request ) {
                     }
                 }
 
+                // Log WP_Error for debugging.
+                nehtw_gateway_log_event(
+                    'stock_download_link_error_wp_error',
+                    array(
+                        'task_id'    => $id,
+                        'status'      => $status,
+                        'error_code'  => $api->get_error_code(),
+                        'message'     => $message,
+                        'response'    => isset( $error_data['body'] ) ? $error_data['body'] : null,
+                    )
+                );
+
                 // Normalize known statuses with generic messages.
                 if ( 409 === $status ) {
                     // Download not ready yet.
@@ -2826,6 +2932,18 @@ function nehtw_rest_get_download_link( WP_REST_Request $request ) {
 
             if ( isset( $api['error'] ) && $api['error'] ) {
                 $message = isset( $api['message'] ) ? (string) $api['message'] : __( 'Unable to refresh the download link.', 'nehtw-gateway' );
+
+                // Log API body error for debugging.
+                nehtw_gateway_log_event(
+                    'stock_download_link_error_api_body',
+                    array(
+                        'task_id'  => $id,
+                        'status'   => isset( $api['status'] ) ? (int) $api['status'] : null,
+                        'message'  => $message,
+                        'response' => $api,
+                    )
+                );
+
                 return new WP_REST_Response(
                     array(
                         'success' => false,
