@@ -12,6 +12,85 @@
     }
     var nonce = settings.nonce || '';
 
+    // ========== RETRY HELPER ==========
+
+    /**
+     * Perform a fetch with retry and exponential backoff for transient errors.
+     *
+     * @param {string} endpoint - The REST endpoint URL.
+     * @param {Object} options - Fetch options (method, headers, body, etc.).
+     * @param {number} maxAttempts - Total attempts (e.g., 3).
+     * @param {function} onAttemptState - Optional callback(attempt, maxAttempts) to update UI.
+     * @returns {Promise<{ ok: boolean, status: number, data: any }>}
+     */
+    function fetchWithRetry(endpoint, options, maxAttempts, onAttemptState) {
+      var attempt = 1;
+
+      function attemptRequest() {
+        if (typeof onAttemptState === 'function') {
+          onAttemptState(attempt, maxAttempts);
+        }
+
+        return fetch(endpoint, options)
+          .then(function (response) {
+            var statusCode = response.status;
+
+            return response
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (data) {
+                return {
+                  ok: response.ok,
+                  status: statusCode,
+                  data: data || {},
+                };
+              });
+          })
+          .catch(function (err) {
+            // Treat network error as pseudo-response with status 0
+            return {
+              ok: false,
+              status: 0,
+              error: err,
+              data: {},
+            };
+          })
+          .then(function (result) {
+            // Decide whether to retry
+            var status = result.status;
+
+            // Success: no retry needed
+            if (result.ok && status >= 200 && status < 300) {
+              return result;
+            }
+
+            // Non-retriable errors (4xx, including 409, 429, etc.)
+            if (status >= 400 && status < 500 && status !== 0) {
+              return result;
+            }
+
+            // Transient error: 5xx or network error (status 0)
+            if (attempt >= maxAttempts) {
+              return result;
+            }
+
+            // Exponential backoff: 1s, 2s, 4s
+            var delay = Math.pow(2, attempt - 1) * 1000;
+
+            return new Promise(function (resolve) {
+              setTimeout(function () {
+                attempt++;
+                resolve(attemptRequest());
+              }, delay);
+            });
+          });
+      }
+
+      return attemptRequest();
+    }
+
     // ========== MODAL SYSTEM ==========
 
     function removeExistingModal() {
@@ -359,25 +438,28 @@
         return;
       }
 
-      fetch(endpoint, {
+      var fetchOptions = {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload),
         credentials: 'same-origin',
-      })
-        .then(function (response) {
-          var statusCode = response.status;
+      };
 
-          return response
-            .json()
-            .then(function (data) {
-              return { ok: response.ok, status: statusCode, data: data };
-            })
-            .catch(function () {
-              return { ok: response.ok, status: statusCode, data: {} };
-            });
-        })
+      fetchWithRetry(
+        endpoint,
+        fetchOptions,
+        3,
+        function (attempt, maxAttempts) {
+          // Update button label to show retry count
+          if (attempt === 1) {
+            button.textContent = 'Generating link…';
+          } else {
+            button.textContent = 'Generating link… (retry ' + attempt + '/' + maxAttempts + ')';
+          }
+        }
+      )
         .then(function (result) {
+          // Restore button base state
           button.disabled = false;
           button.classList.remove('is-loading');
           button.textContent = originalText;
@@ -391,25 +473,31 @@
             return;
           }
 
-          if (result.status === 409) {
+          var status = result.status;
+          var data = result.data || {};
+
+          // 409: Download not ready
+          if (status === 409) {
             showModal(
               'Download not ready',
-              (result.data && result.data.message) || 'This file is still processing. Please try again shortly.',
+              data.message || 'This file is still processing. Please try again shortly.',
               'Close'
             );
             return;
           }
 
-          if (result.status === 404) {
+          // 404: Not found
+          if (status === 404) {
             showModal(
               'Download not found',
-              (result.data && result.data.message) || 'This download could not be found. It may have expired or been removed.',
+              data.message || 'This download could not be found. It may have expired or been removed.',
               'Close'
             );
             return;
           }
 
-          if (result.status === 401 || result.status === 403) {
+          // 401/403: Auth error
+          if (status === 401 || status === 403) {
             showModal(
               'Authentication required',
               'Your session has expired. Please log in again to continue.',
@@ -421,19 +509,21 @@
             return;
           }
 
-          if (!result.ok || result.status >= 500) {
-            var errorMsg = result.data && result.data.message
-              ? result.data.message
-              : 'We couldn\'t generate a download link right now. Please try again later.';
-            showModal('Server error', errorMsg, 'Close');
+          // Server errors (5xx) or network errors (status 0) after all retries
+          if (!result.ok || status >= 500 || status === 0) {
+            var errorMsg =
+              (data && data.message) ||
+              'We couldn\'t generate a download link right now. Please try again later.';
+            showModal('Server Error', errorMsg, 'Close');
             return;
           }
 
+          // Success: open download
           var downloadUrl = '';
-          if (result.data && result.data.download_url) {
-            downloadUrl = result.data.download_url;
-          } else if (result.data && result.data.url) {
-            downloadUrl = result.data.url;
+          if (data && data.download_url) {
+            downloadUrl = data.download_url;
+          } else if (data && data.url) {
+            downloadUrl = data.url;
           }
 
           if (downloadUrl) {
@@ -446,14 +536,15 @@
             );
           }
         })
-        .catch(function (error) {
-          console.error('Download error:', error);
+        .catch(function (err) {
+          // This catch should rarely fire because we handle most in fetchWithRetry
+          console.error('Download error:', err);
           button.disabled = false;
           button.classList.remove('is-loading');
           button.textContent = originalText;
 
           showModal(
-            'Connection error',
+            'Connection Error',
             'We couldn\'t connect to the server. Please check your internet connection and try again.',
             'Close'
           );
