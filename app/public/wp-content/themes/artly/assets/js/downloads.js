@@ -135,16 +135,6 @@
 
       event.preventDefault();
 
-      if (!restBase) {
-        console.warn('Download endpoint not configured.');
-        showModal(
-          'Configuration error',
-          'The download system is not properly configured. Please contact support.',
-          'Close'
-        );
-        return;
-      }
-
       var kind = button.getAttribute('data-download-kind');
       var id = button.getAttribute('data-download-id');
       var historyId = button.getAttribute('data-history-id');
@@ -170,15 +160,41 @@
         headers['X-WP-Nonce'] = nonce;
       }
 
+      // Determine endpoint and payload
       var endpoint = '';
       var payload = {};
 
       if (kind === 'stock' && historyId) {
-        endpoint = restBase.replace('/nehtw/v1/', '/artly/v1/') + 'download-redownload';
+        // Use dedicated redownload endpoint if provided by PHP
+        if (settings.redownloadUrl) {
+          endpoint = settings.redownloadUrl;
+        } else if (restBase) {
+          // Fallback: try to transform nehtw/v1 -> artly/v1 safely
+          // e.g. "/wp-json/nehtw/v1/" => "/wp-json/artly/v1/"
+          endpoint = restBase.replace(/nehtw\/v1\/?$/, 'artly/v1/') + 'download-redownload';
+        } else {
+          endpoint = '';
+        }
+
         payload = { history_id: parseInt(historyId, 10) };
       } else {
-        endpoint = restBase + 'download-link';
+        // Legacy single download endpoint (AI or stock without history id)
+        endpoint = restBase ? restBase + 'download-link' : '';
         payload = { kind: kind, id: id };
+      }
+
+      // Defensive guard: don't call fetch with an empty endpoint
+      if (!endpoint) {
+        console.warn('Artly downloads: endpoint is not configured.');
+        button.disabled = false;
+        button.classList.remove('is-loading');
+        button.textContent = originalText;
+        showModal(
+          'Download Error',
+          'The download system is not properly configured. Please contact support.',
+          'Close'
+        );
+        return;
       }
 
       fetch(endpoint, {
