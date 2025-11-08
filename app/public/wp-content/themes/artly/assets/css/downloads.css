@@ -342,36 +342,115 @@
   backdrop-filter: blur(16px);
 }
 
-.artly-downloads-page .downloads-pagination {
+/* ============================================
+   Artly Downloads Pagination
+   ============================================ */
+.artly-pagination {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(6, 245, 232, 0.06), rgba(22, 163, 255, 0.05)),
+    rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.85),
+    0 0 40px rgba(6, 245, 232, 0.15);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   display: flex;
-  gap: 12px;
-  justify-content: center;
   align-items: center;
-  margin-top: 40px;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.artly-downloads-page .downloads-page-link {
+.artly-pagination-info {
+  font-size: 0.9rem;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.artly-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.artly-pagination-list {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* WordPress paginate_links() returns <a> and <span> elements */
+.artly-pagination-item a,
+.artly-pagination-item span {
+  min-width: 2.1rem;
+  height: 2.1rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(148, 163, 184, 0.26);
-  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.85rem;
+  font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  transition: all 0.18s ease;
 }
 
-.artly-downloads-page .downloads-page-link:hover {
-  border-color: rgba(6, 245, 232, 0.4);
+/* Page numbers */
+.artly-pagination-item a {
+  background: rgba(15, 23, 42, 0.9);
+  color: rgba(226, 232, 240, 0.9);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.artly-pagination-item a:hover {
+  border-color: rgba(6, 245, 232, 0.65);
   color: #06f5e8;
+  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.5);
 }
 
-.artly-downloads-page .downloads-page-link.is-current {
-  background: linear-gradient(135deg, rgba(6, 245, 232, 0.22), rgba(22, 163, 255, 0.35));
+/* Current page */
+.artly-pagination-item span.current {
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #020617;
   border-color: transparent;
-  color: #fff;
+  box-shadow: 0 6px 18px rgba(6, 245, 232, 0.45);
+}
+
+/* Dots "..." */
+.artly-pagination-item span.dots {
+  background: transparent;
+  border-color: transparent;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+/* Previous / Next text links (if WP outputs them as <a class="prev"> etc.) */
+.artly-pagination-item a.prev,
+.artly-pagination-item a.next {
+  padding-inline: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .artly-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .artly-pagination-controls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .artly-pagination-info {
+    text-align: center;
+  }
 }
 
 @media (max-width: 900px) {

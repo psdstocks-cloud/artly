@@ -18,22 +18,48 @@ if ( ! is_user_logged_in() ) {
 get_header();
 
 $user_id  = get_current_user_id();
-$page     = isset( $_GET['p'] ) ? max( 1, intval( wp_unslash( $_GET['p'] ) ) ) : 1;
+
+// Normalize the current page using WordPress query vars with fallback to GET.
+$current_page = get_query_var( 'paged' );
+if ( ! $current_page ) {
+    $current_page = get_query_var( 'page' ); // For static pages with pagination.
+}
+if ( ! $current_page && isset( $_GET['p'] ) ) {
+    $current_page = (int) $_GET['p'];
+}
+if ( $current_page < 1 ) {
+    $current_page = 1;
+}
+
 $per_page = 20;
 
 $history = array(
-    'items'       => array(),
-    'total'       => 0,
-    'total_pages' => 0,
+    'items'        => array(),
+    'total_items'  => 0,
+    'total'        => 0,
+    'per_page'     => $per_page,
+    'current_page' => $current_page,
+    'total_pages'  => 0,
 );
 
 if ( function_exists( 'nehtw_get_user_download_history' ) ) {
-    $history = nehtw_get_user_download_history( $user_id, $page, $per_page, 'all' );
+    $history = nehtw_get_user_download_history( $user_id, $current_page, $per_page, 'all' );
 }
 
 $items       = isset( $history['items'] ) && is_array( $history['items'] ) ? $history['items'] : array();
-$total       = isset( $history['total'] ) ? (int) $history['total'] : 0;
-$total_pages = isset( $history['total_pages'] ) ? (int) $history['total_pages'] : 0;
+$total_items = isset( $history['total_items'] ) ? (int) $history['total_items'] : ( isset( $history['total'] ) ? (int) $history['total'] : 0 );
+$per_page    = ! empty( $history['per_page'] ) ? (int) $history['per_page'] : $per_page;
+$current_page = ! empty( $history['current_page'] ) ? (int) $history['current_page'] : $current_page;
+$total_pages  = ! empty( $history['total_pages'] ) ? (int) $history['total_pages'] : ( $per_page > 0 ? (int) max( 1, ceil( $total_items / $per_page ) ) : 0 );
+
+// Compute "Showing X–Y of Z" values.
+if ( $total_items > 0 ) {
+    $from = ( ( $current_page - 1 ) * $per_page ) + 1;
+    $to   = min( $from + $per_page - 1, $total_items );
+} else {
+    $from = 0;
+    $to   = 0;
+}
 
 $stock_items = array();
 $ai_items    = array();
@@ -224,16 +250,56 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
     </section>
 
     <?php if ( $total_pages > 1 ) : ?>
-      <nav class="downloads-pagination" aria-label="<?php esc_attr_e( 'Downloads pagination', 'artly' ); ?>">
-        <?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
+      <nav class="artly-pagination" aria-label="<?php esc_attr_e( 'Download history pagination', 'artly' ); ?>">
+        <div class="artly-pagination-info">
           <?php
-          $url        = add_query_arg( 'p', $i, get_permalink() );
-          $is_current = ( $i === $page );
+          printf(
+              esc_html__( 'Showing %1$d–%2$d of %3$d downloads', 'artly' ),
+              (int) $from,
+              (int) $to,
+              (int) $total_items
+          );
           ?>
-          <a class="downloads-page-link<?php echo $is_current ? ' is-current' : ''; ?>" href="<?php echo esc_url( $url ); ?>">
-            <?php echo esc_html( $i ); ?>
-          </a>
-        <?php endfor; ?>
+        </div>
+        <div class="artly-pagination-controls">
+          <?php
+          // Base URL for pagination - use get_permalink() for static pages.
+          $base_url = get_permalink();
+          $base_url = trailingslashit( $base_url );
+
+          // Determine format based on permalink structure.
+          $format = '';
+          if ( get_option( 'permalink_structure' ) ) {
+              // Pretty permalinks: /my-downloads/page/2/
+              $format = 'page/%#%/';
+          } else {
+              // Plain permalinks: /my-downloads/?paged=2
+              $format = '?paged=%#%';
+          }
+
+          $paginate_links = paginate_links(
+              array(
+                  'base'      => $base_url . '%_%',
+                  'format'    => $format,
+                  'current'   => max( 1, $current_page ),
+                  'total'     => max( 1, $total_pages ),
+                  'type'      => 'array',
+                  'prev_text' => '&larr; ' . esc_html__( 'Previous', 'artly' ),
+                  'next_text' => esc_html__( 'Next', 'artly' ) . ' &rarr;',
+              )
+          );
+
+          if ( ! empty( $paginate_links ) && is_array( $paginate_links ) ) :
+              ?>
+              <ul class="artly-pagination-list">
+                  <?php foreach ( $paginate_links as $link ) : ?>
+                      <li class="artly-pagination-item">
+                          <?php echo $link; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                      </li>
+                  <?php endforeach; ?>
+              </ul>
+          <?php endif; ?>
+        </div>
       </nav>
     <?php endif; ?>
 

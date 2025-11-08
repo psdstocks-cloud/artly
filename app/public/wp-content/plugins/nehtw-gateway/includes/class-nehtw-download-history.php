@@ -957,42 +957,65 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
             }
         }
 
-        // Count deduplicated stock orders
-        $count_stock = 0;
-        $count_ai    = 0;
+        // Calculate total count using the same deduplication logic as the main query.
+        $count_selects = array();
 
-        if ( $table_stock && ( 'all' === $type || 'stock' === $type ) ) {
-            // Count unique stock orders (deduplicated)
-            $count_stock = (int) $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(DISTINCT CONCAT(user_id, '-', site, '-', COALESCE(stock_id, ''))) 
+        if ( ( 'all' === $type || 'stock' === $type ) && $table_stock ) {
+            // Count deduplicated stock orders: match the exact logic from the main query.
+            // This counts: (1) unique user+site+stock_id combinations with MAX(id), (2) records with stock_id IS NULL.
+            $count_selects[] = $wpdb->prepare(
+                "SELECT COUNT(*) FROM (
+                    SELECT s1.id
+                    FROM {$table_stock} s1
+                    INNER JOIN (
+                        SELECT user_id, site, stock_id, MAX(id) AS max_id
+                        FROM {$table_stock}
+                        WHERE user_id = %d AND stock_id IS NOT NULL
+                        GROUP BY user_id, site, stock_id
+                    ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.id = s2.max_id
+                    WHERE s1.user_id = %d
+                    UNION ALL
+                    SELECT id
                     FROM {$table_stock} 
-                    WHERE user_id = %d",
-                    $user_id
-                )
+                    WHERE user_id = %d AND stock_id IS NULL
+                ) AS deduped_stock",
+                $user_id,
+                $user_id,
+                $user_id
             );
         }
 
-        if ( $table_ai && ( 'all' === $type || 'ai' === $type ) ) {
-            $count_ai = (int) $wpdb->get_var(
-                $wpdb->prepare( "SELECT COUNT(*) FROM {$table_ai} WHERE user_id = %d", $user_id )
+        if ( ( 'all' === $type || 'ai' === $type ) && $table_ai ) {
+            $count_selects[] = $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_ai} WHERE user_id = %d",
+                $user_id
             );
         }
 
-        if ( 'stock' === $type ) {
-            $total = $count_stock;
-        } elseif ( 'ai' === $type ) {
-            $total = $count_ai;
-        } else {
-            $total = $count_stock + $count_ai;
+        // Calculate total count by summing the counts from each subquery.
+        $total = 0;
+        if ( ! empty( $count_selects ) ) {
+            if ( count( $count_selects ) === 1 ) {
+                // Single count query.
+                $total = (int) $wpdb->get_var( $count_selects[0] );
+            } else {
+                // Multiple count queries - sum them.
+                foreach ( $count_selects as $count_sql ) {
+                    $total += (int) $wpdb->get_var( $count_sql );
+                }
+            }
         }
 
-        $total_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 0;
+        // Calculate total pages.
+        $total_pages = $total > 0 ? (int) max( 1, ceil( $total / $per_page ) ) : 0;
 
         return array(
-            'items'       => $items,
-            'total'       => $total,
-            'total_pages' => $total_pages,
+            'items'        => $items,
+            'total_items'  => $total,
+            'total'        => $total, // Keep for backwards compatibility.
+            'per_page'     => $per_page,
+            'current_page' => $page,
+            'total_pages'  => $total_pages,
         );
     }
 }
