@@ -72,6 +72,36 @@ foreach ( $items as $item ) {
     }
 }
 
+// Fetch stats for the current user with optional date range filter
+$date_from = isset( $_GET['from'] ) ? sanitize_text_field( $_GET['from'] ) : '';
+$date_to   = isset( $_GET['to'] ) ? sanitize_text_field( $_GET['to'] ) : '';
+
+$stats = array(
+    'total_downloads' => 0,
+    'total_points'    => 0.0,
+    'providers'       => array(),
+);
+
+if ( function_exists( 'nehtw_gateway_get_user_download_stats' ) ) {
+    $stats = nehtw_gateway_get_user_download_stats(
+        $user_id,
+        array(
+            'type'      => 'all',
+            'date_from' => $date_from,
+            'date_to'   => $date_to,
+        )
+    );
+}
+
+// Compute "top provider"
+$top_provider_label = '';
+$top_provider_count = 0;
+if ( ! empty( $stats['providers'] ) ) {
+    $first = reset( $stats['providers'] );
+    $top_provider_label = $first['label'];
+    $top_provider_count = $first['count'];
+}
+
 if ( ! function_exists( 'artly_downloads_render_items' ) ) {
     function artly_downloads_render_items( $items, $default_kind = 'stock' ) {
         if ( empty( $items ) ) {
@@ -255,6 +285,132 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
         <?php esc_html_e( 'Browse your AI images and stock downloads in one place and re-download files anytime.', 'artly' ); ?>
       </p>
     </section>
+
+    <div class="downloads-summary-card">
+      <div class="downloads-summary-header">
+        <div class="downloads-summary-title-group">
+          <h2 class="downloads-summary-title">
+            <?php esc_html_e( 'Downloads Overview', 'artly' ); ?>
+          </h2>
+          <p class="downloads-summary-subtitle">
+            <?php esc_html_e( 'Quick snapshot of your usage and points spent.', 'artly' ); ?>
+          </p>
+        </div>
+        <form class="downloads-summary-range" method="get">
+          <?php
+          // Preserve existing query args except date filters
+          foreach ( $_GET as $key => $value ) {
+              if ( in_array( $key, array( 'from', 'to', 'paged' ), true ) ) {
+                  continue;
+              }
+              printf(
+                  '<input type="hidden" name="%s" value="%s" />',
+                  esc_attr( $key ),
+                  esc_attr( $value )
+              );
+          }
+          ?>
+          <div class="downloads-range-fields">
+            <label class="downloads-range-field">
+              <span><?php esc_html_e( 'From', 'artly' ); ?></span>
+              <input type="date" name="from" value="<?php echo esc_attr( $date_from ); ?>" />
+            </label>
+            <label class="downloads-range-field">
+              <span><?php esc_html_e( 'To', 'artly' ); ?></span>
+              <input type="date" name="to" value="<?php echo esc_attr( $date_to ); ?>" />
+            </label>
+            <button type="submit" class="downloads-range-apply">
+              <?php esc_html_e( 'Apply', 'artly' ); ?>
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="downloads-summary-grid">
+        <div class="downloads-summary-metric">
+          <div class="metric-label"><?php esc_html_e( 'Total downloads', 'artly' ); ?></div>
+          <div class="metric-value">
+            <?php echo number_format_i18n( (int) $stats['total_downloads'] ); ?>
+          </div>
+          <div class="metric-caption">
+            <?php esc_html_e( 'Across the selected date range', 'artly' ); ?>
+          </div>
+        </div>
+        <div class="downloads-summary-metric">
+          <div class="metric-label"><?php esc_html_e( 'Points spent', 'artly' ); ?></div>
+          <div class="metric-value metric-value--accent">
+            <?php echo number_format_i18n( (float) $stats['total_points'], 1 ); ?>
+            <span class="metric-unit"><?php esc_html_e( 'points', 'artly' ); ?></span>
+          </div>
+          <div class="metric-caption">
+            <?php esc_html_e( 'Total points used on downloads', 'artly' ); ?>
+          </div>
+        </div>
+        <div class="downloads-summary-metric">
+          <div class="metric-label"><?php esc_html_e( 'Top provider', 'artly' ); ?></div>
+          <?php if ( $top_provider_label ) : ?>
+            <div class="metric-value">
+              <?php echo esc_html( $top_provider_label ); ?>
+            </div>
+            <div class="metric-caption">
+              <?php
+              printf(
+                  /* translators: %d: downloads count */
+                  esc_html__( '%d downloads', 'artly' ),
+                  (int) $top_provider_count
+              );
+              ?>
+            </div>
+          <?php else : ?>
+            <div class="metric-value metric-value--muted">
+              <?php esc_html_e( 'No data yet', 'artly' ); ?>
+            </div>
+            <div class="metric-caption">
+              <?php esc_html_e( 'Download a file to see stats.', 'artly' ); ?>
+            </div>
+          <?php endif; ?>
+        </div>
+        <div class="downloads-summary-actions">
+          <button type="button" class="downloads-export-btn" data-downloads-export>
+            <?php esc_html_e( 'Export CSV', 'artly' ); ?>
+          </button>
+        </div>
+      </div>
+      <?php if ( ! empty( $stats['providers'] ) ) : ?>
+        <div class="downloads-providers-breakdown">
+          <div class="providers-header">
+            <span class="providers-title"><?php esc_html_e( 'By provider', 'artly' ); ?></span>
+            <span class="providers-caption"><?php esc_html_e( 'Share of downloads & points spent', 'artly' ); ?></span>
+          </div>
+          <div class="providers-list">
+            <?php
+            // Compute total for relative percentages
+            $total_points = max( (float) $stats['total_points'], 1 );
+            foreach ( $stats['providers'] as $key => $provider ) :
+                $ratio = $provider['points'] > 0 ? ( $provider['points'] / $total_points ) * 100 : 0;
+                ?>
+                <div class="provider-row">
+                  <div class="provider-main">
+                    <span class="provider-name"><?php echo esc_html( $provider['label'] ); ?></span>
+                    <span class="provider-count">
+                      <?php
+                      printf(
+                          /* translators: 1: downloads count, 2: points */
+                          esc_html__( '%1$d downloads · %2$s pts', 'artly' ),
+                          (int) $provider['count'],
+                          number_format_i18n( (float) $provider['points'], 1 )
+                      );
+                      ?>
+                    </span>
+                  </div>
+                  <div class="provider-bar">
+                    <div class="provider-bar-fill" style="width: <?php echo esc_attr( min( 100, $ratio ) ); ?>%;"></div>
+                  </div>
+                </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+    </div>
 
     <section class="downloads-tabs" role="tablist">
       <button class="downloads-tab is-active" type="button" data-downloads-tab="all">

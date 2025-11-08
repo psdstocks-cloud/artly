@@ -153,6 +153,7 @@ function artly_enqueue_assets() {
             array(
                 'restUrl'        => esc_url_raw( rest_url( 'nehtw/v1/' ) ),
                 'redownloadUrl'  => esc_url_raw( rest_url( 'artly/v1/download-redownload' ) ),
+                'exportUrl'      => esc_url_raw( rest_url( 'artly/v1/downloads-export' ) ),
                 'nonce'          => wp_create_nonce( 'wp_rest' ),
             )
         );

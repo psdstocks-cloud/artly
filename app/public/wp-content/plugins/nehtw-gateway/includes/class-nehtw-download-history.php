@@ -1020,6 +1020,214 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
     }
 }
 
+if ( ! function_exists( 'nehtw_gateway_get_user_download_stats' ) ) {
+    /**
+     * Get aggregate download statistics for a user.
+     *
+     * @param int   $user_id Current user ID.
+     * @param array $args {
+     *     Optional. Additional arguments.
+     *
+     *     @type string $type        'all', 'stock', or 'ai'. Default 'all'.
+     *     @type string $date_from   Y-m-d or Y-m-d H:i:s. Inclusive. Optional.
+     *     @type string $date_to     Y-m-d or Y-m-d H:i:s. Inclusive. Optional.
+     * }
+     *
+     * @return array {
+     *     @type int   $total_downloads Total number of history records considered.
+     *     @type float $total_points    Sum of points spent on these downloads.
+     *     @type array $providers       Provider breakdown keyed by provider/site.
+     *                                  [ 'shutterstock' => [ 'label' => 'Shutterstock', 'count' => 12, 'points' => 45.5 ], ... ]
+     * }
+     */
+    function nehtw_gateway_get_user_download_stats( $user_id, $args = array() ) {
+        global $wpdb;
+
+        $user_id = (int) $user_id;
+        if ( ! $user_id ) {
+            return array(
+                'total_downloads' => 0,
+                'total_points'    => 0,
+                'providers'       => array(),
+            );
+        }
+
+        $defaults = array(
+            'type'      => 'all',  // 'stock', 'ai', or 'all'
+            'date_from' => '',
+            'date_to'   => '',
+        );
+
+        $args = wp_parse_args( $args, $defaults );
+
+        $table_stock = nehtw_gateway_get_table_name( 'stock_orders' );
+        $table_ai    = nehtw_gateway_get_table_name( 'ai_jobs' );
+
+        // Build WHERE conditions matching the same deduplication logic as get_user_download_history
+        $where_stock = array( $wpdb->prepare( 'user_id = %d', $user_id ) );
+        $where_ai    = array( $wpdb->prepare( 'user_id = %d', $user_id ) );
+
+        // Type filter
+        if ( 'stock' === $args['type'] ) {
+            // Only stock
+        } elseif ( 'ai' === $args['type'] ) {
+            // Only AI
+        }
+        // 'all' means both
+
+        // Date range filters
+        if ( ! empty( $args['date_from'] ) ) {
+            $where_stock[] = $wpdb->prepare( 'created_at >= %s', $args['date_from'] );
+            $where_ai[]    = $wpdb->prepare( 'created_at >= %s', $args['date_from'] );
+        }
+        if ( ! empty( $args['date_to'] ) ) {
+            $where_stock[] = $wpdb->prepare( 'created_at <= %s', $args['date_to'] );
+            $where_ai[]    = $wpdb->prepare( 'created_at <= %s', $args['date_to'] );
+        }
+
+        $total_downloads = 0;
+        $total_points    = 0.0;
+        $providers       = array();
+
+        // Process stock orders with deduplication (same logic as get_user_download_history)
+        if ( ( 'all' === $args['type'] || 'stock' === $args['type'] ) && $table_stock ) {
+            // Build date filter clauses
+            $date_filter_sub = '';
+            $date_filter_main = '';
+            $date_filter_null = '';
+            $prepare_params = array( $user_id, $user_id, $user_id );
+
+            if ( ! empty( $args['date_from'] ) ) {
+                $date_filter_sub   .= ' AND created_at >= %s';
+                $date_filter_main  .= ' AND s1.created_at >= %s';
+                $date_filter_null  .= ' AND created_at >= %s';
+                $prepare_params[]   = $args['date_from'];
+                $prepare_params[]   = $args['date_from'];
+                $prepare_params[]   = $args['date_from'];
+            }
+            if ( ! empty( $args['date_to'] ) ) {
+                $date_filter_sub   .= ' AND created_at <= %s';
+                $date_filter_main  .= ' AND s1.created_at <= %s';
+                $date_filter_null  .= ' AND created_at <= %s';
+                $prepare_params[]   = $args['date_to'];
+                $prepare_params[]   = $args['date_to'];
+                $prepare_params[]   = $args['date_to'];
+            }
+
+            // Get totals for stock
+            $stock_totals_sql = $wpdb->prepare(
+                "SELECT 
+                    COUNT(*) AS total_downloads,
+                    COALESCE( SUM(cost_points), 0 ) AS total_points
+                FROM (
+                    SELECT s1.id, s1.cost_points
+                    FROM {$table_stock} s1
+                    INNER JOIN (
+                        SELECT user_id, site, stock_id, MAX(id) AS max_id
+                        FROM {$table_stock}
+                        WHERE user_id = %d AND stock_id IS NOT NULL{$date_filter_sub}
+                        GROUP BY user_id, site, stock_id
+                    ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.id = s2.max_id
+                    WHERE s1.user_id = %d{$date_filter_main}
+                    UNION ALL
+                    SELECT id, cost_points
+                    FROM {$table_stock} 
+                    WHERE user_id = %d AND stock_id IS NULL{$date_filter_null}
+                ) AS deduped_stock",
+                $prepare_params
+            );
+
+            $stock_totals = $wpdb->get_row( $stock_totals_sql, ARRAY_A );
+            if ( $stock_totals ) {
+                $total_downloads += (int) $stock_totals['total_downloads'];
+                $total_points    += (float) $stock_totals['total_points'];
+            }
+
+            // Provider breakdown for stock (with deduplication)
+            $stock_providers_sql = $wpdb->prepare(
+                "SELECT 
+                    site AS provider_key,
+                    provider_label AS provider_label,
+                    COUNT(*) AS downloads_count,
+                    COALESCE( SUM(cost_points), 0 ) AS points_sum
+                FROM (
+                    SELECT s1.id, s1.site, s1.provider_label, s1.cost_points
+                    FROM {$table_stock} s1
+                    INNER JOIN (
+                        SELECT user_id, site, stock_id, MAX(id) AS max_id
+                        FROM {$table_stock}
+                        WHERE user_id = %d AND stock_id IS NOT NULL{$date_filter_sub}
+                        GROUP BY user_id, site, stock_id
+                    ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.id = s2.max_id
+                    WHERE s1.user_id = %d{$date_filter_main}
+                    UNION ALL
+                    SELECT id, site, provider_label, cost_points
+                    FROM {$table_stock} 
+                    WHERE user_id = %d AND stock_id IS NULL{$date_filter_null}
+                ) AS deduped_stock
+                GROUP BY site, provider_label
+                ORDER BY downloads_count DESC, points_sum DESC",
+                $prepare_params
+            );
+
+            $stock_providers = $wpdb->get_results( $stock_providers_sql, ARRAY_A );
+            if ( $stock_providers ) {
+                foreach ( $stock_providers as $row ) {
+                    $key   = $row['provider_key'] ?: 'unknown';
+                    $label = $row['provider_label'] ?: ucfirst( $key );
+                    if ( ! isset( $providers[ $key ] ) ) {
+                        $providers[ $key ] = array(
+                            'label'  => $label,
+                            'count'  => 0,
+                            'points' => 0.0,
+                        );
+                    }
+                    $providers[ $key ]['count']  += (int) $row['downloads_count'];
+                    $providers[ $key ]['points'] += (float) $row['points_sum'];
+                }
+            }
+        }
+
+        // Process AI jobs
+        if ( ( 'all' === $args['type'] || 'ai' === $args['type'] ) && $table_ai ) {
+            $where_ai_sql = 'WHERE ' . implode( ' AND ', $where_ai );
+
+            // Get totals for AI
+            $ai_totals_sql = "SELECT 
+                COUNT(*) AS total_downloads,
+                COALESCE( SUM(cost_points), 0 ) AS total_points
+            FROM {$table_ai}
+            {$where_ai_sql}";
+
+            $ai_totals = $wpdb->get_row( $ai_totals_sql, ARRAY_A );
+            if ( $ai_totals ) {
+                $total_downloads += (int) $ai_totals['total_downloads'];
+                $total_points    += (float) $ai_totals['total_points'];
+            }
+
+            // AI doesn't have providers, but we can add a generic "AI" entry if needed
+            // For now, we'll skip provider breakdown for AI-only queries
+        }
+
+        // Sort providers by count descending
+        uasort(
+            $providers,
+            function( $a, $b ) {
+                if ( $a['count'] === $b['count'] ) {
+                    return $b['points'] <=> $a['points'];
+                }
+                return $b['count'] <=> $a['count'];
+            }
+        );
+
+        return array(
+            'total_downloads' => $total_downloads,
+            'total_points'     => $total_points,
+            'providers'        => $providers,
+        );
+    }
+}
+
 if ( ! function_exists( 'nehtw_get_user_download_history' ) ) {
     /**
      * Wrapper for backwards compatibility – exposed helper function.

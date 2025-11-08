@@ -459,5 +459,24 @@
           );
         });
     });
+
+    // ========== CSV EXPORT ==========
+
+    var exportBtn = root.querySelector('[data-downloads-export]');
+    var exportUrl = settings.exportUrl || '';
+
+    if (exportBtn && exportUrl) {
+      exportBtn.addEventListener('click', function () {
+        // Preserve current query parameters (type, from, to, etc.)
+        var params = new URLSearchParams(window.location.search);
+        var url = new URL(exportUrl, window.location.origin);
+        params.forEach(function (value, key) {
+          url.searchParams.append(key, value);
+        });
+
+        // Trigger CSV download in a new tab
+        window.open(url.toString(), '_blank');
+      });
+    }
   });
 })();

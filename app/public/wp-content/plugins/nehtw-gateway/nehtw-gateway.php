@@ -1086,6 +1086,15 @@ function nehtw_gateway_register_rest_routes() {
         },
     ) );
 
+    // Artly-branded CSV export endpoint
+    register_rest_route( 'artly/v1', '/downloads-export', array(
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'artly_rest_downloads_export',
+        'permission_callback' => function () {
+            return is_user_logged_in();
+        },
+    ) );
+
     register_rest_route( 'nehtw/v1', '/wallet-transactions', array(
         'methods'             => WP_REST_Server::READABLE,
         'callback'            => 'nehtw_rest_get_wallet_transactions',
@@ -2802,6 +2811,121 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         ),
         200
     );
+}
+
+/**
+ * Export user download history as CSV based on current filters.
+ *
+ * Note: This should not expose any internal API keys or Nehtw-specific details.
+ */
+function artly_rest_downloads_export( WP_REST_Request $request ) {
+    if ( ! is_user_logged_in() ) {
+        return new WP_Error(
+            'forbidden',
+            __( 'You must be logged in to export your downloads.', 'artly' ),
+            array( 'status' => 403 )
+        );
+    }
+
+    $user_id = get_current_user_id();
+    $type      = $request->get_param( 'type' );
+    $date_from = $request->get_param( 'from' );
+    $date_to   = $request->get_param( 'to' );
+
+    if ( ! in_array( $type, array( 'all', 'stock', 'ai' ), true ) ) {
+        $type = 'all';
+    }
+
+    // Get all history items (no pagination for export)
+    if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
+        return new WP_Error(
+            'function_not_found',
+            __( 'Download history function not available.', 'artly' ),
+            array( 'status' => 500 )
+        );
+    }
+
+    // Fetch all items by using a large per_page value
+    $history = nehtw_gateway_get_user_download_history( $user_id, 1, 10000, $type );
+    $items   = isset( $history['items'] ) && is_array( $history['items'] ) ? $history['items'] : array();
+
+    // Filter by date range if provided
+    if ( ! empty( $date_from ) || ! empty( $date_to ) ) {
+        $filtered_items = array();
+        foreach ( $items as $item ) {
+            $created_at = isset( $item['created_at'] ) ? intval( $item['created_at'] ) : 0;
+            if ( $created_at > 0 ) {
+                $item_date = date( 'Y-m-d', $created_at );
+                if ( ! empty( $date_from ) && $item_date < $date_from ) {
+                    continue;
+                }
+                if ( ! empty( $date_to ) && $item_date > $date_to ) {
+                    continue;
+                }
+            }
+            $filtered_items[] = $item;
+        }
+        $items = $filtered_items;
+    }
+
+    // Build CSV in memory
+    $rows   = array();
+    $header = array( 'Date', 'Provider', 'Title', 'Points Spent', 'Status', 'Link' );
+    $rows[] = $header;
+
+    foreach ( $items as $item ) {
+        $date_str = '';
+        if ( isset( $item['created_at'] ) && $item['created_at'] > 0 ) {
+            $date_str = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $item['created_at'] );
+        }
+
+        $provider = '';
+        if ( isset( $item['provider_label'] ) && ! empty( $item['provider_label'] ) ) {
+            $provider = $item['provider_label'];
+        } elseif ( isset( $item['site'] ) && ! empty( $item['site'] ) ) {
+            $provider = ucfirst( $item['site'] );
+        } elseif ( isset( $item['kind'] ) && 'ai' === $item['kind'] ) {
+            $provider = __( 'AI', 'artly' );
+        }
+
+        $title = '';
+        if ( isset( $item['title'] ) && ! empty( $item['title'] ) ) {
+            $title = $item['title'];
+        } elseif ( isset( $item['remote_id'] ) && ! empty( $item['remote_id'] ) ) {
+            $title = $item['remote_id'];
+        } elseif ( isset( $item['file_name'] ) && ! empty( $item['file_name'] ) ) {
+            $title = $item['file_name'];
+        }
+
+        $points = isset( $item['points'] ) ? floatval( $item['points'] ) : 0.0;
+        $status = isset( $item['status'] ) ? $item['status'] : '';
+        $link   = isset( $item['download_url'] ) ? $item['download_url'] : ( isset( $item['stock_url'] ) ? $item['stock_url'] : '' );
+
+        $rows[] = array(
+            $date_str,
+            $provider,
+            $title,
+            number_format_i18n( $points, 2 ),
+            $status,
+            $link,
+        );
+    }
+
+    // Build CSV string
+    $csv_output = '';
+    foreach ( $rows as $row ) {
+        $csv_output .= '"' . implode( '","', array_map( function( $field ) {
+            return str_replace( '"', '""', $field );
+        }, $row ) ) . '"' . "\n";
+    }
+
+    // Return CSV as REST response with proper headers
+    $response = new WP_REST_Response( $csv_output, 200 );
+    $response->header( 'Content-Type', 'text/csv; charset=utf-8' );
+    $response->header( 'Content-Disposition', 'attachment; filename="artly-downloads-' . date( 'Y-m-d' ) . '.csv"' );
+    $response->header( 'X-Artly-Export', 'downloads' );
+
+    return $response;
 }
 
 function nehtw_rest_get_download_link( WP_REST_Request $request ) {
