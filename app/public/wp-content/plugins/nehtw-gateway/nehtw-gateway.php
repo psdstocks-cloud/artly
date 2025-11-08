@@ -2670,6 +2670,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
     }
 
     // Get order by history_id and verify it belongs to current user
+    // SQL is parameterized for defense in depth
     $order = $wpdb->get_row(
         $wpdb->prepare(
             "SELECT * FROM {$table} WHERE id = %d AND user_id = %d LIMIT 1",
@@ -2679,10 +2680,48 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         ARRAY_A
     );
 
+    // Explicit ownership validation after query (second line of defense)
     if ( ! $order ) {
-        return new WP_REST_Response(
-            array( 'message' => __( 'Download not found.', 'nehtw-gateway' ) ),
-            404
+        // History record not found or doesn't belong to this user.
+        // Log and return 404 to avoid revealing the existence of other users' records.
+        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            error_log(
+                sprintf(
+                    '[nehtw-gateway] Download history not found in redownload endpoint. user_id=%d, history_id=%d, ip=%s',
+                    (int) $user_id,
+                    (int) $history_id,
+                    $ip
+                )
+            );
+        }
+
+        return new WP_Error(
+            'history_not_found',
+            __( 'Download history item not found.', 'nehtw-gateway' ),
+            array( 'status' => 404 )
+        );
+    }
+
+    // Extra safety: verify ownership again in PHP (explicit validation).
+    if ( (int) $order['user_id'] !== (int) $user_id ) {
+        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            error_log(
+                sprintf(
+                    '[nehtw-gateway] Suspicious redownload access: user_id=%d tried history_id=%d owned by user_id=%d, ip=%s',
+                    (int) $user_id,
+                    (int) $history_id,
+                    (int) $order['user_id'],
+                    $ip
+                )
+            );
+        }
+
+        return new WP_Error(
+            'forbidden',
+            __( 'You are not allowed to access this download.', 'nehtw-gateway' ),
+            array( 'status' => 403 )
         );
     }
 
