@@ -474,11 +474,11 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
                 "SELECT 'stock' AS kind, s1.id AS db_id, s1.task_id, s1.site, s1.provider_label, s1.file_name, s1.stock_id, s1.source_url, s1.preview_thumb, s1.status, s1.cost_points, s1.created_at, s1.updated_at, s1.raw_response, s1.download_link, NULL AS prompt, NULL AS files 
                 FROM {$table_stock} s1
                 INNER JOIN (
-                    SELECT user_id, site, stock_id, MAX(updated_at) AS max_updated
+                    SELECT user_id, site, stock_id, MAX(id) AS max_id
                     FROM {$table_stock}
                     WHERE user_id = %d AND stock_id IS NOT NULL
                     GROUP BY user_id, site, stock_id
-                ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.updated_at = s2.max_updated
+                ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.id = s2.max_id
                 WHERE s1.user_id = %d
                 UNION ALL
                 SELECT 'stock' AS kind, id AS db_id, task_id, site, provider_label, file_name, stock_id, source_url, preview_thumb, status, cost_points, created_at, updated_at, raw_response, download_link, NULL AS prompt, NULL AS files 
