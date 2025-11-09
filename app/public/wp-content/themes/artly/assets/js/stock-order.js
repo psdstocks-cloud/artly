@@ -8,6 +8,7 @@
     var endpoint = config.endpoint || "";
     var previewEndpoint = config.previewEndpoint || "";
     var walletEndpoint = config.walletEndpoint || "";
+    var statusEndpoint = config.statusEndpoint || "";
     var restNonce = config.restNonce || "";
     var currentWalletBalance = 0;
 
@@ -17,6 +18,25 @@
       downloadRetries: 3,
       retryDelay: 1000
     };
+
+    // ========== STATUS POLLING MANAGER ==========
+    var statusConfig = {
+      pollInterval: 5000,   // 5s
+      maxPollMinutes: 10    // stop after 10 minutes
+    };
+    var activeOrders = {}; // taskId -> { startedAt: timestamp, element: DOM node, notified: bool }
+    var statusPollTimer = null;
+
+    /*
+     * Testing Checklist (Manual):
+     * 
+     * - Place a single order, see result card → watch it move from Queued → Processing → Completed without page refresh.
+     * - Confirm toast appears and, if allowed, browser notification.
+     * - Confirm clicking "Download now" uses the link updated from webhook/endpoint.
+     * - Place a batch order; multiple cards update independently.
+     * - Shut down NEHTW webhook temporarily: order should still eventually get completed statuses via existing logic (no fatal errors).
+     * - Reload /my-downloads/ and ensure statuses reflect final state when available.
+     */
 
     // Simple helper used by some rules in the extractor.
     function idMapping(source, arr) {
@@ -1748,6 +1768,197 @@
         });
     }
 
+    // ========== STATUS POLLING FUNCTIONS ==========
+
+    function startStatusPolling() {
+      if (statusPollTimer || !statusEndpoint) return;
+      if (Object.keys(activeOrders).length === 0) return;
+      statusPollTimer = setInterval(pollOrderStatuses, statusConfig.pollInterval);
+    }
+
+    function stopStatusPollingIfIdle() {
+      if (statusPollTimer && Object.keys(activeOrders).length === 0) {
+        clearInterval(statusPollTimer);
+        statusPollTimer = null;
+      }
+    }
+
+    function pollOrderStatuses() {
+      var taskIds = Object.keys(activeOrders);
+      if (!taskIds.length || !statusEndpoint) {
+        stopStatusPollingIfIdle();
+        return;
+      }
+
+      // Drop orders that have been polling too long
+      var now = Date.now();
+      taskIds.forEach(function (id) {
+        var info = activeOrders[id];
+        if (!info) return;
+        var minutes = (now - info.startedAt) / 60000;
+        if (minutes > statusConfig.maxPollMinutes) {
+          delete activeOrders[id];
+        }
+      });
+
+      taskIds = Object.keys(activeOrders);
+      if (!taskIds.length) {
+        stopStatusPollingIfIdle();
+        return;
+      }
+
+      fetch(statusEndpoint, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': restNonce || ''
+        },
+        body: JSON.stringify({ task_ids: taskIds })
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (!data || !data.success || !data.orders) return;
+
+          Object.keys(data.orders).forEach(function (taskId) {
+            var order = data.orders[taskId];
+            var info  = activeOrders[taskId];
+            if (!info || !info.element) return;
+
+            updateResultElementFromStatus(info.element, order);
+
+            // Completed / ready
+            if (order.status === 'completed' || order.status === 'ready') {
+              if (!info.notified) {
+                info.notified = true;
+                showStatusToast(order);
+                triggerBrowserNotification(order);
+              }
+
+              // If we have a direct download link, attach it to the card action if not already there
+              if (order.download_link) {
+                attachDownloadLinkToResult(info.element, order.download_link);
+              }
+
+              // Keep in map a bit longer so user sees state; optional: delete immediately:
+              delete activeOrders[taskId];
+            }
+
+            // Failed / error – stop polling this one
+            if (order.status === 'failed' || order.status === 'error') {
+              delete activeOrders[taskId];
+            }
+          });
+
+          stopStatusPollingIfIdle();
+        })
+        .catch(function (err) {
+          console.error('Status polling failed', err);
+        });
+    }
+
+    function updateResultElementFromStatus(el, order) {
+      if (!el) return;
+
+      var status = order.status || 'processing';
+
+      // Class
+      el.className = el.className.replace(/stock-order-result--\w+/g, '').trim();
+      el.classList.add('stock-order-result--' + status);
+
+      // Status label
+      var statusEl = el.querySelector('[data-status]');
+      if (statusEl) {
+        statusEl.textContent = order.status_label || status;
+      }
+
+      // Progress bar (very simple heuristic)
+      var progressBar = el.querySelector('.stock-order-result-progress-bar');
+      if (progressBar) {
+        var pct = 10;
+        if (status === 'queued' || status === 'pending') pct = 15;
+        else if (status === 'processing') pct = 40;
+        else if (status === 'ready') pct = 90;
+        else if (status === 'completed') pct = 100;
+        else if (status === 'failed' || status === 'error') pct = 100;
+
+        progressBar.style.width = pct + '%';
+      }
+    }
+
+    function attachDownloadLinkToResult(el, url) {
+      var actions = el.querySelector('[data-actions]');
+      if (!actions) return;
+
+      // If there's already a download button, just update href
+      var btn = actions.querySelector('.stock-order-download-btn');
+      if (btn) {
+        btn.href = url;
+        btn.target = '_blank';
+        btn.rel = 'noopener';
+        return;
+      }
+
+      // Otherwise create one
+      var a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel   = 'noopener';
+      a.className = 'stock-order-result-link stock-order-download-btn';
+      a.innerHTML =
+        '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;margin-right:6px">' +
+        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>' +
+        '</svg>' +
+        'Download now';
+
+      actions.appendChild(a);
+    }
+
+    function showStatusToast(order) {
+      if (!order) return;
+
+      var msg = 'Your download from ' + (order.site || 'stock site');
+      if (order.stock_id) msg += ' (' + order.stock_id + ')';
+      msg += ' is ready.';
+
+      var container = document.createElement('div');
+      container.className = 'artly-toast artly-toast-success';
+      container.textContent = msg;
+      document.body.appendChild(container);
+
+      requestAnimationFrame(function () {
+        container.classList.add('is-visible');
+      });
+
+      setTimeout(function () {
+        container.classList.remove('is-visible');
+        setTimeout(function () {
+          container.remove();
+        }, 250);
+      }, 5000);
+    }
+
+    function triggerBrowserNotification(order) {
+      if (!('Notification' in window)) return;
+
+      var message = 'Your Artly download is ready.';
+      if (order && order.site && order.stock_id) {
+        message = 'Your ' + order.site + ' file ' + order.stock_id + ' is ready to download.';
+      }
+
+      if (Notification.permission === 'granted') {
+        new Notification('Artly download ready', { body: message });
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission().then(function (perm) {
+          if (perm === 'granted') {
+            new Notification('Artly download ready', { body: message });
+          }
+        });
+      }
+    }
+
+    // ========== END STATUS POLLING FUNCTIONS ==========
+
     function submitStockOrder(payload, callback) {
       var callbackFn = typeof callback === "function" ? callback : null;
       if (!endpoint) {
@@ -1834,9 +2045,18 @@
               return;
             }
 
-            if (shouldPollOrder(normalized)) {
+            // Register order for real-time status polling if it has a task_id and is not already completed
+            // This replaces the old individual polling system for better performance
+            if (normalized.task_id && normalized.status !== "completed" && normalized.status !== "failed" && normalized.status !== "error" && normalized.status !== "already_downloaded") {
+              activeOrders[normalized.task_id] = {
+                startedAt: Date.now(),
+                element: card,
+                notified: false
+              };
+              startStatusPolling();
+            } else if (shouldPollOrder(normalized)) {
+              // Fallback to old polling system if new system can't handle it
               pollOrderStatus(normalized.task_id, card, 0);
-              return;
             }
 
             if (!normalized.task_id && normalized.status === "queued") {
@@ -2369,33 +2589,8 @@
       });
     }
 
-    // Batch mode submit
-    if (batchSubmit && batchList) {
-      batchSubmit.addEventListener("click", function () {
-        var items = batchList.querySelectorAll("[data-stock-order-batch-item]");
-        var links = [];
-
-        items.forEach(function (item) {
-          var checkbox = item.querySelector('input[type="checkbox"]');
-          var url = item.getAttribute("data-url") || "";
-
-          if (url) {
-            links.push({
-              url: url,
-              selected: checkbox ? checkbox.checked : true
-            });
-          }
-        });
-
-        if (!links.length) {
-          showError("Please select at least one link to order.");
-          return;
-        }
-
-        var payload = { links: links };
-        submitStockOrder(payload);
-      });
-    }
+    // Batch mode submit handler is already defined earlier in the file (around line 1231)
+    // using submitBatchBtn variable, so this duplicate code has been removed.
 
     // Collapsible supported websites list
     var supCard = root.querySelector(".stock-order-supported");

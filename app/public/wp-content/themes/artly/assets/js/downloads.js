@@ -701,5 +701,71 @@
         window.open(url.toString(), '_blank');
       });
     }
+
+    // ========== MINIMAL STATUS REFRESH (Optional) ==========
+    // Lightweight one-time refresh for non-final statuses on page load
+    var statusEndpoint = settings.statusEndpoint || '';
+    if (statusEndpoint) {
+      // Collect task_ids from stock items with non-final statuses
+      var stockItems = root.querySelectorAll('.artly-download-item[data-download-kind="stock"]');
+      
+      if (stockItems.length > 0) {
+        var taskIds = [];
+        var itemMap = {};
+        
+        Array.prototype.slice.call(stockItems).forEach(function (item) {
+          var status = (item.getAttribute('data-download-status') || '').toLowerCase();
+          
+          // Only refresh items that are truly non-final (queued, processing, pending, etc.)
+          if (status && status !== 'completed' && status !== 'failed' && status !== 'error' && status !== 'ready') {
+            // Try to get task_id from the download button inside this item
+            var button = item.querySelector('[data-download-id]');
+            var taskId = button ? button.getAttribute('data-download-id') : '';
+            
+            if (taskId && taskIds.indexOf(taskId) === -1) {
+              taskIds.push(taskId);
+              itemMap[taskId] = item;
+            }
+          }
+        });
+        
+        // Make a single background call to refresh statuses (limit to 10 items to avoid overload)
+        if (taskIds.length > 0 && taskIds.length <= 10) {
+          setTimeout(function () {
+            fetch(statusEndpoint, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-WP-Nonce': nonce || ''
+              },
+              body: JSON.stringify({ task_ids: taskIds.slice(0, 10) })
+            })
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (!data || !data.success || !data.orders) return;
+                
+                Object.keys(data.orders).forEach(function (taskId) {
+                  var order = data.orders[taskId];
+                  var item = itemMap[taskId];
+                  if (!item) return;
+                  
+                  // Update status badge if it exists
+                  var statusEl = item.querySelector('.artly-download-status-pill, .downloads-item-status-pill');
+                  if (statusEl && order.status_label) {
+                    statusEl.textContent = order.status_label;
+                    // Update data attribute on list item
+                    item.setAttribute('data-download-status', order.status.toLowerCase());
+                  }
+                });
+              })
+              .catch(function (err) {
+                // Silently fail - this is optional background refresh
+                console.debug('Status refresh failed (non-critical):', err);
+              });
+          }, 2000); // Wait 2 seconds after page load to avoid blocking initial render
+        }
+      }
+    }
   });
 })();

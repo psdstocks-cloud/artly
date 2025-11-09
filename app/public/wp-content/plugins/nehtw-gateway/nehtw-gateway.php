@@ -145,6 +145,13 @@ function nehtw_gateway_activate() {
     dbDelta( $sql_ai );
     dbDelta( $sql_stock_sites );
     dbDelta( $sql_subscriptions );
+
+    // Initialize webhook secret if not already set
+    $webhook_secret = get_option( 'nehtw_webhook_secret' );
+    if ( ! $webhook_secret ) {
+        $webhook_secret = wp_generate_password( 32, false );
+        update_option( 'nehtw_webhook_secret', $webhook_secret );
+    }
     
     // Add new columns if they don't exist
     if ( $needs_preview_thumb ) {
@@ -1211,6 +1218,43 @@ function nehtw_gateway_register_rest_routes() {
             ),
         )
     );
+
+    /*
+     * NEHTW Webhook configuration:
+     *
+     * 1. Set webhook URL in your NEHTW dashboard to:
+     *    https://YOUR_SITE/wp-json/artly/v1/nehtw-webhook?key=YOUR_SECRET
+     *
+     * 2. Enable "Download status changing" event.
+     * 3. NEHTW will send headers:
+     *      x-neh-event_name
+     *      x-neh-status
+     *    and query param task_id, which we map to our local stock order.
+     *
+     * This keeps our local order table in sync and powers real-time UI updates.
+     */
+    register_rest_route(
+        'artly/v1',
+        '/nehtw-webhook',
+        array(
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => 'artly_nehtw_webhook_handler',
+            'permission_callback' => '__return_true',
+        )
+    );
+
+    // POST endpoint for order status polling (task_ids based)
+    register_rest_route(
+        'artly/v1',
+        '/stock-order-status',
+        array(
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => 'artly_stock_order_status_endpoint',
+            'permission_callback' => function () {
+                return is_user_logged_in();
+            },
+        )
+    );
 }
 add_action( 'rest_api_init', 'nehtw_gateway_register_rest_routes' );
 
@@ -2076,6 +2120,221 @@ function artly_stock_order_rest_generate_download_link( WP_REST_Request $request
             'cached'       => false,
             'status'       => $final_status,
             'message'      => __( 'Ready to download', 'nehtw-gateway' ),
+        ),
+        200
+    );
+}
+
+/**
+ * Handle NEHTW webhook callbacks for order/download status changes.
+ *
+ * NEHTW will send GET requests with headers:
+ *  - x-neh-event_name
+ *  - x-neh-status
+ *  - x-neh-... (other context)
+ *
+ * We expect a query param "key" that must match our stored secret.
+ *
+ * @param WP_REST_Request $request Request instance.
+ * @return WP_REST_Response
+ */
+function artly_nehtw_webhook_handler( WP_REST_Request $request ) {
+    $secret      = get_option( 'nehtw_webhook_secret' );
+    $incoming    = $request->get_param( 'key' );
+    $event_name  = $request->get_header( 'x-neh-event_name' );
+    $status      = $request->get_header( 'x-neh-status' );
+    $task_id     = $request->get_param( 'task_id' ); // NEHTW should send the order/task id as query param
+    $remote_body = $request->get_params();
+
+    // 1) Basic auth: secret must match if set
+    if ( ! empty( $secret ) && hash_equals( (string) $secret, (string) $incoming ) === false ) {
+        return new WP_REST_Response(
+            array(
+                'success' => false,
+                'message' => 'Invalid webhook key.',
+            ),
+            403
+        );
+    }
+
+    if ( empty( $task_id ) || empty( $event_name ) ) {
+        return new WP_REST_Response(
+            array(
+                'success' => false,
+                'message' => 'Missing task_id or event_name.',
+            ),
+            400
+        );
+    }
+
+    // 2) Map webhook to our local order record
+    $order = Nehtw_Gateway_Stock_Orders::get_by_task_id( $task_id );
+    if ( ! $order ) {
+        // Not fatal, but log for debugging
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            error_log( '[artly_nehtw_webhook_handler] Unknown task_id ' . $task_id . ' event: ' . $event_name );
+        }
+        return new WP_REST_Response(
+            array(
+                'success' => true,
+                'message' => 'Order not found locally, ignoring.',
+            ),
+            200
+        );
+    }
+
+    // 3) Interpret NEHTW status codes: "queued", "processing", "ready", "error", "refunded", etc.
+    // We only care about status transitions and potential download link payloads.
+    $mapped_status = strtolower( (string) $status );
+    if ( empty( $mapped_status ) ) {
+        $mapped_status = 'processing';
+    }
+
+    // Normalize status using existing helper
+    $mapped_status = nehtw_gateway_normalize_remote_status( $mapped_status );
+
+    $extra_data = maybe_unserialize( $order['raw_response'] );
+    if ( ! is_array( $extra_data ) ) {
+        $extra_data = array();
+    }
+
+    $extra_data['last_webhook'] = array(
+        'ts'      => current_time( 'mysql' ),
+        'event'   => $event_name,
+        'status'  => $mapped_status,
+        'payload' => $remote_body,
+    );
+
+    // If webhook includes an updated download link, store it.
+    $download_link = '';
+    $download_keys = array( 'downloadLink', 'download_link', 'url', 'link' );
+    foreach ( $download_keys as $k ) {
+        if ( isset( $remote_body[ $k ] ) && ! empty( $remote_body[ $k ] ) ) {
+            $download_link = esc_url_raw( $remote_body[ $k ] );
+            break;
+        }
+    }
+
+    $update_args = array(
+        'raw_response' => maybe_serialize( $extra_data ),
+    );
+
+    if ( ! empty( $download_link ) ) {
+        $update_args['download_link'] = $download_link;
+        $mapped_status                = 'completed';
+    }
+
+    // Update status if it changed
+    if ( $mapped_status && $mapped_status !== $order['status'] ) {
+        Nehtw_Gateway_Stock_Orders::update_status( $task_id, $mapped_status, $update_args );
+    } else {
+        // Status unchanged, but we still want to update raw_response
+        // Use update_status with same status to update other fields
+        Nehtw_Gateway_Stock_Orders::update_status( $task_id, $order['status'], $update_args );
+    }
+
+    // 4) Optional: send email when status becomes completed
+    if ( 'completed' === $mapped_status ) {
+        $user_id = (int) $order['user_id'];
+        if ( $user_id ) {
+            $notify = get_user_meta( $user_id, '_artly_stock_email_notify', true );
+            if ( 'yes' === $notify ) {
+                $user    = get_user_by( 'id', $user_id );
+                $subject = sprintf( __( 'Your Artly download is ready (ID %s)', 'artly' ), $order['id'] );
+                $message = __( "Hi,\n\nYour stock file download is now ready inside your Artly account.\n\nVisit: ", 'artly' ) . home_url( '/my-downloads/' );
+
+                if ( $user && $user->user_email ) {
+                    wp_mail( $user->user_email, $subject, $message );
+                }
+            }
+        }
+    }
+
+    return new WP_REST_Response(
+        array(
+            'success' => true,
+            'message' => 'Webhook processed.',
+        ),
+        200
+    );
+}
+
+/**
+ * Return status info for one or more stock orders for the current user.
+ *
+ * Expects JSON body: { "task_ids": ["abc123", "xyz456"] }
+ *
+ * @param WP_REST_Request $request Request instance.
+ * @return WP_REST_Response
+ */
+function artly_stock_order_status_endpoint( WP_REST_Request $request ) {
+    $user_id  = get_current_user_id();
+    $body     = $request->get_json_params();
+    $task_ids = isset( $body['task_ids'] ) ? (array) $body['task_ids'] : array();
+
+    $task_ids = array_filter( array_map( 'sanitize_text_field', $task_ids ) );
+
+    if ( ! $user_id || empty( $task_ids ) ) {
+        return new WP_REST_Response(
+            array(
+                'success' => false,
+                'message' => 'Missing user or task_ids.',
+            ),
+            400
+        );
+    }
+
+    $results = array();
+
+    foreach ( $task_ids as $task_id ) {
+        $order = Nehtw_Gateway_Stock_Orders::get_by_task_id( $task_id );
+
+        if ( ! $order || (int) $order['user_id'] !== (int) $user_id ) {
+            continue;
+        }
+
+        $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
+        $formatted = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
+
+        // Get status label
+        $status_label = $formatted['status'];
+        if ( isset( $formatted['status'] ) ) {
+            $status_map = array(
+                'queued'     => __( 'Queued', 'artly' ),
+                'processing' => __( 'Processing', 'artly' ),
+                'ready'      => __( 'Ready', 'artly' ),
+                'completed'  => __( 'Completed', 'artly' ),
+                'failed'     => __( 'Failed', 'artly' ),
+            );
+            $status_normalized = strtolower( $formatted['status'] );
+            if ( isset( $status_map[ $status_normalized ] ) ) {
+                $status_label = $status_map[ $status_normalized ];
+            }
+        }
+
+        // Get site label
+        $site_label = '';
+        if ( isset( $formatted['provider_label'] ) && ! empty( $formatted['provider_label'] ) ) {
+            $site_label = $formatted['provider_label'];
+        } elseif ( isset( $formatted['site'] ) && ! empty( $formatted['site'] ) ) {
+            $site_label = ucfirst( $formatted['site'] );
+        }
+
+        $results[ $task_id ] = array(
+            'task_id'       => $task_id,
+            'status'        => $formatted['status'],
+            'status_label'  => $status_label,
+            'download_link' => ! empty( $formatted['download_link'] ) ? $formatted['download_link'] : '',
+            'site'          => $site_label,
+            'stock_id'      => isset( $formatted['stock_id'] ) ? $formatted['stock_id'] : '',
+            'cost_points'   => isset( $formatted['cost_points'] ) ? (float) $formatted['cost_points'] : null,
+        );
+    }
+
+    return new WP_REST_Response(
+        array(
+            'success' => true,
+            'orders'  => $results,
         ),
         200
     );
