@@ -2301,6 +2301,7 @@ function artly_stock_order_status_endpoint( WP_REST_Request $request ) {
         if ( isset( $formatted['status'] ) ) {
             $status_map = array(
                 'queued'     => __( 'Queued', 'artly' ),
+                'pending'    => __( 'Pending', 'artly' ),
                 'processing' => __( 'Processing', 'artly' ),
                 'ready'      => __( 'Ready', 'artly' ),
                 'completed'  => __( 'Completed', 'artly' ),

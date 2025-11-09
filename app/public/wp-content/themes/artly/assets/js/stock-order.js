@@ -1570,6 +1570,11 @@
           var status = (data.status || "").toLowerCase();
           var message = data.message || "";
 
+          // Normalize "pending" to "queued" for consistency
+          if (status === "pending") {
+            status = "queued";
+          }
+
           if (data.success === false && status === "not_found") {
             updateOrderResult(resultEl, {
               status: "error",
@@ -1598,6 +1603,7 @@
             return;
           }
 
+          // Continue polling for non-final statuses (queued, pending, processing, etc.)
           updateOrderResult(resultEl, {
             status: status || "processing",
             progress: progressPercent,
@@ -1838,6 +1844,9 @@
               // If we have a direct download link, attach it to the card action if not already there
               if (order.download_link) {
                 attachDownloadLinkToResult(info.element, order.download_link);
+              } else if (order.status === 'ready' && taskId) {
+                // If status is "ready" but no download_link yet, generate it
+                generateDownloadLink(taskId, info.element, 0);
               }
 
               // Keep in map a bit longer so user sees state; optional: delete immediately:
@@ -1861,15 +1870,23 @@
       if (!el) return;
 
       var status = order.status || 'processing';
+      // Normalize status (pending -> queued for consistency)
+      if (status === 'pending') {
+        status = 'queued';
+      }
+
+      // Update dataset.status attribute
+      el.dataset.status = status;
 
       // Class
       el.className = el.className.replace(/stock-order-result--\w+/g, '').trim();
       el.classList.add('stock-order-result--' + status);
 
-      // Status label
+      // Status label - use status_label from API if available, otherwise use getStatusLabel
       var statusEl = el.querySelector('[data-status]');
       if (statusEl) {
-        statusEl.textContent = order.status_label || status;
+        var label = order.status_label || getStatusLabel(status);
+        statusEl.textContent = label;
       }
 
       // Progress bar (very simple heuristic)
@@ -1883,6 +1900,14 @@
         else if (status === 'failed' || status === 'error') pct = 100;
 
         progressBar.style.width = pct + '%';
+        progressBar.setAttribute('data-progress', String(pct));
+      }
+
+      // Update message if provided
+      var messageEl = el.querySelector('[data-message]');
+      if (messageEl && order.message) {
+        messageEl.textContent = order.message;
+        messageEl.classList.add('is-visible');
       }
     }
 
@@ -2047,7 +2072,11 @@
 
             // Register order for real-time status polling if it has a task_id and is not already completed
             // This replaces the old individual polling system for better performance
-            if (normalized.task_id && normalized.status !== "completed" && normalized.status !== "failed" && normalized.status !== "error" && normalized.status !== "already_downloaded") {
+            // Handle both "pending" (from backend) and "queued" (normalized) statuses
+            var finalStatuses = ['completed', 'failed', 'error', 'already_downloaded', 'ready'];
+            var isFinalStatus = finalStatuses.indexOf(normalized.status) !== -1;
+            
+            if (normalized.task_id && !isFinalStatus) {
               activeOrders[normalized.task_id] = {
                 startedAt: Date.now(),
                 element: card,
@@ -2059,7 +2088,8 @@
               pollOrderStatus(normalized.task_id, card, 0);
             }
 
-            if (!normalized.task_id && normalized.status === "queued") {
+            // Handle case where order has no task_id (shouldn't happen, but graceful fallback)
+            if (!normalized.task_id && (normalized.status === "queued" || normalized.status === "pending")) {
               updateOrderResult(card, {
                 status: "error",
                 progress: 100,
