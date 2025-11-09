@@ -1320,7 +1320,11 @@
       normalized.url = order.url || order.source_url || existingUrl || "";
 
       var downloadUrl = "";
-      if (normalized.status !== "already_downloaded") {
+      var status = normalized.status || "";
+
+      // For already_downloaded we NEVER trust cached links; they must be regenerated via the
+      // dedicated download endpoint so we always get a fresh temporary URL.
+      if (status !== "already_downloaded") {
         if (typeof order.download_url === "string" && order.download_url) {
           downloadUrl = order.download_url;
         } else if (typeof order.downloadLink === "string" && order.downloadLink) {
