@@ -1520,6 +1520,7 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
             $result['message']  = __( 'You already downloaded this asset. We will generate a fresh download link without charging points.', 'nehtw-gateway' );
             $result['order_id'] = isset( $existing['id'] ) ? (int) $existing['id'] : 0;
             $result['task_id']  = isset( $existing['task_id'] ) ? (string) $existing['task_id'] : '';
+            $result['fresh_download_required'] = true;
 
             // Do not return the cached download link here. The frontend will
             // request a fresh link via the download endpoint to ensure the

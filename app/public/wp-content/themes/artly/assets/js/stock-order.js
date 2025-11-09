@@ -1319,11 +1319,21 @@
 
       normalized.url = order.url || order.source_url || existingUrl || "";
 
-      var downloadUrl = order.download_url || order.downloadLink || order.download_link || "";
-      if (!downloadUrl && resultEl) {
-        var existingBtn = resultEl.querySelector(".stock-order-download-btn");
-        if (existingBtn) {
-          downloadUrl = existingBtn.getAttribute("href") || "";
+      var downloadUrl = "";
+      if (normalized.status !== "already_downloaded") {
+        if (typeof order.download_url === "string" && order.download_url) {
+          downloadUrl = order.download_url;
+        } else if (typeof order.downloadLink === "string" && order.downloadLink) {
+          downloadUrl = order.downloadLink;
+        } else if (typeof order.download_link === "string" && order.download_link) {
+          downloadUrl = order.download_link;
+        }
+
+        if (!downloadUrl && resultEl) {
+          var existingBtn = resultEl.querySelector(".stock-order-download-btn");
+          if (existingBtn) {
+            downloadUrl = existingBtn.getAttribute("href") || "";
+          }
         }
       }
       normalized.download_url = downloadUrl || "";
