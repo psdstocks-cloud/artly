@@ -2989,30 +2989,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         );
     }
 
-    // Attempt to reuse an existing download link before calling the API.
-    if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
-        $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
-
-        if ( Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
-            $formatted    = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
-            $download_url = '';
-
-            if ( ! empty( $formatted['download_link'] ) && is_string( $formatted['download_link'] ) ) {
-                $download_url = esc_url_raw( $formatted['download_link'] );
-            }
-
-            if ( '' !== $download_url ) {
-                return new WP_REST_Response(
-                    array(
-                        'success'      => true,
-                        'download_url' => $download_url,
-                        'cached'       => true,
-                    ),
-                    200
-                );
-            }
-        }
-    }
+    // Always request a fresh link from the provider; do not reuse cached URLs.
 
     // Rate limiting: prevent re-download abuse (max 10/min per user).
     $rate_check = nehtw_gateway_check_redownload_rate_limit( $user_id );
