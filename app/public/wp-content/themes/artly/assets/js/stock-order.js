@@ -1487,10 +1487,23 @@
             '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
             '<span>Download now</span>' +
             "</a>";
+        } else if (status === "already_downloaded" && normalized.task_id) {
+          actionsEl.innerHTML =
+            '<button type="button" class="stock-order-result-link stock-order-download-btn" data-generate-download="1">' +
+            '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
+            '<span>Download now</span>' +
+            "</button>";
+
+          var generateBtn = actionsEl.querySelector('[data-generate-download="1"]');
+          if (generateBtn) {
+            generateBtn.addEventListener("click", function (ev) {
+              ev.preventDefault();
+              generateDownloadLink(normalized.task_id, resultEl, 0);
+            });
+          }
         } else if (
           status === "completed" ||
           status === "ready" ||
-          status === "already_downloaded" ||
           status === "failed" ||
           status === "error" ||
           status === "timeout"

@@ -1516,18 +1516,14 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
             : null;
 
         if ( $existing ) {
-            $formatted_existing = is_array( $existing ) ? Nehtw_Gateway_Stock_Orders::format_order_for_api( $existing ) : array();
-            $existing_link      = isset( $formatted_existing['download_link'] ) ? $formatted_existing['download_link'] : '';
-
             $result['status']   = 'already_downloaded';
-            $result['message']  = __( 'You already downloaded this asset. Reusing link without charging points.', 'nehtw-gateway' );
+            $result['message']  = __( 'You already downloaded this asset. We will generate a fresh download link without charging points.', 'nehtw-gateway' );
             $result['order_id'] = isset( $existing['id'] ) ? (int) $existing['id'] : 0;
             $result['task_id']  = isset( $existing['task_id'] ) ? (string) $existing['task_id'] : '';
 
-            if ( ! empty( $existing_link ) ) {
-                $result['download_link'] = $existing_link;
-                $result['download_url']  = $existing_link;
-            }
+            // Do not return the cached download link here. The frontend will
+            // request a fresh link via the download endpoint to ensure the
+            // temporary URL is still valid.
 
             $results[] = $result;
             continue;
