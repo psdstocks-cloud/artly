@@ -2105,8 +2105,15 @@ function artly_stock_order_rest_generate_download_link( WP_REST_Request $request
     }
 
     $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
+    
+    // Check if client requested fresh link (for already_downloaded items)
+    $force_fresh = $request->get_param( 'fresh' ) === 'true' || $request->get_param( 'force_fresh' ) === 'true';
+    
+    // For already_downloaded items, always generate fresh link (don't use cache)
+    // Also skip cache if force_fresh parameter is set
+    $skip_cache = $force_fresh || ( isset( $order['status'] ) && strtolower( $order['status'] ) === 'already_downloaded' );
 
-    if ( Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
+    if ( ! $skip_cache && Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
         $formatted = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );
         $link      = isset( $formatted['download_link'] ) ? $formatted['download_link'] : '';
 

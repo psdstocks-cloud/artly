@@ -10,6 +10,7 @@
     var walletEndpoint = config.walletEndpoint || "";
     var statusEndpoint = config.statusEndpoint || "";
     var restNonce = config.restNonce || "";
+    var downloadEndpointBase = (config.downloadEndpointBase || "/wp-json/artly/v1/stock-orders/").replace(/\/+$/, "/");
     var currentWalletBalance = 0;
 
     var pollingConfig = {
@@ -1320,7 +1321,7 @@
       normalized.url = order.url || order.source_url || existingUrl || "";
 
       var downloadUrl = "";
-      var status = normalized.status || "";
+      var status = (normalized.status || "").toLowerCase();
 
       // For already_downloaded we NEVER trust cached links; they must be regenerated via the
       // dedicated download endpoint so we always get a fresh temporary URL.
@@ -1454,7 +1455,7 @@
       if (!resultEl) return;
 
       var normalized = normalizeOrderForUI(order, resultEl);
-      var status = normalized.status || "queued";
+      var status = (normalized.status || "queued").toLowerCase();
 
       resultEl.className = "stock-order-result stock-order-result--" + status;
       resultEl.dataset.status = status;
@@ -1491,15 +1492,8 @@
 
       var actionsEl = resultEl.querySelector("[data-actions]");
       if (actionsEl) {
-        if (normalized.download_url) {
-          actionsEl.innerHTML =
-            '<a href="' +
-            escapeHtml(normalized.download_url) +
-            '" target="_blank" rel="noopener" class="stock-order-result-link stock-order-download-btn">' +
-            '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
-            '<span>Download now</span>' +
-            "</a>";
-        } else if (status === "already_downloaded" && normalized.task_id) {
+        // For already_downloaded, ALWAYS render button to generate fresh link, never use cached URL
+        if (status === "already_downloaded" && normalized.task_id) {
           actionsEl.innerHTML =
             '<button type="button" class="stock-order-result-link stock-order-download-btn" data-generate-download="1">' +
             '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
@@ -1510,9 +1504,19 @@
           if (generateBtn) {
             generateBtn.addEventListener("click", function (ev) {
               ev.preventDefault();
+              ev.stopPropagation();
               generateDownloadLink(normalized.task_id, resultEl, 0);
             });
           }
+        } else if (normalized.download_url && status !== "already_downloaded") {
+          // Only render direct link if we have a download_url AND it's not already_downloaded
+          actionsEl.innerHTML =
+            '<a href="' +
+            escapeHtml(normalized.download_url) +
+            '" target="_blank" rel="noopener" class="stock-order-result-link stock-order-download-btn">' +
+            '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
+            '<span>Download now</span>' +
+            "</a>";
         } else if (
           status === "completed" ||
           status === "ready" ||
@@ -1542,24 +1546,44 @@
     }
 
     function generateDownloadLink(taskId, resultEl, retryCount) {
-      if (!taskId || !resultEl) return;
+      if (!taskId || !resultEl || !downloadEndpointBase) {
+        return;
+      }
+
       retryCount = retryCount || 0;
 
-      var prepMessage = retryCount ? "Finalizing download..." : "Preparing download link...";
-      var progress = 90 + Math.min(5, retryCount * 3);
-
       updateOrderResult(resultEl, {
-        status: "processing",
-        progress: progress,
-        message: prepMessage
+        status: "ready",
+        progress: 95,
+        message: retryCount ? "Finalizing download link..." : "Preparing download link..."
       });
 
-      fetch("/wp-json/artly/v1/stock-orders/" + encodeURIComponent(taskId) + "/download", {
+      var headers = {};
+      if (restNonce) {
+        headers["X-WP-Nonce"] = restNonce;
+      }
+
+      // For already_downloaded items, always request fresh link (add ?fresh=true)
+      // Check both dataset.status and any existing button data attribute
+      var url = downloadEndpointBase + encodeURIComponent(taskId) + "/download";
+      var currentStatus = resultEl ? (resultEl.dataset.status || "").toLowerCase() : "";
+      var isAlreadyDownloaded = currentStatus === "already_downloaded";
+      
+      // Also check if the button has data-generate-download attribute (indicates already_downloaded)
+      if (!isAlreadyDownloaded && resultEl) {
+        var generateBtn = resultEl.querySelector('[data-generate-download="1"]');
+        if (generateBtn) {
+          isAlreadyDownloaded = true;
+        }
+      }
+      
+      if (isAlreadyDownloaded) {
+        url += "?fresh=true";
+      }
+      
+      fetch(url, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "X-WP-Nonce": restNonce
-        },
+        headers: headers,
         credentials: "same-origin"
       })
         .then(function (res) {
@@ -1573,36 +1597,26 @@
           }
 
           if (!res.ok) {
-            throw new Error("http_error");
+            throw new Error("Download HTTP " + res.status);
           }
 
           return res.json();
         })
         .then(function (data) {
-          if (data && data.download_url) {
-            updateOrderResult(resultEl, {
-              status: (data.status || "completed").toLowerCase(),
-              progress: 100,
-              message: data.message || "Ready to download",
-              download_url: data.download_url
-            });
-            return;
-          }
-
-          if (retryCount < pollingConfig.downloadRetries) {
-            window.setTimeout(function () {
-              generateDownloadLink(taskId, resultEl, retryCount + 1);
-            }, pollingConfig.retryDelay);
-            return;
+          if (!data || !data.success || !data.download_url) {
+            throw new Error((data && data.message) || "Missing download_url");
           }
 
           updateOrderResult(resultEl, {
-            status: "error",
+            status: (data.status || "completed").toLowerCase(),
             progress: 100,
-            message:
-              (data && data.message) ||
-              "Could not generate download link. Please try again from your downloads page."
+            message: data.message || "Download ready",
+            download_url: data.download_url
           });
+
+          try {
+            window.open(data.download_url, "_blank");
+          } catch (err) {}
         })
         .catch(function (error) {
           if (error && error.message === "unauthorized") {
@@ -1616,10 +1630,14 @@
             return;
           }
 
+          if (window.console && console.warn) {
+            console.warn("generateDownloadLink failed:", error);
+          }
+
           updateOrderResult(resultEl, {
             status: "error",
             progress: 100,
-            message: "Could not generate download link. Please try again from your downloads page."
+            message: "We couldn't generate a download link yet. You can retry from My Downloads."
           });
         });
     }
@@ -2046,7 +2064,8 @@
               resultsList.appendChild(card);
             }
 
-            if (normalized.download_url) {
+            // For already_downloaded, never use cached download_url - force fresh link generation
+            if (normalized.download_url && normalized.status !== "already_downloaded") {
               updateOrderResult(card, {
                 status: normalized.status || "completed",
                 message: normalized.message || "Ready to download",
@@ -2061,7 +2080,14 @@
               return;
             }
 
-            if (normalized.status === "completed" || normalized.status === "already_downloaded") {
+            if (normalized.status === "completed") {
+              updateOrderResult(card, normalized);
+              return;
+            }
+            
+            // For already_downloaded, update the card but don't auto-generate link
+            // User must click "Download now" button to get fresh link
+            if (normalized.status === "already_downloaded") {
               updateOrderResult(card, normalized);
               return;
             }
