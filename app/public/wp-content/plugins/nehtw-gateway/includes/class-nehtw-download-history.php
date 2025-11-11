@@ -517,14 +517,23 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
         $status = isset( $order['status'] ) ? $order['status'] : '';
 
         $thumbnail = '';
+        $is_trusted_preview = false;
 
-        // Try existing thumbnail sources first.
+        // Try existing thumbnail sources first (trusted previews from the stock order flow).
         if ( isset( $row['preview_thumb'] ) && $row['preview_thumb'] ) {
-            $thumbnail = nehtw_gateway_history_validate_image_url( $row['preview_thumb'] );
+            $candidate = nehtw_gateway_history_validate_image_url( $row['preview_thumb'] );
+            if ( '' !== $candidate ) {
+                $thumbnail          = $candidate;
+                $is_trusted_preview = true;
+            }
         }
 
         if ( '' === $thumbnail && isset( $order['preview_thumb'] ) && $order['preview_thumb'] ) {
-            $thumbnail = nehtw_gateway_history_validate_image_url( $order['preview_thumb'] );
+            $candidate = nehtw_gateway_history_validate_image_url( $order['preview_thumb'] );
+            if ( '' !== $candidate ) {
+                $thumbnail          = $candidate;
+                $is_trusted_preview = true;
+            }
         }
 
         if ( '' === $thumbnail && isset( $row['raw_response'] ) ) {
@@ -553,7 +562,7 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
             }
 
             $is_accessible = true;
-            if ( ! $is_placeholder ) {
+            if ( ! $is_placeholder && ! $is_trusted_preview ) {
                 // Check accessibility (function handles caching internally).
                 $is_accessible = nehtw_gateway_history_check_image_accessibility( $thumbnail );
             }
