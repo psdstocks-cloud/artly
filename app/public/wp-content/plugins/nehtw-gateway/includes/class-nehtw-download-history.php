@@ -517,14 +517,23 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
         $status = isset( $order['status'] ) ? $order['status'] : '';
 
         $thumbnail = '';
+        $is_trusted_preview = false;
 
-        // Try existing thumbnail sources first.
+        // Try existing thumbnail sources first (trusted previews from the stock order flow).
         if ( isset( $row['preview_thumb'] ) && $row['preview_thumb'] ) {
-            $thumbnail = nehtw_gateway_history_validate_image_url( $row['preview_thumb'] );
+            $candidate = nehtw_gateway_history_validate_image_url( $row['preview_thumb'] );
+            if ( '' !== $candidate ) {
+                $thumbnail          = $candidate;
+                $is_trusted_preview = true;
+            }
         }
 
         if ( '' === $thumbnail && isset( $order['preview_thumb'] ) && $order['preview_thumb'] ) {
-            $thumbnail = nehtw_gateway_history_validate_image_url( $order['preview_thumb'] );
+            $candidate = nehtw_gateway_history_validate_image_url( $order['preview_thumb'] );
+            if ( '' !== $candidate ) {
+                $thumbnail          = $candidate;
+                $is_trusted_preview = true;
+            }
         }
 
         if ( '' === $thumbnail && isset( $row['raw_response'] ) ) {
@@ -553,7 +562,7 @@ if ( ! function_exists( 'nehtw_gateway_history_format_stock_item' ) ) {
             }
 
             $is_accessible = true;
-            if ( ! $is_placeholder ) {
+            if ( ! $is_placeholder && ! $is_trusted_preview ) {
                 // Check accessibility (function handles caching internally).
                 $is_accessible = nehtw_gateway_history_check_image_accessibility( $thumbnail );
             }
@@ -969,7 +978,7 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
                     FROM {$table_stock} s1
                     INNER JOIN (
                         SELECT user_id, site, stock_id, MAX(id) AS max_id
-                    FROM {$table_stock} 
+                        FROM {$table_stock}
                         WHERE user_id = %d AND stock_id IS NOT NULL
                         GROUP BY user_id, site, stock_id
                     ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.id = s2.max_id
@@ -981,7 +990,7 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
                 ) AS deduped_stock",
                 $user_id,
                 $user_id,
-                    $user_id
+                $user_id
             );
         }
 
@@ -998,11 +1007,11 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
             if ( count( $count_selects ) === 1 ) {
                 // Single count query.
                 $total = (int) $wpdb->get_var( $count_selects[0] );
-        } else {
+            } else {
                 // Multiple count queries - sum them.
                 foreach ( $count_selects as $count_sql ) {
                     $total += (int) $wpdb->get_var( $count_sql );
-        }
+                }
             }
         }
 

@@ -94,12 +94,13 @@ class Nehtw_Order_Poller {
         
         $start_time = microtime(true);
         
-        // Get pending/processing orders from last 24 hours
+        // Get pending/processing orders from nehtw_stock_orders (source of truth)
+        // Map statuses: 'pending'/'queued' -> 'pending', 'processing' -> 'processing'
         $pending_orders = $wpdb->get_results("
-            SELECT * FROM {$wpdb->prefix}nehtw_orders 
-            WHERE status IN ('pending', 'processing')
-            AND ordered_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            ORDER BY ordered_at DESC
+            SELECT * FROM {$wpdb->prefix}nehtw_stock_orders 
+            WHERE status IN ('pending', 'queued', 'processing')
+            AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            ORDER BY created_at DESC
             LIMIT {$this->max_orders_per_run}
         ");
         
@@ -195,41 +196,34 @@ class Nehtw_Order_Poller {
             'updated_at' => current_time('mysql')
         ];
         
+        // Map API status to stock_orders status format
+        $mapped_status = $current_status;
+        $update_fields = [];
+        
         // Status: processing (order accepted and being processed)
-        if ($api_status === 'processing' && $current_status === 'pending') {
-            $update_data['status'] = 'processing';
-            $update_data['processing_started_at'] = current_time('mysql');
-            
-            error_log("Order {$task_id}: pending → processing");
+        if ($api_status === 'processing' && in_array($current_status, ['pending', 'queued'])) {
+            $mapped_status = 'processing';
+            error_log("Order {$task_id}: {$current_status} → processing");
         }
         
-        // Status: ready (download is ready)
-        if ($api_status === 'ready' && in_array($current_status, ['pending', 'processing'])) {
-            $update_data['status'] = 'ready';
-            $update_data['completed_at'] = current_time('mysql');
-            
-            // Calculate processing time
-            $ordered_time = strtotime($order->ordered_at);
-            $completed_time = time();
-            $update_data['processing_time_seconds'] = $completed_time - $ordered_time;
+        // Status: ready/completed (download is ready)
+        if (in_array($api_status, ['ready', 'completed']) && in_array($current_status, ['pending', 'queued', 'processing'])) {
+            $mapped_status = 'completed';
             
             // Store download details
             if (!empty($body['downloadLink'])) {
-                $update_data['download_link'] = $body['downloadLink'];
+                $update_fields['download_link'] = $body['downloadLink'];
             }
             
             if (!empty($body['fileName'])) {
-                $update_data['file_name'] = $body['fileName'];
+                $update_fields['file_name'] = $body['fileName'];
             }
             
             if (!empty($body['linkType'])) {
-                $update_data['link_type'] = $body['linkType'];
+                $update_fields['link_type'] = $body['linkType'];
             }
             
-            // Estimate expiry (24 hours from now - adjust if you know the actual expiry)
-            $update_data['download_link_expires_at'] = date('Y-m-d H:i:s', time() + (24 * 3600));
-            
-            error_log("Order {$task_id}: {$current_status} → ready (processed in {$update_data['processing_time_seconds']}s)");
+            error_log("Order {$task_id}: {$current_status} → completed");
             
             // Trigger completed action hook
             do_action('nehtw_order_completed', $order, $body);
@@ -241,17 +235,49 @@ class Nehtw_Order_Poller {
             return 'failed';
         }
         
-        // Update database if there are changes
-        if (count($update_data) > 2) { // More than just api_response_json and updated_at
-            $wpdb->update(
-                "{$wpdb->prefix}nehtw_orders",
-                $update_data,
-                ['id' => $order->id],
-                null,
-                ['%d']
-            );
+        // Update stock_orders table (source of truth)
+        if ($mapped_status !== $current_status || !empty($update_fields)) {
+            $update_fields['raw_response'] = $body;
             
-            return 'updated';
+            // Use existing update function which will sync to dashboard
+            if (class_exists('Nehtw_Gateway_Stock_Orders')) {
+                Nehtw_Gateway_Stock_Orders::update_status($task_id, $mapped_status, $update_fields);
+                return 'updated';
+            } else {
+                // Fallback: direct update
+                $stock_update_data = [
+                    'status' => $mapped_status,
+                    'updated_at' => current_time('mysql')
+                ];
+                
+                if (!empty($update_fields['download_link'])) {
+                    $stock_update_data['download_link'] = $update_fields['download_link'];
+                }
+                if (!empty($update_fields['file_name'])) {
+                    $stock_update_data['file_name'] = $update_fields['file_name'];
+                }
+                if (!empty($update_fields['link_type'])) {
+                    $stock_update_data['link_type'] = $update_fields['link_type'];
+                }
+                if (!empty($update_fields['raw_response'])) {
+                    $stock_update_data['raw_response'] = maybe_serialize($update_fields['raw_response']);
+                }
+                
+                $wpdb->update(
+                    "{$wpdb->prefix}nehtw_stock_orders",
+                    $stock_update_data,
+                    ['task_id' => $task_id],
+                    null,
+                    ['%s']
+                );
+                
+                // Sync to dashboard
+                if (class_exists('Nehtw_Order_Sync')) {
+                    Nehtw_Order_Sync::sync_status_update($task_id, $mapped_status, $update_fields);
+                }
+                
+                return 'updated';
+            }
         }
         
         return 'unchanged';
@@ -264,18 +290,34 @@ class Nehtw_Order_Poller {
         global $wpdb;
         
         $error_message = $api_response['message'] ?? 'Unknown error';
+        $task_id = $order->task_id;
         
-        // Update order status to failed
-        $wpdb->update(
-            "{$wpdb->prefix}nehtw_orders",
-            [
-                'status' => 'failed',
-                'error_message' => $error_message,
-                'api_response_json' => json_encode($api_response),
-                'updated_at' => current_time('mysql')
-            ],
-            ['id' => $order->id]
-        );
+        // Update stock_orders table (source of truth)
+        $update_fields = [
+            'raw_response' => $api_response
+        ];
+        
+        if (class_exists('Nehtw_Gateway_Stock_Orders')) {
+            Nehtw_Gateway_Stock_Orders::update_status($task_id, 'failed', $update_fields);
+        } else {
+            // Fallback: direct update
+            $wpdb->update(
+                "{$wpdb->prefix}nehtw_stock_orders",
+                [
+                    'status' => 'failed',
+                    'raw_response' => maybe_serialize($api_response),
+                    'updated_at' => current_time('mysql')
+                ],
+                ['task_id' => $task_id],
+                null,
+                ['%s']
+            );
+            
+            // Sync to dashboard
+            if (class_exists('Nehtw_Order_Sync')) {
+                Nehtw_Order_Sync::sync_status_update($task_id, 'failed', $update_fields);
+            }
+        }
         
         error_log("Order {$order->task_id}: FAILED - {$error_message}");
         
@@ -315,21 +357,15 @@ class Nehtw_Order_Poller {
     private function log_api_error($order, $error_message) {
         global $wpdb;
         
-        $wpdb->update(
-            "{$wpdb->prefix}nehtw_orders",
-            [
-                'error_message' => 'API Error: ' . $error_message,
-                'updated_at' => current_time('mysql')
-            ],
-            ['id' => $order->id]
-        );
+        $task_id = $order->task_id;
         
-        error_log("Order {$order->task_id}: API Error - {$error_message}");
+        // Log error in stock_orders (will sync automatically via update_status)
+        error_log("Order {$task_id}: API Error - {$error_message}");
         
         // Check if API is consistently failing (multiple errors in last 10 minutes)
         $recent_errors = $wpdb->get_var("
-            SELECT COUNT(*) FROM {$wpdb->prefix}nehtw_orders
-            WHERE error_message LIKE '%API Error%'
+            SELECT COUNT(*) FROM {$wpdb->prefix}nehtw_stock_orders
+            WHERE status = 'failed'
             AND updated_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
         ");
         

@@ -41,6 +41,10 @@ $realtime_stats = Nehtw_Analytics_Engine::get_realtime_stats();
             <span class="dashicons dashicons-database"></span>
             Backfill Analytics
         </a>
+        <a href="<?php echo admin_url('admin-post.php?action=nehtw_sync_orders'); ?>" class="button button-secondary">
+            <span class="dashicons dashicons-update"></span>
+            Sync Existing Orders
+        </a>
         <a href="<?php echo wp_nonce_url(rest_url('nehtw/v1/admin/orders/export'), 'wp_rest'); ?>" class="button button-secondary">
             <span class="dashicons dashicons-download"></span>
             Export CSV

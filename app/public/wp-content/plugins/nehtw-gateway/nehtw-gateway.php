@@ -27,9 +27,17 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock.php';
 
 // Admin Dashboard Components
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/database/class-nehtw-database.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/database/class-nehtw-order-sync.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/cron/class-nehtw-order-poller.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-analytics-engine.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-rest-api.php';
+
+// Balance System Components
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-balance-database.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-transaction-manager.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-balance-api.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-refund-processor.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-balance-sync.php';
 
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
@@ -172,9 +180,19 @@ function nehtw_gateway_activate() {
         Nehtw_Database::create_tables();
     }
     
+    // Create balance system database tables
+    if ( class_exists( 'Nehtw_Balance_Database' ) ) {
+        Nehtw_Balance_Database::create_tables();
+    }
+    
     // Schedule cron jobs for order polling
     if ( class_exists( 'Nehtw_Order_Poller' ) ) {
         Nehtw_Order_Poller::schedule_events();
+    }
+    
+    // Schedule balance sync
+    if ( class_exists( 'Nehtw_Balance_Sync' ) ) {
+        Nehtw_Balance_Sync::schedule_events();
     }
     
     // Schedule daily analytics aggregation
@@ -193,6 +211,9 @@ function nehtw_gateway_deactivate() {
     // Clear scheduled events
     if ( class_exists( 'Nehtw_Order_Poller' ) ) {
         Nehtw_Order_Poller::clear_scheduled_events();
+    }
+    if ( class_exists( 'Nehtw_Balance_Sync' ) ) {
+        Nehtw_Balance_Sync::clear_events();
     }
     wp_clear_scheduled_hook( 'nehtw_daily_aggregation' );
     
@@ -562,7 +583,17 @@ function nehtw_gateway_create_stock_order( $user_id, $site, $stock_id, $source_u
             array( '%d' )
         );
         
-        return $updated !== false ? (int) $existing['id'] : false;
+        $order_id = $updated !== false ? (int) $existing['id'] : false;
+        
+        // Sync to dashboard orders table
+        if ( $order_id && class_exists( 'Nehtw_Order_Sync' ) ) {
+            $stock_order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $order_id ), ARRAY_A );
+            if ( $stock_order ) {
+                Nehtw_Order_Sync::sync_order_to_dashboard( $stock_order );
+            }
+        }
+        
+        return $order_id;
     }
     
     // Insert new record
@@ -590,7 +621,18 @@ function nehtw_gateway_create_stock_order( $user_id, $site, $stock_id, $source_u
     );
 
     if ( ! $inserted ) return false;
-    return $wpdb->insert_id;
+    
+    $order_id = $wpdb->insert_id;
+    
+    // Sync to dashboard orders table
+    if ( class_exists( 'Nehtw_Order_Sync' ) ) {
+        $stock_order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $order_id ), ARRAY_A );
+        if ( $stock_order ) {
+            Nehtw_Order_Sync::sync_order_to_dashboard( $stock_order );
+        }
+    }
+    
+    return $order_id;
 }
 
 function nehtw_gateway_update_stock_order_status( $task_id, $status, $fields = array() ) {
@@ -626,6 +668,12 @@ function nehtw_gateway_update_stock_order_status( $task_id, $status, $fields = a
     }
 
     $updated = $wpdb->update( $table, $data, array( 'task_id' => $task_id ), $format, array( '%s' ) );
+    
+    // Sync to dashboard orders table
+    if ( false !== $updated && class_exists( 'Nehtw_Order_Sync' ) ) {
+        Nehtw_Order_Sync::sync_status_update( $task_id, $status, $fields );
+    }
+    
     return ( false !== $updated );
 }
 
@@ -1666,6 +1714,19 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
             )
             : 0;
 
+        // Record transaction for balance system
+        if ( $order_id && class_exists( 'Nehtw_Transaction_Manager' ) ) {
+            $stock_title = isset( $api_resp['title'] ) ? $api_resp['title'] : ( isset( $api_resp['stock_id'] ) ? $api_resp['stock_id'] : 'Stock order' );
+            $provider_name = isset( $sites_config[ $site ]['label'] ) ? $sites_config[ $site ]['label'] : ucfirst( $site );
+            
+            Nehtw_Transaction_Manager::record_order_deduction(
+                $user_id,
+                $order_id,
+                $cost_points,
+                sprintf( 'Stock order: %s from %s', $stock_title, $provider_name )
+            );
+        }
+
         // Normalize status: 'pending' from DB becomes 'queued' for frontend
         $result['status']   = 'queued';
         $result['message']  = __( 'Order queued. You\'ll see it soon in your history.', 'nehtw-gateway' );
@@ -2298,10 +2359,12 @@ function artly_nehtw_webhook_handler( WP_REST_Request $request ) {
     // Update status if it changed
     if ( $mapped_status && $mapped_status !== $order['status'] ) {
         Nehtw_Gateway_Stock_Orders::update_status( $task_id, $mapped_status, $update_args );
+        // Sync is handled inside update_status method
     } else {
         // Status unchanged, but we still want to update raw_response
         // Use update_status with same status to update other fields
         Nehtw_Gateway_Stock_Orders::update_status( $task_id, $order['status'], $update_args );
+        // Sync is handled inside update_status method
     }
 
     // 4) Optional: send email when status becomes completed
@@ -3856,6 +3919,259 @@ function nehtw_gateway_register_dashboard_menu() {
 add_action( 'admin_menu', 'nehtw_gateway_register_dashboard_menu' );
 
 /**
+ * Register the Transaction History submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_transaction_history_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'Transaction History', 'nehtw-gateway' ),
+        __( 'Transaction History', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-transactions',
+        'nehtw_gateway_render_transaction_history_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_transaction_history_submenu' );
+
+/**
+ * Render transaction history page.
+ */
+function nehtw_gateway_render_transaction_history_page() {
+    if (!class_exists('Nehtw_Transaction_Manager')) {
+        echo '<div class="wrap"><h1>Transaction History</h1><p>Balance system not loaded. Please ensure the plugin is activated.</p></div>';
+        return;
+    }
+    
+    global $wpdb;
+    
+    // Get selected user (if any)
+    $selected_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
+    $selected_user = $selected_user_id ? get_userdata($selected_user_id) : null;
+    
+    // Pagination
+    $page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+    $per_page = 50;
+    $offset = ($page - 1) * $per_page;
+    
+    // Filters
+    $category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
+    $type = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : '';
+    $start_date = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_date = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+    
+    // Build query
+    $where = ['1=1'];
+    $params = [];
+    
+    if ($selected_user_id) {
+        $where[] = 'user_id = %d';
+        $params[] = $selected_user_id;
+    }
+    
+    if ($category) {
+        $where[] = 'category = %s';
+        $params[] = $category;
+    }
+    
+    if ($type) {
+        $where[] = 'type = %s';
+        $params[] = $type;
+    }
+    
+    if ($start_date) {
+        $where[] = 'created_at >= %s';
+        $params[] = $start_date . ' 00:00:00';
+    }
+    
+    if ($end_date) {
+        $where[] = 'created_at <= %s';
+        $params[] = $end_date . ' 23:59:59';
+    }
+    
+    $where_clause = implode(' AND ', $where);
+    
+    // Get transactions
+    $query = "SELECT * FROM {$wpdb->prefix}nehtw_transactions WHERE {$where_clause} ORDER BY created_at DESC LIMIT %d OFFSET %d";
+    $params[] = $per_page;
+    $params[] = $offset;
+    
+    $transactions = $wpdb->get_results($wpdb->prepare($query, $params));
+    
+    // Get total count
+    $count_query = "SELECT COUNT(*) FROM {$wpdb->prefix}nehtw_transactions WHERE {$where_clause}";
+    $total = $wpdb->get_var($wpdb->prepare($count_query, array_slice($params, 0, -2)));
+    $total_pages = ceil($total / $per_page);
+    
+    // Get summary stats
+    $stats_query = "SELECT 
+        COUNT(*) as total_transactions,
+        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as total_credits,
+        SUM(CASE WHEN type = 'debit' THEN ABS(amount) ELSE 0 END) as total_debits
+        FROM {$wpdb->prefix}nehtw_transactions 
+        WHERE {$where_clause}";
+    $stats = $wpdb->get_row($wpdb->prepare($stats_query, array_slice($params, 0, -2)));
+    ?>
+    <div class="wrap">
+        <h1>
+            <span class="dashicons dashicons-list-view"></span>
+            Transaction History
+        </h1>
+        
+        <!-- Summary Stats -->
+        <div class="nehtw-transaction-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 20px 0;">
+            <div class="postbox" style="padding: 15px;">
+                <h3 style="margin: 0 0 10px;">Total Transactions</h3>
+                <p style="font-size: 24px; font-weight: bold; margin: 0; color: #2271b1;">
+                    <?php echo number_format($stats->total_transactions ?? 0); ?>
+                </p>
+            </div>
+            <div class="postbox" style="padding: 15px;">
+                <h3 style="margin: 0 0 10px;">Total Credits</h3>
+                <p style="font-size: 24px; font-weight: bold; margin: 0; color: #00a32a;">
+                    $<?php echo number_format($stats->total_credits ?? 0, 2); ?>
+                </p>
+            </div>
+            <div class="postbox" style="padding: 15px;">
+                <h3 style="margin: 0 0 10px;">Total Debits</h3>
+                <p style="font-size: 24px; font-weight: bold; margin: 0; color: #d63638;">
+                    $<?php echo number_format($stats->total_debits ?? 0, 2); ?>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <form method="get" action="" style="margin: 20px 0;">
+            <input type="hidden" name="page" value="nehtw-gateway-transactions">
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;">
+                <div>
+                    <label>User ID:</label>
+                    <input type="number" name="user_id" value="<?php echo esc_attr($selected_user_id); ?>" class="regular-text" placeholder="Filter by user">
+                </div>
+                <div>
+                    <label>Category:</label>
+                    <select name="category" class="regular-text">
+                        <option value="">All Categories</option>
+                        <option value="order" <?php selected($category, 'order'); ?>>Orders</option>
+                        <option value="subscription" <?php selected($category, 'subscription'); ?>>Subscriptions</option>
+                        <option value="refund" <?php selected($category, 'refund'); ?>>Refunds</option>
+                        <option value="transfer_sent" <?php selected($category, 'transfer_sent'); ?>>Transfers Sent</option>
+                        <option value="transfer_received" <?php selected($category, 'transfer_received'); ?>>Transfers Received</option>
+                        <option value="bonus" <?php selected($category, 'bonus'); ?>>Bonuses</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Type:</label>
+                    <select name="type" class="regular-text">
+                        <option value="">All Types</option>
+                        <option value="credit" <?php selected($type, 'credit'); ?>>Credits</option>
+                        <option value="debit" <?php selected($type, 'debit'); ?>>Debits</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Date Range:</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="date" name="start_date" value="<?php echo esc_attr($start_date); ?>" placeholder="Start">
+                        <input type="date" name="end_date" value="<?php echo esc_attr($end_date); ?>" placeholder="End">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="button button-primary">Filter</button>
+            <a href="?page=nehtw-gateway-transactions" class="button">Clear</a>
+        </form>
+        
+        <!-- Transactions Table -->
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Balance After</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($transactions)): ?>
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 40px;">
+                            No transactions found.
+                        </td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($transactions as $tx): ?>
+                        <?php $user = get_userdata($tx->user_id); ?>
+                        <tr>
+                            <td><?php echo $tx->id; ?></td>
+                            <td>
+                                <?php if ($user): ?>
+                                    <a href="<?php echo admin_url('user-edit.php?user_id=' . $tx->user_id); ?>">
+                                        <?php echo esc_html($user->display_name); ?> (ID: <?php echo $tx->user_id; ?>)
+                                    </a>
+                                <?php else: ?>
+                                    User #<?php echo $tx->user_id; ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo date('Y-m-d H:i:s', strtotime($tx->created_at)); ?></td>
+                            <td>
+                                <span class="dashicons dashicons-<?php echo $tx->type === 'credit' ? 'arrow-up-alt' : 'arrow-down-alt'; ?>" 
+                                      style="color: <?php echo $tx->type === 'credit' ? '#00a32a' : '#d63638'; ?>;"></span>
+                                <?php echo ucfirst($tx->type); ?>
+                            </td>
+                            <td><?php echo ucfirst(str_replace('_', ' ', $tx->category)); ?></td>
+                            <td><?php echo esc_html($tx->description); ?></td>
+                            <td style="font-weight: bold; color: <?php echo $tx->type === 'credit' ? '#00a32a' : '#d63638'; ?>;">
+                                <?php echo $tx->type === 'credit' ? '+' : '-'; ?>$<?php echo number_format(abs($tx->amount), 2); ?>
+                            </td>
+                            <td>$<?php echo number_format($tx->balance_after, 2); ?></td>
+                            <td>
+                                <span style="padding: 3px 8px; border-radius: 3px; background: <?php 
+                                    echo $tx->status === 'completed' ? '#00a32a' : ($tx->status === 'pending' ? '#f0b849' : '#d63638'); 
+                                ?>; color: white; font-size: 11px;">
+                                    <?php echo ucfirst($tx->status); ?>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        <?php if ($total_pages > 1): ?>
+            <div class="tablenav">
+                <div class="tablenav-pages">
+                    <?php
+                    $pagination_args = [
+                        'base' => add_query_arg('paged', '%#%'),
+                        'format' => '',
+                        'prev_text' => '&laquo;',
+                        'next_text' => '&raquo;',
+                        'total' => $total_pages,
+                        'current' => $page
+                    ];
+                    echo paginate_links($pagination_args);
+                    ?>
+                </div>
+            </div>
+        <?php endif; ?>
+        
+        <p style="margin-top: 20px; color: #666;">
+            <strong>Total:</strong> <?php echo number_format($total); ?> transactions
+            <?php if ($selected_user_id && $selected_user): ?>
+                for user: <strong><?php echo esc_html($selected_user->display_name); ?></strong>
+            <?php endif; ?>
+        </p>
+    </div>
+    <?php
+}
+
+/**
  * Render dashboard page.
  */
 function nehtw_gateway_render_dashboard() {
@@ -4927,6 +5243,17 @@ function nehtw_gateway_handle_subscriptions_cron() {
                 )
             );
         }
+        
+        // Record transaction in balance system
+        if ( class_exists( 'Nehtw_Transaction_Manager' ) ) {
+            $plan_name = isset( $sub['plan_key'] ) ? $sub['plan_key'] : 'Subscription';
+            Nehtw_Transaction_Manager::record_subscription_credit(
+                $user_id,
+                $sub['id'],
+                $points,
+                sprintf( 'Monthly subscription renewal: %s', $plan_name )
+            );
+        }
 
         // Optional: also sync to Nehtw using /api/sendpoint
         if ( function_exists( 'nehtw_gateway_send_points_to_nehtw' ) ) {
@@ -5226,6 +5553,27 @@ function nehtw_gateway_handle_order_completed_for_subscriptions( $order_id ) {
                 )
             );
         }
+        
+        // Record transaction in balance system
+        if ( class_exists( 'Nehtw_Transaction_Manager' ) ) {
+            $subscription_id = 0; // Will be set after subscription is saved
+            $plan_name = isset( $plan['name'] ) ? $plan['name'] : ( isset( $plan['key'] ) ? $plan['key'] : 'Subscription' );
+            
+            // Get subscription ID if available
+            if ( function_exists( 'nehtw_gateway_get_user_subscription' ) ) {
+                $user_sub = nehtw_gateway_get_user_subscription( $user_id );
+                if ( $user_sub && isset( $user_sub['id'] ) ) {
+                    $subscription_id = $user_sub['id'];
+                }
+            }
+            
+            Nehtw_Transaction_Manager::record_subscription_credit(
+                $user_id,
+                $subscription_id,
+                $points,
+                sprintf( 'Subscription: %s (initial payment)', $plan_name )
+            );
+        }
     }
 }
 add_action( 'woocommerce_order_status_completed', 'nehtw_gateway_handle_order_completed_for_subscriptions', 20, 1 );
@@ -5293,6 +5641,28 @@ function nehtw_gateway_handle_subscription_renewal_order( $order ) {
                 ),
             )
         );
+        
+        // Record transaction in balance system
+        if ( class_exists( 'Nehtw_Transaction_Manager' ) ) {
+            $plan_name = isset( $plan['name'] ) ? $plan['name'] : ( isset( $plan['key'] ) ? $plan['key'] : 'Subscription' );
+            
+            // Get subscription ID from WooCommerce subscription
+            $subscription_id = 0;
+            if ( function_exists( 'wcs_get_subscriptions_for_order' ) ) {
+                $subscriptions = wcs_get_subscriptions_for_order( $order->get_id() );
+                if ( ! empty( $subscriptions ) ) {
+                    $subscription = reset( $subscriptions );
+                    $subscription_id = $subscription->get_id();
+                }
+            }
+            
+            Nehtw_Transaction_Manager::record_subscription_credit(
+                $user_id,
+                $subscription_id,
+                $points,
+                sprintf( 'WooCommerce subscription renewal: %s', $plan_name )
+            );
+        }
 
         // Optionally update "next_renewal_at" in the internal subscriptions table,
         // but the cron may already be doing that. Keep behavior consistent with existing cron.

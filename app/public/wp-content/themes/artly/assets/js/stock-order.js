@@ -178,7 +178,7 @@
           },
         },
         {
-          match: /istockphoto\.com\/(.*)gm([0-9A-Z_]*)-/,
+          match: /istockphoto\.com\/(.*)gm([0-9]+)(?:-[0-9]+)?/,
           result: function (string) {
             var stockSource = "istockphoto";
             var stockId = string[2];
@@ -2360,7 +2360,6 @@
       }
     }
 
->>>>>>> b8185fe (Add NEHTW Admin Dashboard v2.0.0 - Complete admin dashboard with analytics, order polling, and REST API)
     function showError(message) {
       var resultsEl = root.querySelector("[data-stock-order-results]");
       if (!resultsEl) return;

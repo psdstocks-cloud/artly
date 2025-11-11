@@ -518,6 +518,11 @@ class Nehtw_Gateway_Stock_Orders {
             null,
             array( '%s' )
         );
+        
+        // Sync to dashboard orders table
+        if ( false !== $result && class_exists( 'Nehtw_Order_Sync' ) ) {
+            Nehtw_Order_Sync::sync_status_update( $task_id, $status, $data );
+        }
 
         return false !== $result;
     }

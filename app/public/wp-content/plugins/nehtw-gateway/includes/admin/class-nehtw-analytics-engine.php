@@ -470,3 +470,34 @@ add_action('admin_post_nehtw_backfill_analytics', function() {
     exit;
 });
 
+// Add admin action to sync existing orders from stock_orders to dashboard
+add_action('admin_post_nehtw_sync_orders', function() {
+    if (!current_user_can('manage_options')) {
+        wp_die('Unauthorized');
+    }
+    
+    if (!class_exists('Nehtw_Order_Sync')) {
+        wp_redirect(admin_url('admin.php?page=nehtw-dashboard&sync_error=1'));
+        exit;
+    }
+    
+    $offset = 0;
+    $limit = 100;
+    $total_synced = 0;
+    $total_errors = 0;
+    
+    // Sync in batches to avoid timeout
+    do {
+        $result = Nehtw_Order_Sync::backfill_orders($limit, $offset);
+        $total_synced += $result['synced'];
+        $total_errors += $result['errors'];
+        $offset += $limit;
+        
+        // Small delay to avoid overwhelming the database
+        usleep(100000); // 0.1 seconds
+    } while ($result['total_processed'] > 0 && $result['total_processed'] == $limit);
+    
+    wp_redirect(admin_url('admin.php?page=nehtw-dashboard&synced=' . $total_synced . '&errors=' . $total_errors));
+    exit;
+});
+
