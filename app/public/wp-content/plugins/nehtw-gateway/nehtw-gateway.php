@@ -24,6 +24,7 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscriptions.php'
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-wallet-topups.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-email-templates.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-webhooks.php';
 
 // Admin Dashboard Components
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/database/class-nehtw-database.php';
@@ -1320,12 +1321,14 @@ function nehtw_gateway_register_rest_routes() {
      *
      * This keeps our local order table in sync and powers real-time UI updates.
      */
+    // Webhook endpoint is now handled by Nehtw_Gateway_Webhooks class
+    // Keeping this route for backward compatibility but it will use the class method
     register_rest_route(
         'artly/v1',
         '/nehtw-webhook',
         array(
             'methods'             => WP_REST_Server::READABLE,
-            'callback'            => 'artly_nehtw_webhook_handler',
+            'callback'            => array( 'Nehtw_Gateway_Webhooks', 'handle_webhook' ),
             'permission_callback' => '__return_true',
         )
     );

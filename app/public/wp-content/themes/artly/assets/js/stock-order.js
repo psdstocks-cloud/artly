@@ -1692,30 +1692,6 @@
 
     // ========== STATUS POLLING FUNCTIONS ==========
 
-    /**
-     * Register an order for real-time status tracking.
-     * 
-     * @param {string} taskId - The NEHTW task_id for this order
-     * @param {HTMLElement} cardEl - The DOM element representing this order card
-     * @param {string} status - Current status of the order
-     */
-    function registerOrderForRealtimeStatus(taskId, cardEl, status) {
-      if (!taskId || !cardEl || !statusEndpoint) return;
-
-      var finalStatuses = ['completed', 'failed', 'error', 'already_downloaded', 'ready'];
-      var isFinal = finalStatuses.indexOf((status || '').toLowerCase()) !== -1;
-
-      if (isFinal) return;
-
-      activeOrders[taskId] = {
-        startedAt: Date.now(),
-        element: cardEl,
-        notified: false
-      };
-
-      startStatusPolling();
-    }
-
     function startStatusPolling() {
       if (!statusEndpoint) return;
       if (Object.keys(activeOrders).length === 0) return;
@@ -1723,13 +1699,37 @@
       if (!statusPollTimer) {
         pollOrderStatuses();
         statusPollTimer = setInterval(pollOrderStatuses, statusConfig.pollInterval);
+        
+        // Pause/resume when tab is hidden/visible
+        document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true });
+      }
+    }
+
+    function stopStatusPolling() {
+      if (statusPollTimer) {
+        clearInterval(statusPollTimer);
+        statusPollTimer = null;
       }
     }
 
     function stopStatusPollingIfIdle() {
       if (statusPollTimer && Object.keys(activeOrders).length === 0) {
-        clearInterval(statusPollTimer);
-        statusPollTimer = null;
+        stopStatusPolling();
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        // Pause polling when tab is hidden
+        if (statusPollTimer) {
+          clearInterval(statusPollTimer);
+          statusPollTimer = null;
+        }
+      } else if (document.visibilityState === 'visible' && Object.keys(activeOrders).length > 0) {
+        // Resume polling when tab becomes visible
+        if (!statusPollTimer) {
+          startStatusPolling();
+        }
       }
     }
 
