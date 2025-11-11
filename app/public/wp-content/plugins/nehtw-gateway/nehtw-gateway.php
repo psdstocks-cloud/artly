@@ -25,6 +25,12 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-wallet-topups.php'
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-email-templates.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock.php';
 
+// Admin Dashboard Components
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/database/class-nehtw-database.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/cron/class-nehtw-order-poller.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-analytics-engine.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-rest-api.php';
+
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
     require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-artly-woocommerce-points.php';
@@ -145,7 +151,7 @@ function nehtw_gateway_activate() {
     dbDelta( $sql_ai );
     dbDelta( $sql_stock_sites );
     dbDelta( $sql_subscriptions );
-
+    
     // Initialize webhook secret if not already set
     $webhook_secret = get_option( 'nehtw_webhook_secret' );
     if ( ! $webhook_secret ) {
@@ -160,7 +166,40 @@ function nehtw_gateway_activate() {
     if ( $needs_provider_label ) {
         $wpdb->query( "ALTER TABLE {$table_stock} ADD COLUMN provider_label VARCHAR(100) NULL AFTER site" );
     }
+    
+    // Create admin dashboard database tables
+    if ( class_exists( 'Nehtw_Database' ) ) {
+        Nehtw_Database::create_tables();
+    }
+    
+    // Schedule cron jobs for order polling
+    if ( class_exists( 'Nehtw_Order_Poller' ) ) {
+        Nehtw_Order_Poller::schedule_events();
+    }
+    
+    // Schedule daily analytics aggregation
+    if ( ! wp_next_scheduled( 'nehtw_daily_aggregation' ) ) {
+        wp_schedule_event( strtotime( 'tomorrow 1:00am' ), 'daily', 'nehtw_daily_aggregation' );
+    }
+    
+    // Flush rewrite rules
+    flush_rewrite_rules();
 }
+
+/**
+ * Plugin Deactivation
+ */
+function nehtw_gateway_deactivate() {
+    // Clear scheduled events
+    if ( class_exists( 'Nehtw_Order_Poller' ) ) {
+        Nehtw_Order_Poller::clear_scheduled_events();
+    }
+    wp_clear_scheduled_hook( 'nehtw_daily_aggregation' );
+    
+    // Flush rewrite rules
+    flush_rewrite_rules();
+}
+register_deactivation_hook( NEHTW_GATEWAY_PLUGIN_FILE, 'nehtw_gateway_deactivate' );
 
 // Migration function to add new columns on plugin update
 function nehtw_gateway_maybe_migrate_stock_orders() {
@@ -843,11 +882,11 @@ function nehtw_gateway_api_get( $path, $query_args = array() ) {
 
         // Preserve HTTP status code and raw response data for callers.
         $error_data = array(
-            'status'        => (int) $code,
+                'status'        => (int) $code,
             'body'          => $decoded,
-            'response_body' => $body,
-            'response_json' => $decoded,
-            'endpoint'      => $path,
+                'response_body' => $body,
+                'response_json' => $decoded,
+                'endpoint'      => $path,
             'message'       => $message,
         );
 
@@ -2212,6 +2251,25 @@ function artly_nehtw_webhook_handler( WP_REST_Request $request ) {
         }
     }
 
+    // Extract file_name and link_type if present
+    $file_name = '';
+    $file_name_keys = array( 'file_name', 'filename', 'fileName', 'file' );
+    foreach ( $file_name_keys as $k ) {
+        if ( isset( $remote_body[ $k ] ) && ! empty( $remote_body[ $k ] ) ) {
+            $file_name = sanitize_text_field( $remote_body[ $k ] );
+            break;
+        }
+    }
+
+    $link_type = '';
+    $link_type_keys = array( 'link_type', 'linkType', 'type', 'response_type' );
+    foreach ( $link_type_keys as $k ) {
+        if ( isset( $remote_body[ $k ] ) && ! empty( $remote_body[ $k ] ) ) {
+            $link_type = sanitize_text_field( $remote_body[ $k ] );
+            break;
+        }
+    }
+
     $update_args = array(
         'raw_response' => maybe_serialize( $extra_data ),
     );
@@ -2219,6 +2277,22 @@ function artly_nehtw_webhook_handler( WP_REST_Request $request ) {
     if ( ! empty( $download_link ) ) {
         $update_args['download_link'] = $download_link;
         $mapped_status                = 'completed';
+    }
+
+    if ( ! empty( $file_name ) ) {
+        $update_args['file_name'] = $file_name;
+    }
+
+    if ( ! empty( $link_type ) ) {
+        $update_args['link_type'] = $link_type;
+    }
+
+    // Also check for nehtw_cost if present
+    if ( isset( $remote_body['nehtw_cost'] ) || isset( $remote_body['cost'] ) ) {
+        $nehtw_cost = isset( $remote_body['nehtw_cost'] ) ? floatval( $remote_body['nehtw_cost'] ) : floatval( $remote_body['cost'] );
+        if ( $nehtw_cost > 0 ) {
+            $update_args['nehtw_cost'] = $nehtw_cost;
+        }
     }
 
     // Update status if it changed
@@ -3010,8 +3084,8 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
         // Extract HTTP status code from Nehtw API wrapper error if available.
         if ( 'nehtw_http_error' === $api->get_error_code() && is_array( $error_data ) ) {
             if ( ! empty( $error_data['status'] ) ) {
-                $status = (int) $error_data['status'];
-            }
+            $status = (int) $error_data['status'];
+        }
             if ( ! empty( $error_data['body']['message'] ) ) {
                 $message = (string) $error_data['body']['message'];
             } elseif ( ! empty( $error_data['message'] ) ) {
@@ -3046,7 +3120,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
                 if ( 'nehtw_http_error' === $api_retry->get_error_code() && is_array( $retry_error_data ) ) {
                     if ( ! empty( $retry_error_data['status'] ) ) {
                         $status = (int) $retry_error_data['status'];
-                    }
+                }
                     if ( ! empty( $retry_error_data['body']['message'] ) ) {
                         $message = (string) $retry_error_data['body']['message'];
                     } elseif ( ! empty( $retry_error_data['message'] ) ) {
@@ -3054,7 +3128,7 @@ function nehtw_gateway_rest_download_redownload( WP_REST_Request $request ) {
                     }
                 } else {
                     $message = $retry_message;
-                }
+            }
 
                 // Still return error after retry.
                 $status = $status >= 500 ? 502 : $status;
@@ -3764,6 +3838,33 @@ function nehtw_gateway_register_email_templates_submenu() {
     );
 }
 add_action( 'admin_menu', 'nehtw_gateway_register_email_templates_submenu' );
+
+/**
+ * Register the Nehtw Dashboard menu.
+ */
+function nehtw_gateway_register_dashboard_menu() {
+    add_menu_page(
+        __( 'Nehtw Dashboard', 'nehtw-gateway' ),
+        __( 'Nehtw Dashboard', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-dashboard',
+        'nehtw_gateway_render_dashboard',
+        'dashicons-chart-area',
+        3
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_dashboard_menu' );
+
+/**
+ * Render dashboard page.
+ */
+function nehtw_gateway_render_dashboard() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
+    }
+    
+    require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/dashboard-page.php';
+}
 
 /**
  * Render the User Points admin page.

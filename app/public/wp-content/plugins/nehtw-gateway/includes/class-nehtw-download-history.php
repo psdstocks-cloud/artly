@@ -969,7 +969,7 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
                     FROM {$table_stock} s1
                     INNER JOIN (
                         SELECT user_id, site, stock_id, MAX(id) AS max_id
-                        FROM {$table_stock}
+                    FROM {$table_stock} 
                         WHERE user_id = %d AND stock_id IS NOT NULL
                         GROUP BY user_id, site, stock_id
                     ) s2 ON s1.user_id = s2.user_id AND s1.site = s2.site AND s1.stock_id = s2.stock_id AND s1.id = s2.max_id
@@ -981,7 +981,7 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
                 ) AS deduped_stock",
                 $user_id,
                 $user_id,
-                $user_id
+                    $user_id
             );
         }
 
@@ -998,11 +998,11 @@ if ( ! function_exists( 'nehtw_gateway_get_user_download_history' ) ) {
             if ( count( $count_selects ) === 1 ) {
                 // Single count query.
                 $total = (int) $wpdb->get_var( $count_selects[0] );
-            } else {
+        } else {
                 // Multiple count queries - sum them.
                 foreach ( $count_selects as $count_sql ) {
                     $total += (int) $wpdb->get_var( $count_sql );
-                }
+        }
             }
         }
 
