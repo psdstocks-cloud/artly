@@ -2107,11 +2107,24 @@ function artly_stock_order_rest_generate_download_link( WP_REST_Request $request
     $raw_data = Nehtw_Gateway_Stock_Orders::get_order_raw_data( $order );
     
     // Check if client requested fresh link (for already_downloaded items)
-    $force_fresh = $request->get_param( 'fresh' ) === 'true' || $request->get_param( 'force_fresh' ) === 'true';
+    // Check both query params and body params (REST API can use either)
+    $fresh_param = $request->get_param( 'fresh' );
+    $force_fresh_param = $request->get_param( 'force_fresh' );
+    
+    // Accept multiple formats: 'true', true, '1', 1
+    $force_fresh = false;
+    if ( $fresh_param !== null ) {
+        $force_fresh = ( $fresh_param === 'true' || $fresh_param === true || $fresh_param === '1' || $fresh_param === 1 );
+    }
+    if ( ! $force_fresh && $force_fresh_param !== null ) {
+        $force_fresh = ( $force_fresh_param === 'true' || $force_fresh_param === true || $force_fresh_param === '1' || $force_fresh_param === 1 );
+    }
     
     // For already_downloaded items, always generate fresh link (don't use cache)
-    // Also skip cache if force_fresh parameter is set
-    $skip_cache = $force_fresh || ( isset( $order['status'] ) && strtolower( $order['status'] ) === 'already_downloaded' );
+    // Note: Order status in DB is usually "completed", not "already_downloaded"
+    // The "already_downloaded" status is only in the API response, so we rely on ?fresh=true param
+    // If fresh=true is explicitly requested, ALWAYS skip cache and generate new link
+    $skip_cache = $force_fresh;
 
     if ( ! $skip_cache && Nehtw_Gateway_Stock_Orders::order_download_is_valid( $order, $raw_data ) ) {
         $formatted = Nehtw_Gateway_Stock_Orders::format_order_for_api( $order );

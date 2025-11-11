@@ -1502,10 +1502,13 @@
 
           var generateBtn = actionsEl.querySelector('[data-generate-download="1"]');
           if (generateBtn) {
+            // Store a flag on the button to indicate this is for already_downloaded
+            generateBtn.setAttribute("data-already-downloaded", "1");
             generateBtn.addEventListener("click", function (ev) {
               ev.preventDefault();
               ev.stopPropagation();
-              generateDownloadLink(normalized.task_id, resultEl, 0);
+              // Always pass fresh=true for already_downloaded items
+              generateDownloadLink(normalized.task_id, resultEl, 0, true);
             });
           }
         } else if (normalized.download_url && status !== "already_downloaded") {
@@ -1545,12 +1548,13 @@
       return list;
     }
 
-    function generateDownloadLink(taskId, resultEl, retryCount) {
+    function generateDownloadLink(taskId, resultEl, retryCount, forceFresh) {
       if (!taskId || !resultEl || !downloadEndpointBase) {
         return;
       }
 
       retryCount = retryCount || 0;
+      forceFresh = forceFresh === true; // Explicitly check for true
 
       updateOrderResult(resultEl, {
         status: "ready",
@@ -1564,21 +1568,37 @@
       }
 
       // For already_downloaded items, always request fresh link (add ?fresh=true)
-      // Check both dataset.status and any existing button data attribute
+      // Check multiple sources to detect already_downloaded scenario
       var url = downloadEndpointBase + encodeURIComponent(taskId) + "/download";
       var currentStatus = resultEl ? (resultEl.dataset.status || "").toLowerCase() : "";
-      var isAlreadyDownloaded = currentStatus === "already_downloaded";
+      var isAlreadyDownloaded = forceFresh || currentStatus === "already_downloaded";
       
-      // Also check if the button has data-generate-download attribute (indicates already_downloaded)
+      // Check if button has data-generate-download or data-already-downloaded attribute
       if (!isAlreadyDownloaded && resultEl) {
-        var generateBtn = resultEl.querySelector('[data-generate-download="1"]');
+        var generateBtn = resultEl.querySelector('[data-generate-download="1"], [data-already-downloaded="1"]');
         if (generateBtn) {
           isAlreadyDownloaded = true;
         }
       }
       
+      // Also check data-status attribute directly
+      if (!isAlreadyDownloaded && resultEl) {
+        var cardStatus = resultEl.getAttribute("data-status");
+        if (cardStatus && cardStatus.toLowerCase() === "already_downloaded") {
+          isAlreadyDownloaded = true;
+        }
+      }
+      
+      // ALWAYS add fresh=true if we detect already_downloaded scenario
+      // This ensures backend always generates fresh link, never uses cache
       if (isAlreadyDownloaded) {
-        url += "?fresh=true";
+        // Use proper URL encoding - check if URL already has query params
+        var separator = url.indexOf("?") === -1 ? "?" : "&";
+        url += separator + "fresh=true";
+        // Debug: log when we're forcing fresh link
+        if (window.console && window.console.log) {
+          console.log("[Stock Order] Forcing fresh link for already_downloaded item:", url);
+        }
       }
       
       fetch(url, {
@@ -1607,15 +1627,45 @@
             throw new Error((data && data.message) || "Missing download_url");
           }
 
-          updateOrderResult(resultEl, {
-            status: (data.status || "completed").toLowerCase(),
-            progress: 100,
-            message: data.message || "Download ready",
-            download_url: data.download_url
-          });
+          // Check if this was for an already_downloaded item
+          var wasAlreadyDownloaded = isAlreadyDownloaded;
+          var freshDownloadUrl = data.download_url;
 
+          // Update the UI with the fresh download URL
+          // For already_downloaded items, we want to keep the button behavior
+          // but update it with the fresh link
+          if (wasAlreadyDownloaded) {
+            // Update the button to be a direct link with the fresh URL
+            var actionsEl = resultEl.querySelector("[data-actions]");
+            if (actionsEl) {
+              actionsEl.innerHTML =
+                '<a href="' +
+                escapeHtml(freshDownloadUrl) +
+                '" target="_blank" rel="noopener" class="stock-order-result-link stock-order-download-btn">' +
+                '<span class="stock-order-download-icon" aria-hidden="true">⬇</span>' +
+                '<span>Download now</span>' +
+                "</a>";
+            }
+            
+            // Update status and message
+            updateOrderResult(resultEl, {
+              status: (data.status || "completed").toLowerCase(),
+              progress: 100,
+              message: data.message || "Fresh download link ready"
+            });
+          } else {
+            // For new downloads, use the standard update flow
+            updateOrderResult(resultEl, {
+              status: (data.status || "completed").toLowerCase(),
+              progress: 100,
+              message: data.message || "Download ready",
+              download_url: freshDownloadUrl
+            });
+          }
+
+          // Open the download link
           try {
-            window.open(data.download_url, "_blank");
+            window.open(freshDownloadUrl, "_blank");
           } catch (err) {}
         })
         .catch(function (error) {
