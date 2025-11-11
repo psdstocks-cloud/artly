@@ -40,6 +40,25 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-balance-ap
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-refund-processor.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/balance/class-nehtw-balance-sync.php';
 
+// Billing System Components
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-invoice-manager.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-payment-retry.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-dunning-manager.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-subscription-manager.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-usage-tracker.php';
+
+// Billing REST API
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-subscription-rest-api.php';
+
+// Billing Cron Jobs
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/cron/class-nehtw-billing-cron.php';
+
+// Payment Gateway Settings
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-payment-gateway-settings.php';
+
+// Dunning Manager Admin Page
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-dunning-admin.php';
+
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
     require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-artly-woocommerce-points.php';
@@ -161,6 +180,177 @@ function nehtw_gateway_activate() {
     dbDelta( $sql_stock_sites );
     dbDelta( $sql_subscriptions );
     
+    // ========== BILLING SYSTEM TABLES ==========
+    
+    // Invoices Table
+    $table_invoices = $wpdb->prefix . 'nehtw_invoices';
+    $sql_invoices = "CREATE TABLE {$table_invoices} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        subscription_id BIGINT(20) UNSIGNED NOT NULL,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        invoice_number VARCHAR(50) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total_amount DECIMAL(10,2) NOT NULL,
+        currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        billing_period_start DATETIME NOT NULL,
+        billing_period_end DATETIME NOT NULL,
+        due_date DATETIME NOT NULL,
+        paid_at DATETIME NULL,
+        payment_method VARCHAR(50) NULL,
+        payment_gateway VARCHAR(50) NULL,
+        gateway_transaction_id VARCHAR(191) NULL,
+        pdf_path TEXT NULL,
+        notes TEXT NULL,
+        meta LONGTEXT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        PRIMARY KEY  (id),
+        UNIQUE KEY invoice_number (invoice_number),
+        KEY subscription_id (subscription_id),
+        KEY user_id (user_id),
+        KEY status (status),
+        KEY due_date (due_date),
+        KEY paid_at (paid_at)
+    ) {$charset_collate};";
+    dbDelta( $sql_invoices );
+    
+    // Payment Attempts Table
+    $table_payment_attempts = $wpdb->prefix . 'nehtw_payment_attempts';
+    $sql_payment_attempts = "CREATE TABLE {$table_payment_attempts} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        invoice_id BIGINT(20) UNSIGNED NOT NULL,
+        subscription_id BIGINT(20) UNSIGNED NOT NULL,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        attempt_number INT NOT NULL DEFAULT 1,
+        amount DECIMAL(10,2) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        error_code VARCHAR(50) NULL,
+        error_message TEXT NULL,
+        gateway_response LONGTEXT NULL,
+        attempted_at DATETIME NOT NULL,
+        PRIMARY KEY  (id),
+        KEY invoice_id (invoice_id),
+        KEY subscription_id (subscription_id),
+        KEY user_id (user_id),
+        KEY status (status),
+        KEY attempted_at (attempted_at)
+    ) {$charset_collate};";
+    dbDelta( $sql_payment_attempts );
+    
+    // Subscription History Table
+    $table_subscription_history = $wpdb->prefix . 'nehtw_subscription_history';
+    $sql_subscription_history = "CREATE TABLE {$table_subscription_history} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        subscription_id BIGINT(20) UNSIGNED NOT NULL,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        old_status VARCHAR(20) NULL,
+        new_status VARCHAR(20) NULL,
+        old_plan_key VARCHAR(64) NULL,
+        new_plan_key VARCHAR(64) NULL,
+        amount_change DECIMAL(10,2) NULL,
+        note TEXT NULL,
+        ip_address VARCHAR(45) NULL,
+        user_agent TEXT NULL,
+        meta LONGTEXT NULL,
+        created_at DATETIME NOT NULL,
+        created_by BIGINT(20) UNSIGNED NULL,
+        PRIMARY KEY  (id),
+        KEY subscription_id (subscription_id),
+        KEY user_id (user_id),
+        KEY action (action),
+        KEY created_at (created_at)
+    ) {$charset_collate};";
+    dbDelta( $sql_subscription_history );
+    
+    // Dunning Emails Table
+    $table_dunning_emails = $wpdb->prefix . 'nehtw_dunning_emails';
+    $sql_dunning_emails = "CREATE TABLE {$table_dunning_emails} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        subscription_id BIGINT(20) UNSIGNED NOT NULL,
+        invoice_id BIGINT(20) UNSIGNED NOT NULL,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        dunning_level INT NOT NULL,
+        email_type VARCHAR(50) NOT NULL,
+        sent_at DATETIME NOT NULL,
+        opened_at DATETIME NULL,
+        clicked_at DATETIME NULL,
+        converted_at DATETIME NULL,
+        PRIMARY KEY  (id),
+        KEY subscription_id (subscription_id),
+        KEY invoice_id (invoice_id),
+        KEY user_id (user_id),
+        KEY sent_at (sent_at)
+    ) {$charset_collate};";
+    dbDelta( $sql_dunning_emails );
+    
+    // Usage Tracking Table
+    $table_usage_tracking = $wpdb->prefix . 'nehtw_usage_tracking';
+    $sql_usage_tracking = "CREATE TABLE {$table_usage_tracking} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        subscription_id BIGINT(20) UNSIGNED NOT NULL,
+        usage_type VARCHAR(50) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        unit VARCHAR(20) NOT NULL DEFAULT 'points',
+        recorded_at DATETIME NOT NULL,
+        billing_period_start DATETIME NOT NULL,
+        billing_period_end DATETIME NOT NULL,
+        meta LONGTEXT NULL,
+        PRIMARY KEY  (id),
+        KEY user_id (user_id),
+        KEY subscription_id (subscription_id),
+        KEY usage_type (usage_type),
+        KEY billing_period_start (billing_period_start),
+        KEY billing_period_end (billing_period_end),
+        KEY recorded_at (recorded_at)
+    ) {$charset_collate};";
+    dbDelta( $sql_usage_tracking );
+    
+    // Payment Retries Table (for retry scheduling)
+    $table_payment_retries = $wpdb->prefix . 'nehtw_payment_retries';
+    $sql_payment_retries = "CREATE TABLE {$table_payment_retries} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        invoice_id BIGINT(20) UNSIGNED NOT NULL,
+        subscription_id BIGINT(20) UNSIGNED NOT NULL,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        attempt_number INT NOT NULL DEFAULT 1,
+        scheduled_at DATETIME NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        PRIMARY KEY  (id),
+        KEY invoice_id (invoice_id),
+        KEY subscription_id (subscription_id),
+        KEY user_id (user_id),
+        KEY status (status),
+        KEY scheduled_at (scheduled_at)
+    ) {$charset_collate};";
+    dbDelta( $sql_payment_retries );
+    
+    // Update Subscriptions Table - Add new columns
+    $subscription_columns = $wpdb->get_col( "DESC {$table_subscriptions}", 0 );
+    
+    $columns_to_add = [
+        'wc_subscription_id' => "ADD COLUMN wc_subscription_id BIGINT(20) NULL AFTER id",
+        'payment_method' => "ADD COLUMN payment_method VARCHAR(50) NULL AFTER `interval`",
+        'failed_payment_count' => "ADD COLUMN failed_payment_count INT NOT NULL DEFAULT 0 AFTER status",
+        'last_payment_attempt' => "ADD COLUMN last_payment_attempt DATETIME NULL AFTER failed_payment_count",
+        'dunning_level' => "ADD COLUMN dunning_level INT NOT NULL DEFAULT 0 AFTER last_payment_attempt",
+        'paused_at' => "ADD COLUMN paused_at DATETIME NULL AFTER dunning_level",
+        'cancelled_at' => "ADD COLUMN cancelled_at DATETIME NULL AFTER paused_at",
+        'trial_end_at' => "ADD COLUMN trial_end_at DATETIME NULL AFTER next_renewal_at",
+        'usage_data' => "ADD COLUMN usage_data LONGTEXT NULL AFTER meta"
+    ];
+    
+    foreach ( $columns_to_add as $column_name => $sql_fragment ) {
+        if ( ! in_array( $column_name, $subscription_columns, true ) ) {
+            $wpdb->query( "ALTER TABLE {$table_subscriptions} {$sql_fragment}" );
+        }
+    }
+    
     // Initialize webhook secret if not already set
     $webhook_secret = get_option( 'nehtw_webhook_secret' );
     if ( ! $webhook_secret ) {
@@ -196,6 +386,12 @@ function nehtw_gateway_activate() {
         Nehtw_Balance_Sync::schedule_events();
     }
     
+    // Schedule billing system cron jobs
+    if ( class_exists( 'Nehtw_Billing_Cron' ) ) {
+        $billing_cron = new Nehtw_Billing_Cron();
+        $billing_cron->schedule_events();
+    }
+    
     // Schedule daily analytics aggregation
     if ( ! wp_next_scheduled( 'nehtw_daily_aggregation' ) ) {
         wp_schedule_event( strtotime( 'tomorrow 1:00am' ), 'daily', 'nehtw_daily_aggregation' );
@@ -216,12 +412,48 @@ function nehtw_gateway_deactivate() {
     if ( class_exists( 'Nehtw_Balance_Sync' ) ) {
         Nehtw_Balance_Sync::clear_events();
     }
-    wp_clear_scheduled_hook( 'nehtw_daily_aggregation' );
+    if ( class_exists( 'Nehtw_Billing_Cron' ) ) {
+        $billing_cron = new Nehtw_Billing_Cron();
+        $billing_cron->clear_events();
+    }
+    wp_clear_scheduled_hook( 'nehtw_daily_aggregation');
     
     // Flush rewrite rules
     flush_rewrite_rules();
 }
 register_deactivation_hook( NEHTW_GATEWAY_PLUGIN_FILE, 'nehtw_gateway_deactivate' );
+
+/**
+ * Enqueue subscription dashboard assets
+ */
+function nehtw_enqueue_subscription_dashboard() {
+    // Only enqueue on subscription management pages
+    if ( ! is_account_page() && ! is_page( 'subscription' ) ) {
+        return;
+    }
+    
+    wp_enqueue_script(
+        'nehtw-subscription-dashboard',
+        NEHTW_GATEWAY_PLUGIN_URL . 'assets/js/subscription-dashboard.min.js',
+        [ 'wp-element' ],
+        NEHTW_GATEWAY_VERSION,
+        true
+    );
+    
+    wp_enqueue_style(
+        'nehtw-subscriptions',
+        NEHTW_GATEWAY_PLUGIN_URL . 'assets/css/nehtw-subscriptions.css',
+        [],
+        NEHTW_GATEWAY_VERSION
+    );
+    
+    // Localize script with REST API URL
+    wp_localize_script( 'nehtw-subscription-dashboard', 'nehtwSubscription', [
+        'restUrl' => rest_url( 'nehtw/v1/' ),
+        'nonce' => wp_create_nonce( 'wp_rest' ),
+    ] );
+}
+add_action( 'wp_enqueue_scripts', 'nehtw_enqueue_subscription_dashboard' );
 
 // Migration function to add new columns on plugin update
 function nehtw_gateway_maybe_migrate_stock_orders() {
@@ -3849,6 +4081,21 @@ function nehtw_gateway_register_admin_menu() {
     );
 }
 add_action( 'admin_menu', 'nehtw_gateway_register_admin_menu' );
+
+/**
+ * Register the main settings page as first submenu (prevents redirect issues)
+ */
+function nehtw_gateway_register_main_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'Nehtw Gateway', 'nehtw-gateway' ),
+        __( 'Settings', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway',
+        'nehtw_gateway_render_admin_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_main_submenu', 1 );
 
 /**
  * Register the User Points submenu under Nehtw Gateway.
