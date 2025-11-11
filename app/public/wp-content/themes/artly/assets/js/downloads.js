@@ -184,7 +184,7 @@
         if (firstFocusable) {
           firstFocusable.focus();
         } else if (primaryBtn) {
-          primaryBtn.focus();
+        primaryBtn.focus();
         }
       }, 100);
 

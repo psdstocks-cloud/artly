@@ -262,18 +262,18 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
                             $download_title
                         );
                         ?>
-                        <button
+                    <button
                             class="downloads-btn-primary artly-download-button"
-                            type="button"
-                            data-download-kind="<?php echo esc_attr( $kind ); ?>"
-                            data-download-id="<?php echo esc_attr( $identifier ); ?>"
-                            <?php if ( 'stock' === $kind && $history_id > 0 ) : ?>
-                                data-history-id="<?php echo esc_attr( $history_id ); ?>"
-                            <?php endif; ?>
+                        type="button"
+                        data-download-kind="<?php echo esc_attr( $kind ); ?>"
+                        data-download-id="<?php echo esc_attr( $identifier ); ?>"
+                        <?php if ( 'stock' === $kind && $history_id > 0 ) : ?>
+                            data-history-id="<?php echo esc_attr( $history_id ); ?>"
+                        <?php endif; ?>
                             aria-label="<?php echo esc_attr( $aria_label ); ?>"
-                        >
-                            <?php esc_html_e( 'Re-download', 'artly' ); ?>
-                        </button>
+                    >
+                        <?php esc_html_e( 'Re-download', 'artly' ); ?>
+                    </button>
                     <?php elseif ( $status_is_failed ) : ?>
                         <div class="artly-download-status-pill artly-download-status-pill--unavailable">
                             <?php esc_html_e( 'Re-download unavailable', 'artly' ); ?>
@@ -282,7 +282,7 @@ if ( ! function_exists( 'artly_downloads_render_items' ) ) {
                         <div class="artly-download-status-pill artly-download-status-pill--intermediate">
                             <?php echo esc_html( ucfirst( $status_normalized ) ); ?>
                         </div>
-                    <?php endif; ?>
+                <?php endif; ?>
                 </div>
             </div>
         </li>
