@@ -516,5 +516,3 @@ class Nehtw_Gateway_Woo_Points {
         }
     }
 }
-
-Nehtw_Gateway_Woo_Points::init();

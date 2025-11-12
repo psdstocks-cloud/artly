@@ -102,6 +102,23 @@ function artly_enqueue_assets() {
             'woocommerceProductId' => $woocommerce_product_id,
             'woocommerceActive' => class_exists( 'WooCommerce' ),
         ) );
+
+        wp_enqueue_script(
+            'artly-pricing-woo',
+            get_template_directory_uri() . '/assets/js/pricing-woo.js',
+            array( 'artly-pricing' ),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        wp_localize_script(
+            'artly-pricing-woo',
+            'artlyWoo',
+            array(
+                'restBase' => esc_url_raw( rest_url( 'artly/v1/' ) ),
+                'nonce'    => wp_create_nonce( 'wp_rest' ),
+            )
+        );
     }
 
     // Header script for mobile navigation toggle.

@@ -59,10 +59,17 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-payment-ga
 // Dunning Manager Admin Page
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-dunning-admin.php';
 
-// WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
-if ( class_exists( 'WooCommerce' ) ) {
-    require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-woo-points.php';
-}
+// WooCommerce integration for wallet top-ups
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-woo-points.php';
+
+add_action(
+    'plugins_loaded',
+    function () {
+        if ( class_exists( 'Nehtw_Gateway_Woo_Points' ) ) {
+            Nehtw_Gateway_Woo_Points::init();
+        }
+    }
+);
 
 function nehtw_gateway_activate() {
     global $wpdb;
