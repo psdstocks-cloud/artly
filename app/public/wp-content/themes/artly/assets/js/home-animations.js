@@ -75,6 +75,12 @@
             opacity: 0,
             duration: 0.7
         }, '-=0.4')
+        // Animate social proof
+        .from('.artly-hero-social-proof', {
+            y: 20,
+            opacity: 0,
+            duration: 0.6
+        }, '-=0.3')
         // Animate buttons
         .from('.artly-hero-actions .artly-btn', {
             y: 20,
@@ -129,9 +135,25 @@
     }
 
     /**
-     * Animate staggered elements (benefits, steps, personas)
+     * Animate staggered elements (benefits, steps, personas, testimonials, etc.)
      */
     function animateStaggeredElements() {
+        // Testimonials
+        gsap.utils.toArray('.artly-testimonials-grid .artly-testimonial-card').forEach((el, i) => {
+            gsap.from(el, {
+                scrollTrigger: {
+                    trigger: el.closest('.artly-section-testimonials'),
+                    start: defaults.start,
+                    toggleActions: 'play none none none'
+                },
+                y: 50,
+                opacity: 0,
+                duration: defaults.duration,
+                ease: defaults.ease,
+                delay: i * 0.15
+            });
+        });
+
         // Benefits grid
         gsap.utils.toArray('.artly-benefits-grid .artly-benefit').forEach((el, i) => {
             gsap.from(el, {
@@ -149,7 +171,7 @@
         });
 
         // Steps grid
-        gsap.utils.toArray('.artly-steps-grid .artly-step').forEach((el, i) => {
+        gsap.utils.toArray('.artly-steps-grid .artly-step-card').forEach((el, i) => {
             gsap.from(el, {
                 scrollTrigger: {
                     trigger: el.closest('.artly-section-steps'),
@@ -161,6 +183,38 @@
                 duration: defaults.duration,
                 ease: defaults.ease,
                 delay: i * 0.15
+            });
+        });
+
+        // FAQ items
+        gsap.utils.toArray('.artly-faq-grid .artly-faq-item').forEach((el, i) => {
+            gsap.from(el, {
+                scrollTrigger: {
+                    trigger: el.closest('.artly-section-faq'),
+                    start: defaults.start,
+                    toggleActions: 'play none none none'
+                },
+                y: 30,
+                opacity: 0,
+                duration: defaults.duration,
+                ease: defaults.ease,
+                delay: i * 0.08
+            });
+        });
+
+        // Pricing options
+        gsap.utils.toArray('.artly-price-preview .artly-price-option').forEach((el, i) => {
+            gsap.from(el, {
+                scrollTrigger: {
+                    trigger: el.closest('.artly-pricing-strip'),
+                    start: defaults.start,
+                    toggleActions: 'play none none none'
+                },
+                y: 40,
+                opacity: 0,
+                duration: defaults.duration,
+                ease: defaults.ease,
+                delay: i * 0.12
             });
         });
 
