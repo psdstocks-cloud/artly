@@ -81,6 +81,22 @@ function artly_enqueue_assets() {
             true
         );
 
+        wp_enqueue_script(
+            'pricing-woo',
+            get_template_directory_uri() . '/assets/js/pricing-woo.js',
+            array( 'artly-pricing' ),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        wp_localize_script(
+            'pricing-woo',
+            'wpApiSettings',
+            array(
+                'nonce' => wp_create_nonce( 'wp_rest' ),
+            )
+        );
+
         // Get WooCommerce product ID for wallet top-up (if WooCommerce is active)
         $woocommerce_product_id = 0;
         if ( class_exists( 'WooCommerce' ) ) {

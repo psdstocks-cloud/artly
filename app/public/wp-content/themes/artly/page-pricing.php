@@ -87,7 +87,7 @@ get_header();
                                 <span>Enterprise</span>
                             </div>
 
-                            <input id="pointsRange" type="range" min="1" max="500" step="1" value="120" />
+                            <input id="pointsRange" type="range" min="1" max="500" step="1" value="120" data-points-slider />
 
                             <div class="points-input-row">
                                 <label for="pointsInput">Points per month</label>
@@ -115,7 +115,7 @@ get_header();
                                 </div>
                             </dl>
 
-                            <a id="pricingCTA" href="<?php echo esc_url( home_url( '/signup/' ) ); ?>" class="cta-button">
+                            <a id="pricingCTA" href="<?php echo esc_url( home_url( '/signup/' ) ); ?>" class="cta-button" data-buy-points>
                                 Subscribe to <span id="ctaPoints">120</span> points / month
                             </a>
 
