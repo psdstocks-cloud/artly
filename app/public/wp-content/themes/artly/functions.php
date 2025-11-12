@@ -234,6 +234,42 @@ function artly_enqueue_assets() {
         );
     }
 
+    // WooCommerce Cart page assets
+    if ( function_exists( 'is_cart' ) && is_cart() ) {
+        wp_enqueue_style(
+            'artly-cart',
+            get_template_directory_uri() . '/assets/css/cart.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-cart',
+            get_template_directory_uri() . '/assets/js/cart.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+    }
+
+    // WooCommerce Checkout page assets
+    if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+        wp_enqueue_style(
+            'artly-checkout',
+            get_template_directory_uri() . '/assets/css/checkout.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-checkout',
+            get_template_directory_uri() . '/assets/js/checkout.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+    }
+
     if ( is_page_template( 'page-dashboard.php' ) || is_page_template( 'page-my-points.php' ) || is_page( 'dashboard' ) || is_page( 'my-points' ) ) {
         wp_enqueue_style(
             'artly-modal-wallet',
@@ -406,6 +442,27 @@ function artly_enqueue_cinematic_scripts() {
     }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_cinematic_scripts' );
+
+/**
+ * WooCommerce Cart Optimizations for Digital Products
+ * Hide cross-sells and optimize cart for points/credits
+ */
+if ( class_exists( 'WooCommerce' ) ) {
+    // Hide cross-sells on cart page (not relevant for digital points)
+    add_filter( 'woocommerce_cart_cross_sells_products', '__return_empty_array' );
+
+    // Remove cross-sells section entirely
+    remove_action( 'woocommerce_cart_collaterals', 'woocommerce_cross_sell_display' );
+
+    // Ensure points product is sold individually (already set in product, but double-check)
+    add_filter( 'woocommerce_is_sold_individually', function( $sold_individually, $product ) {
+        $wallet_product_id = get_option( 'artly_woocommerce_product_id', 0 );
+        if ( $product->get_id() == $wallet_product_id ) {
+            return true;
+        }
+        return $sold_individually;
+    }, 10, 2 );
+}
 
 /**
  * Enqueue signup page assets

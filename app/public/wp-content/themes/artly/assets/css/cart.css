@@ -1,0 +1,748 @@
+/* ===== Artly Cart Page - Dark Neon Brand ===== */
+
+/* CSS Custom Properties */
+:root {
+  --cart-bg: radial-gradient(circle at top, rgba(13, 27, 42, 0.95) 0%, rgba(8, 12, 24, 0.98) 60%, rgba(5, 8, 18, 1) 100%);
+  --cart-text: #f8fafc;
+  --cart-text-muted: rgba(226, 232, 240, 0.82);
+  --cart-surface: rgba(255, 255, 255, 0.06);
+  --cart-surface-hover: rgba(255, 255, 255, 0.08);
+  --cart-border: rgba(255, 255, 255, 0.08);
+  --cart-accent-start: #06f5e8;
+  --cart-accent-end: #16a3ff;
+  --cart-accent-secondary-start: #fb923c;
+  --cart-accent-secondary-end: #fb7185;
+  --cart-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --cart-glow: 0 0 20px rgba(6, 245, 232, 0.3);
+}
+
+[data-theme="light"] {
+  --cart-bg: radial-gradient(circle at top, rgba(249, 250, 251, 0.9) 0%, rgba(241, 245, 249, 0.95) 60%, rgba(255, 255, 255, 1) 100%);
+  --cart-text: #1f2937;
+  --cart-text-muted: rgba(75, 85, 99, 0.9);
+  --cart-surface: rgba(255, 255, 255, 0.95);
+  --cart-surface-hover: rgba(255, 255, 255, 1);
+  --cart-border: rgba(148, 163, 184, 0.3);
+  --cart-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  --cart-glow: 0 0 20px rgba(6, 245, 232, 0.2);
+}
+
+/* Page Background */
+body.woocommerce-cart {
+  background: var(--cart-bg);
+  color: var(--cart-text);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body.woocommerce-cart::before,
+body.woocommerce-cart::after {
+  content: "";
+  position: fixed;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  filter: blur(40px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+body.woocommerce-cart::before {
+  top: -160px;
+  right: -120px;
+  background: radial-gradient(circle, rgba(6, 245, 232, 0.25) 0%, rgba(22, 163, 255, 0) 70%);
+}
+
+body.woocommerce-cart::after {
+  bottom: -200px;
+  left: -150px;
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.28) 0%, rgba(251, 113, 133, 0) 70%);
+}
+
+body.woocommerce-cart .site,
+body.woocommerce-cart .site-main,
+body.woocommerce-cart #primary {
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Main Cart Wrapper */
+.artly-cart-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 120px 24px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Progress Bar */
+.artly-cart-progress {
+  margin-bottom: 48px;
+}
+
+.progress {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.progress li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cart-text-muted);
+  transition: color 0.3s ease;
+}
+
+.progress li:not(:last-child)::after {
+  content: "";
+  width: 40px;
+  height: 2px;
+  background: var(--cart-border);
+  margin: 0 8px;
+  transition: background 0.3s ease;
+}
+
+.progress li.done {
+  color: var(--cart-accent-start);
+}
+
+.progress li.done::after {
+  background: linear-gradient(90deg, var(--cart-accent-start), var(--cart-accent-end));
+}
+
+.progress li.current {
+  color: var(--cart-accent-end);
+  font-weight: 700;
+}
+
+.progress li.current .progress-step {
+  position: relative;
+}
+
+.progress li.current .progress-step::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
+  border-radius: 50%;
+  opacity: 0.2;
+  z-index: -1;
+}
+
+.progress-step {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--cart-surface);
+  border: 1px solid var(--cart-border);
+  backdrop-filter: blur(16px);
+  transition: all 0.3s ease;
+}
+
+.progress li.done .progress-step,
+.progress li.current .progress-step {
+  background: rgba(6, 245, 232, 0.1);
+  border-color: rgba(6, 245, 232, 0.3);
+}
+
+/* Glass Card Base */
+.glass {
+  background: var(--cart-surface);
+  border: 1px solid var(--cart-border);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--cart-shadow);
+  transition: all 0.3s ease;
+}
+
+.glass:hover {
+  background: var(--cart-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+}
+
+/* Cart Grid Layout */
+.artly-cart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+@media (min-width: 992px) {
+  .artly-cart-grid {
+    grid-template-columns: 1.5fr 1fr;
+    gap: 40px;
+  }
+}
+
+/* Cart Items Section */
+.artly-cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.artly-cart-card {
+  padding: 32px;
+}
+
+.card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--cart-border);
+}
+
+.item-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--cart-text);
+  line-height: 1.3;
+}
+
+.item-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cart-accent-start);
+  white-space: nowrap;
+}
+
+.item-meta {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-meta li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  color: var(--cart-text-muted);
+}
+
+.item-meta li strong {
+  color: var(--cart-text);
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.item-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--cart-border);
+}
+
+.btn-link {
+  color: var(--cart-accent-start);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.btn-link::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cart-accent-start), var(--cart-accent-end));
+  transition: width 0.3s ease;
+}
+
+.btn-link:hover {
+  color: var(--cart-accent-end);
+}
+
+.btn-link:hover::after {
+  width: 100%;
+}
+
+/* Cart Summary (Sticky) */
+.artly-cart-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (min-width: 992px) {
+  .artly-cart-summary {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+  }
+}
+
+.summary-card {
+  padding: 32px;
+}
+
+.summary-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 24px 0;
+  color: var(--cart-text);
+}
+
+.summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.summary-rows .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+  color: var(--cart-text-muted);
+}
+
+.summary-rows .row.total-row {
+  padding-top: 20px;
+  border-top: 2px solid var(--cart-border);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cart-text);
+}
+
+.summary-rows .row.total-row span:last-child {
+  color: var(--cart-accent-start);
+  font-size: 1.5rem;
+}
+
+/* Coupon Toggle */
+.coupon-toggle {
+  margin: 16px 0;
+}
+
+.coupon-toggle summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--cart-accent-start);
+  padding: 12px 0;
+  list-style: none;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.coupon-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+.coupon-toggle summary::before {
+  content: "▶";
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.3s ease;
+  font-size: 0.8em;
+}
+
+.coupon-toggle[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.coupon-toggle summary:hover {
+  color: var(--cart-accent-end);
+}
+
+.coupon-form-wrapper {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cart-border);
+}
+
+.artly-coupon-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.artly-coupon-form input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--cart-border);
+  border-radius: 8px;
+  color: var(--cart-text);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.artly-coupon-form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--cart-accent-start);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(6, 245, 232, 0.1);
+}
+
+.artly-coupon-form button {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
+  border: none;
+  border-radius: 8px;
+  color: #020617;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.artly-coupon-form button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(6, 245, 232, 0.3);
+}
+
+/* CTA Buttons */
+.summary-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
+  color: #020617;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--cart-accent-end), var(--cart-accent-start));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-primary:hover::before {
+  opacity: 1;
+}
+
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
+
+.btn-primary.btn-glow {
+  box-shadow: var(--cart-glow);
+}
+
+.btn-primary.btn-glow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(6, 245, 232, 0.5), 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.btn-outline {
+  display: block;
+  width: 100%;
+  padding: 14px 32px;
+  background: transparent;
+  color: var(--cart-text);
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 2px solid var(--cart-border);
+  transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+  border-color: var(--cart-accent-start);
+  color: var(--cart-accent-start);
+  background: rgba(6, 245, 232, 0.05);
+}
+
+/* Trust Row */
+.summary-trust {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cart-border);
+}
+
+.summary-trust li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: var(--cart-text-muted);
+}
+
+.trust-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* FAQ Mini */
+.faq-mini {
+  padding: 24px;
+}
+
+.faq-mini details {
+  margin-bottom: 16px;
+}
+
+.faq-mini details:last-child {
+  margin-bottom: 0;
+}
+
+.faq-mini summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--cart-text);
+  padding: 12px 0;
+  list-style: none;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.faq-mini summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-mini summary::before {
+  content: "▶";
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.3s ease;
+  font-size: 0.8em;
+  color: var(--cart-accent-start);
+}
+
+.faq-mini details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.faq-mini summary:hover {
+  color: var(--cart-accent-start);
+}
+
+.faq-mini p {
+  margin: 12px 0 0 20px;
+  color: var(--cart-text-muted);
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+/* Empty Cart State */
+.woocommerce-cart .cart-empty {
+  text-align: center;
+  padding: 80px 24px;
+}
+
+.woocommerce-cart .cart-empty .return-to-shop {
+  display: inline-block;
+  margin-top: 24px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
+  color: #020617;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.woocommerce-cart .cart-empty .return-to-shop:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(6, 245, 232, 0.3);
+}
+
+/* RTL Support */
+:root[dir="rtl"] .artly-cart-grid {
+  direction: rtl;
+}
+
+:root[dir="rtl"] .progress li:not(:last-child)::after {
+  margin: 0 8px;
+}
+
+:root[dir="rtl"] .card-title {
+  flex-direction: row-reverse;
+}
+
+:root[dir="rtl"] .item-meta li {
+  flex-direction: row-reverse;
+}
+
+:root[dir="rtl"] .item-actions {
+  flex-direction: row-reverse;
+}
+
+:root[dir="rtl"] .summary-rows .row {
+  flex-direction: row-reverse;
+}
+
+:root[dir="rtl"] .coupon-toggle summary::before,
+:root[dir="rtl"] .faq-mini summary::before {
+  margin-right: 0;
+  margin-left: 8px;
+  transform: scaleX(-1);
+}
+
+:root[dir="rtl"] .coupon-toggle[open] summary::before,
+:root[dir="rtl"] .faq-mini details[open] summary::before {
+  transform: scaleX(-1) rotate(90deg);
+}
+
+:root[dir="rtl"] .faq-mini p {
+  margin-left: 0;
+  margin-right: 20px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 991px) {
+  .artly-cart-wrap {
+    padding: 100px 20px 60px;
+  }
+
+  .artly-cart-progress {
+    margin-bottom: 32px;
+  }
+
+  .progress {
+    gap: 8px;
+  }
+
+  .progress li {
+    font-size: 12px;
+  }
+
+  .progress li:not(:last-child)::after {
+    width: 24px;
+    margin: 0 4px;
+  }
+
+  .progress-step {
+    padding: 6px 12px;
+  }
+
+  .artly-cart-card,
+  .summary-card {
+    padding: 24px;
+  }
+
+  .item-title {
+    font-size: 1.25rem;
+  }
+
+  .item-price {
+    font-size: 1.25rem;
+  }
+
+  .summary-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .artly-cart-wrap {
+    padding: 80px 16px 40px;
+  }
+
+  .artly-cart-card,
+  .summary-card {
+    padding: 20px;
+  }
+
+  .card-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .item-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-link {
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+    border: 1px solid var(--cart-border);
+    border-radius: 8px;
+  }
+
+  .artly-coupon-form {
+    flex-direction: column;
+  }
+
+  .artly-coupon-form input[type="text"],
+  .artly-coupon-form button {
+    width: 100%;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hide default WooCommerce cart table */
+.woocommerce-cart .woocommerce-cart-form table.shop_table {
+  display: none;
+}
+
+/* Shipping methods styling if shown */
+.woocommerce-cart .woocommerce-shipping-totals {
+  margin: 16px 0;
+}
+
+.woocommerce-cart .woocommerce-shipping-totals td {
+  padding: 8px 0;
+}
+
