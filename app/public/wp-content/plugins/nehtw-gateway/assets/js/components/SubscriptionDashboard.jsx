@@ -310,5 +310,10 @@ const PlanModal = ({ plans, currentPlan, onClose, onSelect }) => {
     );
 };
 
+// Export for webpack
+if (typeof window !== 'undefined') {
+  window.SubscriptionDashboard = SubscriptionDashboard;
+}
+
 export default SubscriptionDashboard;
 

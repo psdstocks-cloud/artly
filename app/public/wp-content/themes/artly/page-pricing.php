@@ -147,70 +147,103 @@ get_header();
 
                 <div class="plans-grid">
             <?php
-            $plans = [
-                [
-                    'name' => 'Starter',
-                    'points' => 50,
-                    'price_egp' => 750,
-                    'price_usd' => 15,
-                    'desc' => 'For individuals who only need occasional downloads.',
-                    'highlight' => false
-                ],
-                [
-                    'name' => 'Creator',
-                    'points' => 120,
-                    'price_egp' => 1750,
-                    'price_usd' => 35,
-                    'desc' => 'Best for solo creators or freelancers building regularly.',
-                    'highlight' => true
-                ],
-                [
-                    'name' => 'Studio',
-                    'points' => 250,
-                    'price_egp' => 3250,
-                    'price_usd' => 65,
-                    'desc' => 'For studios and small teams with frequent creative needs.',
-                    'highlight' => false
-                ],
-                [
-                    'name' => 'Agency',
-                    'points' => 400,
-                    'price_egp' => 4750,
-                    'price_usd' => 95,
-                    'desc' => 'Ideal for agencies managing multiple clients and campaigns.',
-                    'highlight' => false
-                ],
-                [
-                    'name' => 'Enterprise',
-                    'points' => 700,
-                    'price_egp' => null,
-                    'price_usd' => null,
-                    'desc' => 'Custom high-volume solutions for enterprises and resellers.',
-                    'highlight' => false
-                ],
-            ];
+            // Load subscription plans from backend
+            $backend_plans = array();
+            if ( function_exists( 'nehtw_gateway_get_subscription_plans' ) ) {
+                $backend_plans = nehtw_gateway_get_subscription_plans();
+            }
 
-            foreach ($plans as $plan): ?>
+            // Transform backend plans to frontend format
+            $plans = array();
+            foreach ( $backend_plans as $backend_plan ) {
+                $plan_key = isset( $backend_plan['key'] ) ? $backend_plan['key'] : '';
+                $plan_name = isset( $backend_plan['name'] ) ? $backend_plan['name'] : '';
+                $plan_points = isset( $backend_plan['points'] ) ? floatval( $backend_plan['points'] ) : 0;
+                $plan_desc = isset( $backend_plan['description'] ) ? $backend_plan['description'] : '';
+                $plan_highlight = ! empty( $backend_plan['highlight'] );
+                $product_id = isset( $backend_plan['product_id'] ) ? intval( $backend_plan['product_id'] ) : 0;
+                
+                // Parse price_label to extract EGP and USD prices
+                $price_label = isset( $backend_plan['price_label'] ) ? $backend_plan['price_label'] : '';
+                $price_egp = null;
+                $price_usd = null;
+                
+                // Try to extract prices from price_label (format: "EGP 750 / month" or "$35 / month")
+                if ( ! empty( $price_label ) ) {
+                    // Try to match EGP price
+                    if ( preg_match( '/EGP\s*([\d,]+)/i', $price_label, $egp_matches ) ) {
+                        $price_egp = floatval( str_replace( ',', '', $egp_matches[1] ) );
+                    }
+                    // Try to match USD price
+                    if ( preg_match( '/\$?\s*([\d,]+)/', $price_label, $usd_matches ) ) {
+                        $price_usd = floatval( str_replace( ',', '', $usd_matches[1] ) );
+                    }
+                }
+                
+                // Get product URL if product_id exists
+                $product_url = '';
+                if ( $product_id > 0 && function_exists( 'get_permalink' ) ) {
+                    $product = wc_get_product( $product_id );
+                    if ( $product && $product->is_purchasable() ) {
+                        $product_url = get_permalink( $product_id );
+                    }
+                }
+                
+                // Only include plans with valid data
+                if ( ! empty( $plan_name ) && $plan_points > 0 ) {
+                    $plans[] = array(
+                        'name' => $plan_name,
+                        'points' => $plan_points,
+                        'price_egp' => $price_egp,
+                        'price_usd' => $price_usd,
+                        'desc' => $plan_desc,
+                        'highlight' => $plan_highlight,
+                        'product_id' => $product_id,
+                        'product_url' => $product_url,
+                        'key' => $plan_key,
+                    );
+                }
+            }
+
+            // If no plans from backend, show empty state
+            if ( empty( $plans ) ) : ?>
+                <p class="pricing-empty">
+                    <?php esc_html_e( 'No subscription plans available at this time. Please check back later.', 'artly' ); ?>
+                </p>
+            <?php else :
+                foreach ($plans as $plan): ?>
                 <div class="plan-card <?php echo $plan['highlight'] ? 'highlight' : ''; ?>" 
                      data-price-egp="<?php echo $plan['price_egp'] ? esc_attr( $plan['price_egp'] ) : ''; ?>"
-                     data-price-usd="<?php echo $plan['price_usd'] ? esc_attr( $plan['price_usd'] ) : ''; ?>">
+                     data-price-usd="<?php echo $plan['price_usd'] ? esc_attr( $plan['price_usd'] ) : ''; ?>"
+                     data-product-id="<?php echo $plan['product_id'] > 0 ? esc_attr( $plan['product_id'] ) : ''; ?>"
+                     data-product-url="<?php echo ! empty( $plan['product_url'] ) ? esc_attr( $plan['product_url'] ) : ''; ?>">
                     <?php if ( $plan['highlight'] ): ?>
                         <div class="badge">Most Popular</div>
                     <?php endif; ?>
                     <h3 class="plan-title"><?php echo esc_html( $plan['name'] ); ?></h3>
-                    <p class="plan-points"><?php echo esc_html( $plan['points'] ); ?> points / month</p>
+                    <p class="plan-points"><?php echo esc_html( number_format_i18n( $plan['points'], 0 ) ); ?> points / month</p>
                     <p class="plan-price">
-                        <?php if ( $plan['price_egp'] ): ?>
-                            <span class="price-amount" data-currency="egp"><?php echo number_format( $plan['price_egp'] ); ?> EGP</span>
-                            <span class="price-amount" data-currency="usd" style="display: none;">$<?php echo number_format( $plan['price_usd'], 0 ); ?></span>
+                        <?php if ( $plan['price_egp'] || $plan['price_usd'] ): ?>
+                            <?php if ( $plan['price_egp'] ): ?>
+                                <span class="price-amount" data-currency="egp"><?php echo number_format_i18n( $plan['price_egp'], 0 ); ?> EGP</span>
+                            <?php endif; ?>
+                            <?php if ( $plan['price_usd'] ): ?>
+                                <span class="price-amount" data-currency="usd" style="display: none;">$<?php echo number_format_i18n( $plan['price_usd'], 0 ); ?></span>
+                            <?php endif; ?>
                         <?php else: ?>
                             Custom
                         <?php endif; ?>
                     </p>
                     <p class="plan-desc"><?php echo esc_html( $plan['desc'] ); ?></p>
-                    <a href="<?php echo esc_url( home_url( '/signup/' ) ); ?>" class="plan-btn pricing-cta-btn">Choose <?php echo esc_html( $plan['name'] ); ?></a>
+                    <?php if ( ! empty( $plan['product_url'] ) ): ?>
+                        <a href="<?php echo esc_url( $plan['product_url'] ); ?>" class="plan-btn pricing-cta-btn" data-plan-key="<?php echo esc_attr( $plan['key'] ); ?>">Subscribe to <?php echo esc_html( $plan['name'] ); ?></a>
+                    <?php else: ?>
+                        <span class="plan-btn pricing-cta-btn" style="opacity: 0.6; cursor: not-allowed;">Plan Unavailable</span>
+                    <?php endif; ?>
                 </div>
-            <?php endforeach; ?>
+            <?php 
+                endforeach;
+            endif; ?>
                 </div>
             </div>
         </section>

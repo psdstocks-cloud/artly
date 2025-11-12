@@ -7,6 +7,10 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'assets/js'),
     filename: '[name].min.js',
+    library: {
+      name: 'SubscriptionDashboard',
+      type: 'window',
+    },
   },
   module: {
     rules: [

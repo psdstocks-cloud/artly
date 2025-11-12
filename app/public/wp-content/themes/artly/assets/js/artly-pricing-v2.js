@@ -13,7 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===== 1. CURRENCY SYSTEM =====
-    const conversionRate = 0.020; // 1 EGP = 0.020 USD (50 EGP = 1 USD)
+    // Currency conversion rate - get from settings or use default
+    // Note: Settings uses EGP per USD (e.g., 50), frontend uses USD per EGP (e.g., 0.020)
+    const conversionRateFromSettings = artlyPricingSettings?.conversionRate || null;
+    const conversionRate = conversionRateFromSettings !== null 
+        ? 1 / conversionRateFromSettings  // Convert from EGP/USD to USD/EGP
+        : 0.020; // Default: 1 EGP = 0.020 USD (1 USD = 50 EGP)
     let currency = artlyPricingSettings?.userCurrency || localStorage.getItem('artly_currency') || 'EGP';
 
     window.artlyCurrency = window.artlyCurrency || {};
@@ -361,22 +366,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===== 6. WOOCOMMERCE CHECKOUT HANDLER =====
+    // Note: The actual add-to-cart logic is handled by pricing-woo.js
+    // This section only handles non-WooCommerce fallbacks
     const isLoggedIn = artlyPricingSettings?.isLoggedIn || false;
     const homeUrl = artlyPricingSettings?.homeUrl || '/';
     const woocommerceActive = artlyPricingSettings?.woocommerceActive || false;
     const woocommerceProductId = artlyPricingSettings?.woocommerceProductId || 0;
     
     // Main CTA button (calculator checkout)
+    // Only handle non-WooCommerce scenarios - pricing-woo.js handles WooCommerce
     const mainCTA = document.getElementById('pricingCTA');
     
-    if (mainCTA && woocommerceActive) {
-        mainCTA.addEventListener('click', function(e) {
-            if (!isLoggedIn) {
-                e.preventDefault();
-                window.location.href = homeUrl + '/login/?redirect=' + encodeURIComponent(window.location.href);
-            }
-        });
-    } else if (mainCTA) {
+    if (mainCTA && !woocommerceActive) {
         // Fallback: login state detection (if WooCommerce not active)
         if (isLoggedIn) {
             mainCTA.textContent = 'Go to Dashboard';
@@ -386,18 +387,37 @@ document.addEventListener('DOMContentLoaded', () => {
             mainCTA.href = homeUrl + '/signup/';
         }
     }
+    // If WooCommerce is active, pricing-woo.js will handle the click event
 
     // Update all plan CTA buttons (subscription plans)
     document.querySelectorAll('.pricing-cta-btn').forEach(btn => {
-        if (isLoggedIn) {
-            btn.textContent = 'Go to Dashboard';
-            btn.href = homeUrl + '/my-downloads/';
-        } else if (!woocommerceActive || woocommerceProductId <= 0) {
-            // If WooCommerce not active, keep signup link
-            btn.href = homeUrl + '/signup/';
+        // Get product URL from data attribute if available
+        const planCard = btn.closest('.plan-card');
+        const productUrl = planCard ? planCard.getAttribute('data-product-url') : null;
+        const productId = planCard ? planCard.getAttribute('data-product-id') : null;
+        
+        // If product URL exists, use it (already set in PHP)
+        if (productUrl && productUrl.trim() !== '') {
+            // Product URL is already set in PHP, just ensure it's correct
+            if (btn.tagName === 'A') {
+                btn.href = productUrl;
+                // Update button text for logged-in users
+                if (isLoggedIn) {
+                    btn.textContent = 'Subscribe Now';
+                }
+            }
+        } else {
+            // No product URL - show unavailable state
+            if (btn.tagName === 'A') {
+                btn.style.opacity = '0.6';
+                btn.style.cursor = 'not-allowed';
+                btn.textContent = 'Plan Unavailable';
+                btn.href = '#';
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                });
+            }
         }
-        // If WooCommerce is active, plan buttons can also go to checkout
-        // (For now, we'll keep them as signup links - can be enhanced later)
     });
 
     // ===== 7. SUCCESS NOTIFICATIONS (Toast System) =====

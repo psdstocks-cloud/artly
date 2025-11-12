@@ -39,26 +39,33 @@ $current_sub = function_exists( 'nehtw_gateway_get_user_active_subscription' )
     </section>
 
     <?php if ( $current_sub ) : ?>
-      <section class="subs-status-card">
-        <div class="subs-status-label">
-          <?php esc_html_e( 'Current plan', 'artly' ); ?>
-        </div>
-        <div class="subs-status-value">
-          <?php echo esc_html( isset( $current_sub['plan_key'] ) ? $current_sub['plan_key'] : '' ); ?>
-        </div>
-        <div class="subs-status-meta">
-          <?php
-          $next = isset( $current_sub['next_renewal_at'] ) ? $current_sub['next_renewal_at'] : '';
-          if ( $next ) {
-              $next_formatted = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $next ) );
-              printf(
-                  esc_html__( 'Next renewal: %s', 'artly' ),
-                  esc_html( $next_formatted )
-              );
-          }
-          ?>
-        </div>
+      <!-- Subscription Dashboard React Component -->
+      <section class="nehtw-subscription-dashboard-section" style="margin: 40px 0;">
+        <div id="nehtw-subscription-dashboard-root"></div>
       </section>
+      <script>
+      // Initialize React component when DOM is ready
+      (function() {
+          function initDashboard() {
+              if (typeof React !== 'undefined' && typeof ReactDOM !== 'undefined' && typeof SubscriptionDashboard !== 'undefined') {
+                  const container = document.getElementById('nehtw-subscription-dashboard-root');
+                  if (container) {
+                      const root = ReactDOM.createRoot(container);
+                      root.render(React.createElement(SubscriptionDashboard));
+                  }
+              } else {
+                  // Retry after a short delay if React isn't loaded yet
+                  setTimeout(initDashboard, 100);
+              }
+          }
+          
+          if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', initDashboard);
+          } else {
+              initDashboard();
+          }
+      })();
+      </script>
     <?php endif; ?>
 
     <section class="subs-grid">

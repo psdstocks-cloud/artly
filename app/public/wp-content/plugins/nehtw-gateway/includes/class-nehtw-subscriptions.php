@@ -198,5 +198,138 @@ function nehtw_gateway_save_subscription_plans( $plans ) {
     }
 
     update_option( 'nehtw_gateway_subscription_plans', $plans );
+    
+    // Auto-create/update WooCommerce products for each plan
+    if ( class_exists( 'WooCommerce' ) ) {
+        foreach ( $plans as $plan ) {
+            nehtw_gateway_ensure_subscription_product( $plan );
+        }
+    }
+}
+
+/**
+ * Ensure a WooCommerce product exists for a subscription plan.
+ * Creates or updates the product based on plan data.
+ *
+ * @param array $plan Plan data array with key, name, points, price_label, etc.
+ * @return int|false Product ID on success, false on failure.
+ */
+function nehtw_gateway_ensure_subscription_product( $plan ) {
+    if ( ! class_exists( 'WooCommerce' ) || ! class_exists( 'WC_Product_Simple' ) ) {
+        return false;
+    }
+    
+    $plan_key = isset( $plan['key'] ) ? sanitize_key( $plan['key'] ) : '';
+    $plan_name = isset( $plan['name'] ) ? sanitize_text_field( $plan['name'] ) : '';
+    
+    if ( empty( $plan_key ) || empty( $plan_name ) ) {
+        return false;
+    }
+    
+    $sku = 'ARTLY-SUB-' . strtoupper( $plan_key );
+    
+    // Check if product already exists by SKU
+    $existing_product_id = 0;
+    if ( function_exists( 'wc_get_product_id_by_sku' ) ) {
+        $existing_product_id = wc_get_product_id_by_sku( $sku );
+    }
+    
+    // Also check if plan already has a product_id
+    $plan_product_id = isset( $plan['product_id'] ) ? intval( $plan['product_id'] ) : 0;
+    if ( $plan_product_id > 0 ) {
+        $existing_product = wc_get_product( $plan_product_id );
+        if ( $existing_product ) {
+            $existing_product_id = $plan_product_id;
+        }
+    }
+    
+    // Parse price from price_label
+    $price = 0;
+    $price_label = isset( $plan['price_label'] ) ? $plan['price_label'] : '';
+    if ( ! empty( $price_label ) ) {
+        // Try to extract EGP price first (store currency)
+        if ( preg_match( '/EGP\s*([\d,]+)/i', $price_label, $egp_matches ) ) {
+            $price = floatval( str_replace( ',', '', $egp_matches[1] ) );
+        } elseif ( preg_match( '/\$?\s*([\d,]+)/', $price_label, $usd_matches ) ) {
+            // If USD, convert to EGP (assuming 50 EGP = 1 USD)
+            $usd_price = floatval( str_replace( ',', '', $usd_matches[1] ) );
+            $conversion_rate = get_option( 'nehtw_usd_egp_rate', 50 );
+            $price = $usd_price * $conversion_rate;
+        }
+    }
+    
+    if ( $existing_product_id > 0 ) {
+        // Update existing product
+        $product = wc_get_product( $existing_product_id );
+        if ( ! $product ) {
+            return false;
+        }
+        
+        $product->set_name( $plan_name . ' Subscription' );
+        $product->set_sku( $sku );
+        $product->set_price( $price > 0 ? strval( $price ) : '0' );
+        $product->set_regular_price( $price > 0 ? strval( $price ) : '0' );
+        $product->set_sale_price( '' );
+        $product->set_catalog_visibility( 'visible' );
+        $product->set_virtual( true );
+        $product->set_sold_individually( true );
+        
+        // Set description
+        $description = isset( $plan['description'] ) ? sanitize_textarea_field( $plan['description'] ) : '';
+        if ( ! empty( $description ) ) {
+            $product->set_short_description( $description );
+        }
+        
+        $product->save();
+        
+        // Update plan with product_id if not already set
+        if ( $plan_product_id !== $existing_product_id ) {
+            $plans = nehtw_gateway_get_subscription_plans();
+            foreach ( $plans as &$p ) {
+                if ( isset( $p['key'] ) && $p['key'] === $plan_key ) {
+                    $p['product_id'] = $existing_product_id;
+                    break;
+                }
+            }
+            nehtw_gateway_save_subscription_plans( $plans );
+        }
+        
+        return $existing_product_id;
+    } else {
+        // Create new product
+        $product = new WC_Product_Simple();
+        $product->set_name( $plan_name . ' Subscription' );
+        $product->set_sku( $sku );
+        $product->set_price( $price > 0 ? strval( $price ) : '0' );
+        $product->set_regular_price( $price > 0 ? strval( $price ) : '0' );
+        $product->set_sale_price( '' );
+        $product->set_catalog_visibility( 'visible' );
+        $product->set_virtual( true );
+        $product->set_sold_individually( true );
+        
+        // Set description
+        $description = isset( $plan['description'] ) ? sanitize_textarea_field( $plan['description'] ) : '';
+        if ( ! empty( $description ) ) {
+            $product->set_short_description( $description );
+        }
+        
+        $product_id = $product->save();
+        
+        if ( $product_id ) {
+            // Update plan with new product_id
+            $plans = nehtw_gateway_get_subscription_plans();
+            foreach ( $plans as &$p ) {
+                if ( isset( $p['key'] ) && $p['key'] === $plan_key ) {
+                    $p['product_id'] = $product_id;
+                    break;
+                }
+            }
+            nehtw_gateway_save_subscription_plans( $plans );
+            
+            return $product_id;
+        }
+    }
+    
+    return false;
 }
 

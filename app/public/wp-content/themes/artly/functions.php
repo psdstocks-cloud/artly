@@ -94,6 +94,9 @@ function artly_enqueue_assets() {
             }
         }
 
+        // Get currency conversion rate
+        $usd_egp_rate = get_option( 'nehtw_usd_egp_rate', 50 );
+        
         // Localize script with PHP data
         wp_localize_script( 'artly-pricing', 'artlyPricingSettings', array(
             'isLoggedIn' => is_user_logged_in(),
@@ -101,7 +104,25 @@ function artly_enqueue_assets() {
             'homeUrl' => home_url(),
             'woocommerceProductId' => $woocommerce_product_id,
             'woocommerceActive' => class_exists( 'WooCommerce' ),
+            'conversionRate' => floatval( $usd_egp_rate ), // EGP per USD (e.g., 50)
         ) );
+
+        wp_enqueue_script(
+            'artly-pricing-woo',
+            get_template_directory_uri() . '/assets/js/pricing-woo.js',
+            array( 'artly-pricing' ),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        wp_localize_script(
+            'artly-pricing-woo',
+            'artlyWoo',
+            array(
+                'restBase' => esc_url_raw( rest_url( 'artly/v1/' ) ),
+                'nonce'    => wp_create_nonce( 'wp_rest' ),
+            )
+        );
     }
 
     // Header script for mobile navigation toggle.
@@ -183,6 +204,33 @@ function artly_enqueue_assets() {
             get_template_directory_uri() . '/assets/css/subscriptions.css',
             array( 'artly-layout', 'artly-style' ),
             wp_get_theme()->get( 'Version' )
+        );
+    }
+
+    // My Subscriptions page assets
+    if ( is_page_template( 'page-my-subscriptions.php' ) || is_page( 'my-subscriptions' ) ) {
+        wp_enqueue_style(
+            'artly-my-subscriptions',
+            get_template_directory_uri() . '/assets/css/subscriptions.css',
+            array( 'artly-layout', 'artly-style' ),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-my-subscriptions',
+            get_template_directory_uri() . '/assets/js/my-subscriptions.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        wp_localize_script(
+            'artly-my-subscriptions',
+            'artlyMySubscriptionsSettings',
+            array(
+                'restUrl' => esc_url_raw( rest_url( 'artly/v1/' ) ),
+                'nonce'   => wp_create_nonce( 'wp_rest' ),
+            )
         );
     }
 

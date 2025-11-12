@@ -59,10 +59,17 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-payment-ga
 // Dunning Manager Admin Page
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-dunning-admin.php';
 
-// WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
-if ( class_exists( 'WooCommerce' ) ) {
-    require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-woo-points.php';
-}
+// WooCommerce integration for wallet top-ups
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-woo-points.php';
+
+add_action(
+    'plugins_loaded',
+    function () {
+        if ( class_exists( 'Nehtw_Gateway_Woo_Points' ) ) {
+            Nehtw_Gateway_Woo_Points::init();
+        }
+    }
+);
 
 function nehtw_gateway_activate() {
     global $wpdb;
@@ -1493,6 +1500,12 @@ function nehtw_gateway_register_rest_routes() {
     );
 
     // Artly-branded stock order status polling endpoint
+    register_rest_route( 'artly/v1', '/subscription-plans', array(
+        'methods'             => 'GET',
+        'callback'            => 'artly_rest_get_subscription_plans',
+        'permission_callback' => '__return_true', // Public endpoint - no auth required
+    ) );
+
     register_rest_route( 'artly/v1', '/stock-order-status', array(
         'methods'             => WP_REST_Server::READABLE,
         'callback'            => 'nehtw_gateway_rest_stock_order_status',
@@ -3681,6 +3694,83 @@ function artly_rest_downloads_export( WP_REST_Request $request ) {
     return $response;
 }
 
+/**
+ * Get subscription plans with product URLs for frontend.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function artly_rest_get_subscription_plans( WP_REST_Request $request ) {
+    if ( ! function_exists( 'nehtw_gateway_get_subscription_plans' ) ) {
+        return new WP_Error(
+            'function_not_found',
+            __( 'Subscription plans function not available.', 'artly' ),
+            array( 'status' => 500 )
+        );
+    }
+
+    $backend_plans = nehtw_gateway_get_subscription_plans();
+    $plans         = array();
+
+    foreach ( $backend_plans as $backend_plan ) {
+        $plan_key   = isset( $backend_plan['key'] ) ? $backend_plan['key'] : '';
+        $plan_name  = isset( $backend_plan['name'] ) ? $backend_plan['name'] : '';
+        $plan_points = isset( $backend_plan['points'] ) ? floatval( $backend_plan['points'] ) : 0;
+        $plan_desc  = isset( $backend_plan['description'] ) ? $backend_plan['description'] : '';
+        $plan_highlight = ! empty( $backend_plan['highlight'] );
+        $product_id = isset( $backend_plan['product_id'] ) ? intval( $backend_plan['product_id'] ) : 0;
+
+        // Parse price_label to extract EGP and USD prices
+        $price_label = isset( $backend_plan['price_label'] ) ? $backend_plan['price_label'] : '';
+        $price_egp   = null;
+        $price_usd   = null;
+
+        if ( ! empty( $price_label ) ) {
+            // Try to match EGP price
+            if ( preg_match( '/EGP\s*([\d,]+)/i', $price_label, $egp_matches ) ) {
+                $price_egp = floatval( str_replace( ',', '', $egp_matches[1] ) );
+            }
+            // Try to match USD price
+            if ( preg_match( '/\$?\s*([\d,]+)/', $price_label, $usd_matches ) ) {
+                $price_usd = floatval( str_replace( ',', '', $usd_matches[1] ) );
+            }
+        }
+
+        // Get product URL if product_id exists
+        $product_url = '';
+        if ( $product_id > 0 && function_exists( 'get_permalink' ) && function_exists( 'wc_get_product' ) ) {
+            $product = wc_get_product( $product_id );
+            if ( $product && $product->is_purchasable() ) {
+                $product_url = get_permalink( $product_id );
+            }
+        }
+
+        // Only include plans with valid data
+        if ( ! empty( $plan_name ) && $plan_points > 0 ) {
+            $plans[] = array(
+                'key'         => $plan_key,
+                'name'        => $plan_name,
+                'points'      => $plan_points,
+                'price_egp'   => $price_egp,
+                'price_usd'   => $price_usd,
+                'price_label' => $price_label,
+                'description' => $plan_desc,
+                'highlight'   => $plan_highlight,
+                'product_id'  => $product_id > 0 ? $product_id : null,
+                'product_url' => $product_url,
+            );
+        }
+    }
+
+    return new WP_REST_Response(
+        array(
+            'success' => true,
+            'plans'   => $plans,
+        ),
+        200
+    );
+}
+
 function nehtw_rest_get_download_link( WP_REST_Request $request ) {
     if ( ! is_user_logged_in() ) {
         return new WP_REST_Response(
@@ -4648,6 +4738,14 @@ function nehtw_gateway_render_subscription_plans_page() {
                 }
 
                 nehtw_gateway_save_subscription_plans( $plans );
+                
+                // Auto-create/update WooCommerce product for this plan
+                if ( class_exists( 'WooCommerce' ) && function_exists( 'nehtw_gateway_ensure_subscription_product' ) ) {
+                    nehtw_gateway_ensure_subscription_product( $plan );
+                    // Reload plans to get updated product_id
+                    $plans = nehtw_gateway_get_subscription_plans();
+                }
+                
                 $success_message = __( 'Plan saved successfully.', 'nehtw-gateway' );
             }
         } elseif ( 'delete_plan' === $action ) {
@@ -5349,6 +5447,8 @@ function nehtw_gateway_render_admin_page() {
     $api_settings_notice       = '';
     $api_settings_notice_class = 'notice-success';
     $has_api_key               = '' !== nehtw_gateway_get_api_key();
+    $currency_rate_notice      = '';
+    $currency_rate_notice_class = 'notice-success';
 
     if ( isset( $_POST['nehtw_gateway_action'] ) && 'save_api_key' === $_POST['nehtw_gateway_action'] ) {
         check_admin_referer( 'nehtw_gateway_save_api_key', 'nehtw_gateway_api_nonce' );
@@ -5367,6 +5467,23 @@ function nehtw_gateway_render_admin_page() {
         }
 
         $has_api_key = '' !== nehtw_gateway_get_api_key();
+    }
+
+    // Handle currency rate save
+    if ( isset( $_POST['nehtw_gateway_action'] ) && 'save_currency_rate' === $_POST['nehtw_gateway_action'] ) {
+        check_admin_referer( 'nehtw_gateway_save_currency_rate', 'nehtw_gateway_currency_rate_nonce' );
+
+        $raw_rate = isset( $_POST['nehtw_usd_egp_rate'] ) ? sanitize_text_field( wp_unslash( $_POST['nehtw_usd_egp_rate'] ) ) : '';
+        $rate     = floatval( $raw_rate );
+
+        if ( $rate > 0 ) {
+            update_option( 'nehtw_usd_egp_rate', $rate );
+            $currency_rate_notice       = sprintf( __( 'Currency conversion rate updated: 1 USD = %.2f EGP', 'nehtw-gateway' ), $rate );
+            $currency_rate_notice_class = 'notice-success';
+        } else {
+            $currency_rate_notice       = __( 'Invalid rate. Please enter a positive number.', 'nehtw-gateway' );
+            $currency_rate_notice_class = 'notice-error';
+        }
     }
 
     $current_user_id = get_current_user_id();
@@ -5430,6 +5547,38 @@ function nehtw_gateway_render_admin_page() {
             <?php submit_button( __( 'Save API Key', 'nehtw-gateway' ) ); ?>
         </form>
 
+        <h2><?php esc_html_e( 'Currency Settings', 'nehtw-gateway' ); ?></h2>
+        <?php if ( ! empty( $currency_rate_notice ) ) : ?>
+            <div class="notice <?php echo esc_attr( $currency_rate_notice_class ); ?> is-dismissible">
+                <p><?php echo esc_html( $currency_rate_notice ); ?></p>
+            </div>
+        <?php endif; ?>
+        <form method="post">
+            <?php wp_nonce_field( 'nehtw_gateway_save_currency_rate', 'nehtw_gateway_currency_rate_nonce' ); ?>
+            <input type="hidden" name="nehtw_gateway_action" value="save_currency_rate" />
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><label for="nehtw_usd_egp_rate"><?php esc_html_e( 'USD to EGP Conversion Rate', 'nehtw-gateway' ); ?></label></th>
+                    <td>
+                        <input type="number" step="0.01" min="0.01" class="regular-text" id="nehtw_usd_egp_rate" name="nehtw_usd_egp_rate" value="<?php echo esc_attr( get_option( 'nehtw_usd_egp_rate', 50 ) ); ?>" placeholder="50.00" />
+                        <p class="description">
+                            <?php esc_html_e( 'Enter the conversion rate: 1 USD = X EGP. This rate is used for currency conversion in the pricing system. Default: 50 EGP per USD.', 'nehtw-gateway' ); ?>
+                        </p>
+                        <p class="description">
+                            <?php
+                            $current_rate = get_option( 'nehtw_usd_egp_rate', 50 );
+                            printf(
+                                esc_html__( 'Current rate: 1 USD = %.2f EGP', 'nehtw-gateway' ),
+                                $current_rate
+                            );
+                            ?>
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button( __( 'Save Currency Rate', 'nehtw-gateway' ) ); ?>
+        </form>
+
         <?php if ( ! empty( $wallet_message ) ) : ?>
             <div class="notice notice-success is-dismissible">
                 <p><?php echo esc_html( $wallet_message ); ?></p>
@@ -5459,27 +5608,33 @@ function nehtw_gateway_schedule_subscriptions_cron() {
 add_action( 'wp', 'nehtw_gateway_schedule_subscriptions_cron' );
 
 /**
- * Handle subscription renewals and reminders via cron.
+ * Process subscription renewals - credits points when next_renewal_at passes.
+ * This function is called by cron to automatically credit points for active subscriptions.
+ *
+ * @return array Results array with processed count and errors.
  */
-add_action( 'nehtw_gateway_run_subscriptions_cron', 'nehtw_gateway_handle_subscriptions_cron' );
-function nehtw_gateway_handle_subscriptions_cron() {
+function nehtw_gateway_process_subscription_renewals() {
     global $wpdb;
 
     $table = nehtw_gateway_get_subscriptions_table();
     if ( ! $table ) {
-        return;
+        return array(
+            'processed' => 0,
+            'credited'  => 0,
+            'errors'    => array( 'Table not found' ),
+        );
     }
 
     $now = gmdate( 'Y-m-d H:i:s' );
+    $results = array(
+        'processed' => 0,
+        'credited'  => 0,
+        'errors'    => array(),
+    );
 
-    // 1) Handle reminders (3 days & 1 day before) - using templated email system
-    if ( function_exists( 'nehtw_gateway_process_subscription_reminders' ) ) {
-        nehtw_gateway_process_subscription_reminders();
-    }
-
-    // 2) Handle due renewals
+    // Get active subscriptions due for renewal
     $sql = $wpdb->prepare(
-        "SELECT * FROM {$table} WHERE status = %s AND next_renewal_at <= %s",
+        "SELECT * FROM {$table} WHERE status = %s AND next_renewal_at <= %s ORDER BY next_renewal_at ASC",
         'active',
         $now
     );
@@ -5487,58 +5642,70 @@ function nehtw_gateway_handle_subscriptions_cron() {
     $subs = $wpdb->get_results( $sql, ARRAY_A );
 
     if ( empty( $subs ) ) {
-        return;
+        return $results;
     }
 
     foreach ( $subs as $sub ) {
+        $results['processed']++;
+        
         $user_id = (int) $sub['user_id'];
         $points  = isset( $sub['points_per_interval'] ) ? (float) $sub['points_per_interval'] : 0.0;
+        $plan_key = isset( $sub['plan_key'] ) ? $sub['plan_key'] : '';
 
         if ( $user_id <= 0 || $points <= 0 ) {
+            $results['errors'][] = sprintf(
+                'Invalid subscription #%d: user_id=%d, points=%.2f',
+                $sub['id'],
+                $user_id,
+                $points
+            );
             continue;
         }
 
-        // Add points to local wallet using existing helper
+        // Verify user exists
+        $user = get_userdata( $user_id );
+        if ( ! $user ) {
+            $results['errors'][] = sprintf( 'User #%d not found for subscription #%d', $user_id, $sub['id'] );
+            continue;
+        }
+
+        // Credit points to wallet
         if ( function_exists( 'nehtw_gateway_add_transaction' ) ) {
-            nehtw_gateway_add_transaction(
+            $transaction_id = nehtw_gateway_add_transaction(
                 $user_id,
                 'subscription_renewal',
                 $points,
                 array(
                     'meta' => array(
-                        'source'  => 'subscription_auto_topup',
-                        'plan_key' => $sub['plan_key'],
-                        'note'    => sprintf( 'Auto top-up from plan %s', $sub['plan_key'] ),
+                        'source'       => 'subscription_auto_topup',
+                        'plan_key'     => $plan_key,
+                        'subscription_id' => $sub['id'],
+                        'note'         => sprintf( 'Auto top-up from subscription plan: %s', $plan_key ),
                     ),
                 )
             );
-        }
-        
-        // Record transaction in balance system
-        if ( class_exists( 'Nehtw_Transaction_Manager' ) ) {
-            $plan_name = isset( $sub['plan_key'] ) ? $sub['plan_key'] : 'Subscription';
-            Nehtw_Transaction_Manager::record_subscription_credit(
-                $user_id,
-                $sub['id'],
-                $points,
-                sprintf( 'Monthly subscription renewal: %s', $plan_name )
-            );
+
+            if ( ! $transaction_id ) {
+                $results['errors'][] = sprintf( 'Failed to credit points for subscription #%d', $sub['id'] );
+                continue;
+            }
+
+            $results['credited']++;
+        } else {
+            $results['errors'][] = 'nehtw_gateway_add_transaction function not available';
+            continue;
         }
 
-        // Optional: also sync to Nehtw using /api/sendpoint
-        if ( function_exists( 'nehtw_gateway_send_points_to_nehtw' ) ) {
-            nehtw_gateway_send_points_to_nehtw( $user_id, $points, $sub );
-        }
-
-        // Update next_renewal_at (+1 month for now)
+        // Update next_renewal_at (+1 month)
         $next_ts = strtotime( $sub['next_renewal_at'] );
-        if ( $next_ts ) {
+        if ( $next_ts && $next_ts > 0 ) {
             $next = gmdate( 'Y-m-d H:i:s', strtotime( '+1 month', $next_ts ) );
         } else {
+            // Fallback: calculate from current time
             $next = gmdate( 'Y-m-d H:i:s', strtotime( '+1 month' ) );
         }
 
-        $wpdb->update(
+        $updated = $wpdb->update(
             $table,
             array(
                 'next_renewal_at' => $next,
@@ -5548,6 +5715,47 @@ function nehtw_gateway_handle_subscriptions_cron() {
             array( '%s', '%s' ),
             array( '%d' )
         );
+
+        if ( false === $updated ) {
+            $results['errors'][] = sprintf( 'Failed to update next_renewal_at for subscription #%d', $sub['id'] );
+        }
+
+        // Log successful renewal
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( sprintf(
+                '[Nehtw Gateway] Subscription renewal: User #%d credited %.2f points (Subscription #%d, Plan: %s)',
+                $user_id,
+                $points,
+                $sub['id'],
+                $plan_key
+            ) );
+        }
+    }
+
+    return $results;
+}
+
+/**
+ * Handle subscription renewals and reminders via cron.
+ */
+add_action( 'nehtw_gateway_run_subscriptions_cron', 'nehtw_gateway_handle_subscriptions_cron' );
+function nehtw_gateway_handle_subscriptions_cron() {
+    // 1) Handle reminders (3 days & 1 day before) - using templated email system
+    if ( function_exists( 'nehtw_gateway_process_subscription_reminders' ) ) {
+        nehtw_gateway_process_subscription_reminders();
+    }
+
+    // 2) Process due renewals
+    $results = nehtw_gateway_process_subscription_renewals();
+    
+    // Log results
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && ( $results['processed'] > 0 || ! empty( $results['errors'] ) ) ) {
+        error_log( sprintf(
+            '[Nehtw Gateway Cron] Subscription renewals: %d processed, %d credited, %d errors',
+            $results['processed'],
+            $results['credited'],
+            count( $results['errors'] )
+        ) );
     }
 }
 
