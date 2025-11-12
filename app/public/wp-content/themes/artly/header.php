@@ -46,6 +46,31 @@ if ( ! defined( 'ABSPATH' ) ) {
             )
         );
         ?>
+        
+        <!-- Mobile CTA buttons -->
+        <div class="artly-header-cta-mobile">
+          <?php if ( is_user_logged_in() ) : ?>
+            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/app/stock/' ) ); ?>">
+              <?php esc_html_e( 'Dashboard', 'artly' ); ?>
+            </a>
+            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/my-points/' ) ); ?>">
+              <?php esc_html_e( 'My Points', 'artly' ); ?>
+            </a>
+            <a class="artly-header-button artly-header-button--ghost" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
+              <?php esc_html_e( 'Log out', 'artly' ); ?>
+            </a>
+          <?php else : ?>
+            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/pricing/' ) ); ?>">
+              <?php esc_html_e( 'Pricing', 'artly' ); ?>
+            </a>
+            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/login/' ) ); ?>">
+              <?php esc_html_e( 'Sign in', 'artly' ); ?>
+            </a>
+            <a class="artly-header-button" href="<?php echo esc_url( home_url( '/signup/' ) ); ?>">
+              <?php esc_html_e( 'Get started', 'artly' ); ?>
+            </a>
+          <?php endif; ?>
+        </div>
       </nav>
 
       <div class="artly-header-cta">
@@ -79,5 +104,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     </button>
   </div>
 </header>
+
+<div class="artly-menu-backdrop"></div>
 
 <div class="artly-page-shell">

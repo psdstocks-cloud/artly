@@ -68,6 +68,19 @@ body.woocommerce-cart #primary {
   z-index: 1;
 }
 
+/* Ensure header is above cart content */
+body.woocommerce-cart .artly-site-header {
+  z-index: 50;
+}
+
+body.woocommerce-cart .artly-header-nav {
+  z-index: 51;
+}
+
+body.woocommerce-cart .artly-menu-backdrop {
+  z-index: 49;
+}
+
 /* Main Cart Wrapper */
 .artly-cart-wrap {
   max-width: 1280px;

@@ -2,10 +2,61 @@
   document.addEventListener("DOMContentLoaded", function () {
     var header = document.querySelector(".artly-site-header");
     var toggle = document.querySelector(".artly-header-toggle");
+    var backdrop = document.querySelector(".artly-menu-backdrop");
+    var nav = document.querySelector(".artly-header-nav");
     if (!header || !toggle) return;
 
-    toggle.addEventListener("click", function () {
-      header.classList.toggle("is-open");
+    function closeMenu() {
+      header.classList.remove("is-open");
+      if (backdrop) {
+        backdrop.style.display = "none";
+      }
+    }
+
+    function openMenu() {
+      header.classList.add("is-open");
+      if (backdrop) {
+        backdrop.style.display = "block";
+        // Trigger reflow for animation
+        void backdrop.offsetWidth;
+        backdrop.style.opacity = "1";
+      }
+    }
+
+    toggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (header.classList.contains("is-open")) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    });
+
+    // Close menu when clicking backdrop
+    if (backdrop) {
+      backdrop.addEventListener("click", function () {
+        closeMenu();
+      });
+    }
+
+    // Close menu when clicking on a menu link
+    if (nav) {
+      var menuLinks = nav.querySelectorAll("a");
+      menuLinks.forEach(function (link) {
+        link.addEventListener("click", function () {
+          // Small delay to allow navigation
+          setTimeout(function () {
+            closeMenu();
+          }, 100);
+        });
+      });
+    }
+
+    // Close menu on ESC key
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && header.classList.contains("is-open")) {
+        closeMenu();
+      }
     });
 
     // Currency toggle handler

@@ -66,6 +66,19 @@ body.woocommerce-checkout #primary {
   z-index: 1;
 }
 
+/* Ensure header is above checkout content */
+body.woocommerce-checkout .artly-site-header {
+  z-index: 50;
+}
+
+body.woocommerce-checkout .artly-header-nav {
+  z-index: 51;
+}
+
+body.woocommerce-checkout .artly-menu-backdrop {
+  z-index: 49;
+}
+
 /* Main Checkout Wrapper */
 .artly-checkout-wrap {
   max-width: 1280px;
