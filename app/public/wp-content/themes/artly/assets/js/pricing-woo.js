@@ -8,6 +8,8 @@
     if (!settings.woocommerceActive) {
       return;
     }
+
+    var wooSettings = window.artlyWoo || {};
   
     var slider = document.querySelector('[data-points-slider]');
     var manualInput = document.querySelector('#pointsInput');
@@ -81,17 +83,23 @@
   
       var currency = (getCurrency() || 'EGP').toUpperCase();
   
-      var nonce = (window.wpApiSettings && window.wpApiSettings.nonce) || '';
-  
+      var nonce = wooSettings.nonce || (window.wpApiSettings && window.wpApiSettings.nonce) || '';
+
       button.setAttribute('data-loading', 'true');
       button.classList.add('is-loading');
-  
-      // Use the correct REST API endpoint
-      var apiUrl = (settings.homeUrl || '').replace(/\/$/, '') + '/wp-json/artly/v1/points/add-to-cart';
-      if (!apiUrl.startsWith('http')) {
-        apiUrl = window.location.origin + apiUrl;
+
+      // Use the localized REST API base when available
+      var restBase = wooSettings.restBase;
+      if (!restBase) {
+        var origin = (settings.homeUrl || window.location.origin || '').replace(/\/$/, '');
+        restBase = origin + '/wp-json/artly/v1/';
       }
-      
+      if (restBase.slice(-1) !== '/') {
+        restBase += '/';
+      }
+
+      var apiUrl = restBase + 'points/add-to-cart';
+
       fetch(apiUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -101,7 +109,8 @@
         },
         body: JSON.stringify({
           points: points,
-          currency: currency
+          currency: currency,
+          redirect: getCartRedirect()
         })
       })
         .then(function (response) {
