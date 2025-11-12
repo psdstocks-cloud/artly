@@ -337,6 +337,24 @@ function artly_enqueue_cinematic_scripts() {
             wp_get_theme()->get( 'Version' ),
             true
         );
+
+        // Home page animations (enhanced)
+        wp_enqueue_script(
+            'artly-home-animations',
+            get_template_directory_uri() . '/assets/js/home-animations.js',
+            array( 'gsap', 'scrolltrigger' ),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        // Conversion tracking
+        wp_enqueue_script(
+            'artly-conversion-tracking',
+            get_template_directory_uri() . '/assets/js/conversion-tracking.js',
+            array(),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
     }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_cinematic_scripts' );

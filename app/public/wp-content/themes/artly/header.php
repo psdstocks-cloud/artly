@@ -15,6 +15,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 
+<!-- Announcement bar -->
+<div class="artly-announcement-bar" id="artly-announcement">
+  <div class="artly-announcement-inner">
+    <span class="artly-announcement-badge">NEW</span>
+    <span>Get 20% bonus points on your first purchase</span>
+    <a href="<?php echo esc_url( home_url( '/signup/' ) ); ?>" class="artly-announcement-cta">Claim Offer →</a>
+  </div>
+  <button class="artly-announcement-close" aria-label="Dismiss" onclick="document.getElementById('artly-announcement').style.display='none'">×</button>
+</div>
+
 <header class="artly-site-header">
   <div class="artly-header-inner">
     <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="artly-header-logo">
