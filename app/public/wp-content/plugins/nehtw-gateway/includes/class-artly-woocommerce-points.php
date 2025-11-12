@@ -40,6 +40,9 @@ function artly_wc_add_cart_item_data( $cart_item_data, $product_id, $variation_i
     }
     
     // Check GET parameters first (direct URL access)
+    $points = 0;
+    $total = 0;
+    
     if ( isset( $_GET['artly_points'] ) ) {
         $points = (int) $_GET['artly_points'];
         if ( $points > 0 ) {
@@ -75,6 +78,11 @@ function artly_wc_add_cart_item_data( $cart_item_data, $product_id, $variation_i
         if ( $session_total && $session_total > 0 ) {
             $cart_item_data['artly_total'] = (float) $session_total;
         }
+    }
+    
+    // Debug logging (remove in production if needed)
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+        error_log( 'Artly WC Cart Data: Points=' . ( isset( $cart_item_data['artly_points'] ) ? $cart_item_data['artly_points'] : '0' ) . ', Total=' . ( isset( $cart_item_data['artly_total'] ) ? $cart_item_data['artly_total'] : '0' ) );
     }
 
     return $cart_item_data;
@@ -129,12 +137,27 @@ function artly_wc_before_calculate_totals( $cart ) {
         
         // Set the price if we found one
         if ( $price_to_set && $price_to_set > 0 && isset( $cart_item['data'] ) && is_object( $cart_item['data'] ) ) {
+            // Set all price types to ensure WooCommerce uses the correct price
             $cart_item['data']->set_price( $price_to_set );
             $cart_item['data']->set_regular_price( $price_to_set );
             $cart_item['data']->set_sale_price( '' );
-            // Also update the cart contents directly
+            
+            // Also update the cart contents directly (critical for cart display)
             $cart->cart_contents[ $cart_item_key ]['data']->set_price( $price_to_set );
             $cart->cart_contents[ $cart_item_key ]['data']->set_regular_price( $price_to_set );
+            $cart->cart_contents[ $cart_item_key ]['data']->set_sale_price( '' );
+            
+            // Force update the line total
+            $quantity = isset( $cart_item['quantity'] ) ? (int) $cart_item['quantity'] : 1;
+            $cart->cart_contents[ $cart_item_key ]['line_total'] = $price_to_set * $quantity;
+            $cart->cart_contents[ $cart_item_key ]['line_subtotal'] = $price_to_set * $quantity;
+            $cart->cart_contents[ $cart_item_key ]['line_tax'] = 0;
+            $cart->cart_contents[ $cart_item_key ]['line_subtotal_tax'] = 0;
+            
+            // Debug logging
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Artly WC Price Set: Item=' . $cart_item_key . ', Price=' . $price_to_set . ', Quantity=' . $quantity . ', LineTotal=' . ( $price_to_set * $quantity ) );
+            }
         }
     }
 }
@@ -266,11 +289,12 @@ add_filter( 'woocommerce_product_get_sale_price', 'artly_wc_product_get_price', 
  * Force price update on cart page load - runs after all other hooks
  */
 function artly_wc_cart_loaded_from_session() {
-    if ( ! function_exists( 'WC' ) || ! WC()->cart || ! is_cart() ) {
+    if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
         return;
     }
     
     $wallet_product_id = get_option( 'artly_woocommerce_product_id', 25 );
+    $needs_recalc = false;
     
     foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
         if ( ! isset( $cart_item['product_id'] ) || $cart_item['product_id'] != $wallet_product_id ) {
@@ -279,11 +303,11 @@ function artly_wc_cart_loaded_from_session() {
         
         $price_to_set = null;
         
-        // Check cart item data
+        // Priority 1: Check cart item data
         if ( isset( $cart_item['artly_total'] ) && $cart_item['artly_total'] > 0 ) {
             $price_to_set = (float) $cart_item['artly_total'];
         }
-        // Check session
+        // Priority 2: Check session
         elseif ( WC()->session ) {
             $session_total = WC()->session->get( 'artly_total_' . $wallet_product_id );
             if ( $session_total && $session_total > 0 ) {
@@ -291,19 +315,44 @@ function artly_wc_cart_loaded_from_session() {
                 WC()->cart->cart_contents[ $cart_item_key ]['artly_total'] = $price_to_set;
             }
         }
+        // Priority 3: Check GET parameters (if still on cart page with params)
+        elseif ( isset( $_GET['artly_total'] ) && $_GET['artly_total'] > 0 ) {
+            $price_to_set = (float) $_GET['artly_total'];
+            WC()->cart->cart_contents[ $cart_item_key ]['artly_total'] = $price_to_set;
+            if ( WC()->session ) {
+                WC()->session->set( 'artly_total_' . $wallet_product_id, $price_to_set );
+            }
+        }
         
         // Force set price
         if ( $price_to_set && $price_to_set > 0 && isset( $cart_item['data'] ) ) {
-            $cart_item['data']->set_price( $price_to_set );
-            $cart_item['data']->set_regular_price( $price_to_set );
-            $cart_item['data']->set_sale_price( '' );
-            WC()->cart->cart_contents[ $cart_item_key ]['data']->set_price( $price_to_set );
-            WC()->cart->cart_contents[ $cart_item_key ]['data']->set_regular_price( $price_to_set );
+            $current_price = $cart_item['data']->get_price();
+            
+            // Only update if price is different (avoid unnecessary updates)
+            if ( $current_price != $price_to_set ) {
+                $cart_item['data']->set_price( $price_to_set );
+                $cart_item['data']->set_regular_price( $price_to_set );
+                $cart_item['data']->set_sale_price( '' );
+                
+                // Also update in cart contents directly
+                WC()->cart->cart_contents[ $cart_item_key ]['data']->set_price( $price_to_set );
+                WC()->cart->cart_contents[ $cart_item_key ]['data']->set_regular_price( $price_to_set );
+                WC()->cart->cart_contents[ $cart_item_key ]['data']->set_sale_price( '' );
+                
+                $needs_recalc = true;
+            }
         }
+    }
+    
+    // Force cart recalculation if we updated prices
+    if ( $needs_recalc ) {
+        WC()->cart->calculate_totals();
     }
 }
 add_action( 'wp_loaded', 'artly_wc_cart_loaded_from_session', 20 );
 add_action( 'woocommerce_cart_loaded_from_session', 'artly_wc_cart_loaded_from_session', 20 );
+add_action( 'woocommerce_after_cart_item_quantity_update', 'artly_wc_cart_loaded_from_session', 20 );
+add_action( 'woocommerce_cart_item_removed', 'artly_wc_cart_loaded_from_session', 20 );
 
 /**
  * Also hook into add to cart action to capture data immediately
@@ -348,8 +397,20 @@ function artly_wc_add_to_cart( $cart_item_key, $product_id, $quantity, $variatio
                 // Immediately set price on the product object
                 if ( isset( $cart->cart_contents[ $cart_item_key ]['data'] ) ) {
                     $cart->cart_contents[ $cart_item_key ]['data']->set_price( $total );
+                    $cart->cart_contents[ $cart_item_key ]['data']->set_regular_price( $total );
+                    $cart->cart_contents[ $cart_item_key ]['data']->set_sale_price( '' );
+                    
+                    // Update line totals
+                    $quantity = isset( $cart->cart_contents[ $cart_item_key ]['quantity'] ) ? $cart->cart_contents[ $cart_item_key ]['quantity'] : 1;
+                    $cart->cart_contents[ $cart_item_key ]['line_total'] = $total * $quantity;
+                    $cart->cart_contents[ $cart_item_key ]['line_subtotal'] = $total * $quantity;
                 }
             }
+        }
+        
+        // Force cart recalculation after adding item
+        if ( $cart ) {
+            $cart->calculate_totals();
         }
     }
 }
@@ -445,6 +506,41 @@ function artly_wc_cart_item_name( $name, $cart_item, $cart_item_key ) {
     return $name;
 }
 add_filter( 'woocommerce_cart_item_name', 'artly_wc_cart_item_name', 10, 3 );
+
+/**
+ * Ensure cart item price displays correctly (override any cached price)
+ */
+function artly_wc_cart_item_price( $price, $cart_item, $cart_item_key ) {
+    $wallet_product_id = get_option( 'artly_woocommerce_product_id', 25 );
+    
+    if ( isset( $cart_item['product_id'] ) && $cart_item['product_id'] == $wallet_product_id ) {
+        if ( isset( $cart_item['artly_total'] ) && $cart_item['artly_total'] > 0 ) {
+            $total = (float) $cart_item['artly_total'];
+            $price = wc_price( $total );
+        }
+    }
+    
+    return $price;
+}
+add_filter( 'woocommerce_cart_item_price', 'artly_wc_cart_item_price', 10, 3 );
+
+/**
+ * Ensure cart item subtotal displays correctly
+ */
+function artly_wc_cart_item_subtotal( $subtotal, $cart_item, $cart_item_key ) {
+    $wallet_product_id = get_option( 'artly_woocommerce_product_id', 25 );
+    
+    if ( isset( $cart_item['product_id'] ) && $cart_item['product_id'] == $wallet_product_id ) {
+        if ( isset( $cart_item['artly_total'] ) && $cart_item['artly_total'] > 0 ) {
+            $total = (float) $cart_item['artly_total'];
+            $quantity = isset( $cart_item['quantity'] ) ? (int) $cart_item['quantity'] : 1;
+            $subtotal = wc_price( $total * $quantity );
+        }
+    }
+    
+    return $subtotal;
+}
+add_filter( 'woocommerce_cart_item_subtotal', 'artly_wc_cart_item_subtotal', 10, 3 );
 
 /**
  * Display points in order details

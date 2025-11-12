@@ -61,7 +61,7 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-dunning-admi
 
 // WooCommerce integration for wallet top-ups (only load if WooCommerce is active)
 if ( class_exists( 'WooCommerce' ) ) {
-    require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-artly-woocommerce-points.php';
+    require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-woo-points.php';
 }
 
 function nehtw_gateway_activate() {

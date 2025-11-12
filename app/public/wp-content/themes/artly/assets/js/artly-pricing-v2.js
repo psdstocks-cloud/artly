@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== 1. CURRENCY SYSTEM =====
     const conversionRate = 0.020; // 1 EGP = 0.020 USD (50 EGP = 1 USD)
     let currency = artlyPricingSettings?.userCurrency || localStorage.getItem('artly_currency') || 'EGP';
+
+    window.artlyCurrency = window.artlyCurrency || {};
+    window.artlyCurrency.current = currency;
     
     // Initialize currency from localStorage or PHP
     if (!localStorage.getItem('artly_currency')) {
@@ -78,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currencyDisplay) {
             currencyDisplay.textContent = currency;
         }
+        window.artlyCurrency.current = currency;
         updateAllPrices();
         // Also update calculator when currency changes
         if (range && input) {
@@ -365,61 +369,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Main CTA button (calculator checkout)
     const mainCTA = document.getElementById('pricingCTA');
     
-    if (mainCTA && woocommerceActive && woocommerceProductId > 0) {
-        // Override href to handle checkout via JavaScript
+    if (mainCTA && woocommerceActive) {
         mainCTA.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Check if user is logged in before proceeding
             if (!isLoggedIn) {
-                // User-friendly redirect to login
+                e.preventDefault();
                 window.location.href = homeUrl + '/login/?redirect=' + encodeURIComponent(window.location.href);
-                return;
             }
-            
-            // Get current points and total
-            const currentPoints = parseInt(input.value || range.value, 10);
-            if (!currentPoints || currentPoints <= 0) {
-                alert('Please choose how many points you want first.');
-                return;
-            }
-            
-            // Extract total from monthlyTotalEl (remove currency symbols and parse)
-            let totalAmount = 0;
-            if (monthlyTotalEl) {
-                const totalText = monthlyTotalEl.textContent || '';
-                // Remove all non-numeric characters except decimal point
-                const cleanedTotal = totalText.replace(/[^\d.]/g, '');
-                totalAmount = parseFloat(cleanedTotal) || 0;
-                
-                // If currency is USD, convert back to EGP for WooCommerce
-                // (WooCommerce will handle currency display, but we store EGP)
-                if (currency === 'USD') {
-                    // Convert USD to EGP (1 USD = 50 EGP based on conversionRate of 0.020)
-                    totalAmount = totalAmount / conversionRate;
-                }
-            }
-            
-            if (totalAmount <= 0) {
-                alert('Unable to calculate total. Please try again.');
-                return;
-            }
-            
-            // Build WooCommerce cart URL
-            const cartUrl = new URL(homeUrl + '/cart/');
-            cartUrl.searchParams.set('add-to-cart', String(woocommerceProductId));
-            cartUrl.searchParams.set('artly_points', String(currentPoints));
-            cartUrl.searchParams.set('artly_total', String(totalAmount.toFixed(2)));
-            
-            // Redirect to WooCommerce cart
-            window.location.href = cartUrl.toString();
         });
-        
-        // Update button text if WooCommerce is active
-        if (mainCTA.textContent.includes('Subscribe to')) {
-            // Keep the dynamic text but make it clear it's for checkout
-            // The text already shows "Subscribe to X points / month"
-        }
     } else if (mainCTA) {
         // Fallback: login state detection (if WooCommerce not active)
         if (isLoggedIn) {
@@ -484,4 +440,3 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.replaceState({}, document.title, newUrl);
     }
 });
-
