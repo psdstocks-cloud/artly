@@ -435,5 +435,82 @@
 @keyframes spin {
   to {
     transform: rotate(1turn);
+>>>>>>> 104c62209ea69a0cf4fbbf3177d631763253b7d8
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artly-login__glow {
+    animation: none;
+  }
+
+  .btn,
+  .field input {
+    transition: none;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .artly-login {
+    background: radial-gradient(900px 600px at 10% 10%, rgba(6, 182, 212, 0.1), transparent),
+      linear-gradient(120deg, #f0f4ff 0%, #e2e8f0 100%);
+    color: #0f172a;
+  }
+
+  .artly-login__card {
+    background: rgba(255, 255, 255, 0.8);
+    color: #0f172a;
+  }
+
+  .field input {
+    color: #0f172a;
+  }
+
+  .link,
+  .btn--ghost {
+    color: #0f172a;
+  }
+}
+
+[dir="rtl"] .artly-login__wrap {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .artly-login__intro .benefits li {
+  justify-content: flex-end;
+}
+
+[dir="rtl"] .field--password .toggle-pass {
+  right: auto;
+  left: 10px;
+}
+
+[dir="rtl"] .row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .btn--ghost {
+  flex-direction: row-reverse;
+}
+
+@keyframes artlyGlow {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
   }
 }
