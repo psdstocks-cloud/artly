@@ -119,7 +119,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             <a class="artly-header-link" href="<?php echo esc_url( home_url( '/stock-order/' ) ); ?>">
               <?php esc_html_e( 'Order Stock', 'artly' ); ?>
             </a>
-            <a class="artly-header-link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">
+            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/dashboard/' ) ); ?>">
               <?php esc_html_e( 'My Account', 'artly' ); ?>
             </a>
             <a class="artly-header-button artly-header-button--ghost" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
@@ -156,7 +156,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             </span>
             <span class="artly-header-wallet-label"><?php esc_html_e( 'points', 'artly' ); ?></span>
           </a>
-          <a class="artly-header-link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">
+          <a class="artly-header-link" href="<?php echo esc_url( home_url( '/dashboard/' ) ); ?>">
             <?php esc_html_e( 'My Account', 'artly' ); ?>
           </a>
           <a class="artly-header-button artly-header-button--ghost" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">

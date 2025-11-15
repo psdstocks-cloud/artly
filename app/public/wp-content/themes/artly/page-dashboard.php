@@ -90,49 +90,68 @@ if ( function_exists( 'nehtw_gateway_get_table_name' ) ) {
     }
 }
 
+// Get recent stock downloads using the same function as my-downloads page
 $recent_stock_orders = array();
-$stock_orders_source = array();
-if ( class_exists( 'Nehtw_Gateway_Stock_Orders' ) ) {
-    $stock_orders_source = Nehtw_Gateway_Stock_Orders::get_user_orders( $user_id, 5, 0 );
-} elseif ( function_exists( 'nehtw_gateway_get_orders_for_user' ) ) {
-    $stock_orders_source = nehtw_gateway_get_orders_for_user( $user_id, 5, 0 );
-}
-
-if ( is_array( $stock_orders_source ) ) {
-    foreach ( $stock_orders_source as $order ) {
+if ( function_exists( 'nehtw_get_user_download_history' ) ) {
+    $history = nehtw_get_user_download_history( $user_id, 1, 5, 'stock' );
+    $items   = isset( $history['items'] ) && is_array( $history['items'] ) ? $history['items'] : array();
+    
+    foreach ( $items as $item ) {
+        // Extract data from the normalized history item
         $title = '';
-        if ( isset( $order['file_name'] ) && '' !== $order['file_name'] ) {
-            $title = (string) $order['file_name'];
-        } elseif ( isset( $order['stock_id'] ) && '' !== $order['stock_id'] && null !== $order['stock_id'] ) {
-            $title = (string) $order['stock_id'];
+        if ( ! empty( $item['remote_id'] ) ) {
+            $title = (string) $item['remote_id'];
+        } elseif ( ! empty( $item['title'] ) ) {
+            $title = (string) $item['title'];
         } else {
             $title = __( 'Stock asset', 'artly' );
         }
 
-        $site        = isset( $order['site'] ) ? (string) $order['site'] : '';
-        $site_label  = $site ? ucwords( str_replace( array( '-', '_' ), ' ', $site ) ) : __( 'Stock', 'artly' );
-        $status      = isset( $order['status'] ) ? strtolower( (string) $order['status'] ) : '';
-        $status_text = $status ? ucwords( str_replace( '_', ' ', $status ) ) : __( 'Pending', 'artly' );
-        $created     = isset( $order['created_at'] ) ? (string) $order['created_at'] : '';
-        $created_at  = $created ? mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $created ) : '';
+        $provider_label = ! empty( $item['provider_label'] ) ? $item['provider_label'] : ( ! empty( $item['provider'] ) ? ucwords( str_replace( array( '-', '_' ), ' ', $item['provider'] ) ) : __( 'Stock', 'artly' ) );
+        
+        $status = ! empty( $item['status'] ) ? strtolower( (string) $item['status'] ) : '';
+        // Normalize status for display
+        if ( in_array( $status, array( 'completed', 'ready' ), true ) ) {
+            $status_text = 'COMPLETED';
+            $status_class = 'completed';
+        } elseif ( 'processing' === $status ) {
+            $status_text = 'PROCESSING';
+            $status_class = 'processing';
+        } elseif ( in_array( $status, array( 'failed', 'error' ), true ) ) {
+            $status_text = 'FAILED';
+            $status_class = 'failed';
+        } else {
+            $status_text = 'READY';
+            $status_class = 'ready';
+        }
+
+        $created_at = '';
+        if ( ! empty( $item['updated_at'] ) ) {
+            $created_at = mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $item['updated_at'] );
+        } elseif ( ! empty( $item['created_at'] ) ) {
+            $created_at = mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $item['created_at'] );
+        }
         if ( ! $created_at ) {
             $created_at = __( 'Recently updated', 'artly' );
         }
 
         $link = '';
-        if ( isset( $order['download_link'] ) && $order['download_link'] ) {
-            $link = esc_url_raw( $order['download_link'] );
+        if ( ! empty( $item['download_url'] ) ) {
+            $link = esc_url_raw( $item['download_url'] );
+        } elseif ( ! empty( $item['url'] ) ) {
+            $link = esc_url_raw( $item['url'] );
         }
         if ( '' === $link ) {
-            $link = home_url( '/app/stock/' );
+            $link = home_url( '/my-downloads/' );
         }
 
         $recent_stock_orders[] = array(
-            'title'      => $title,
-            'site'       => $site_label,
-            'status'     => $status_text,
-            'created_at' => $created_at,
-            'link'       => $link,
+            'title'        => $title,
+            'provider'     => $provider_label,
+            'status'       => $status_text,
+            'status_class' => $status_class,
+            'created_at'   => $created_at,
+            'link'         => $link,
         );
     }
 }
@@ -265,32 +284,32 @@ if ( is_array( $stock_orders_source ) ) {
       <!-- STOCK DOWNLOADS CARD -->
       <article class="dashboard-card dashboard-card--stock">
         <header class="dashboard-card-header">
-          <span class="dashboard-card-label"><?php esc_html_e( 'Stock downloads', 'artly' ); ?></span>
+          <span class="dashboard-card-label"><?php esc_html_e( 'STOCK DOWNLOADS', 'artly' ); ?></span>
           <h2 class="dashboard-card-title"><?php esc_html_e( 'Stock Downloads History', 'artly' ); ?></h2>
         </header>
         <div class="dashboard-card-body">
           <?php if ( ! empty( $recent_stock_orders ) ) : ?>
-            <ul class="dashboard-list">
+            <ul class="dashboard-stock-list">
               <?php foreach ( $recent_stock_orders as $order ) : ?>
-                <li class="dashboard-list-item">
-                  <div class="dashboard-list-main">
-                    <div class="dashboard-list-title">
+                <li class="dashboard-stock-item">
+                  <div class="dashboard-stock-content">
+                    <div class="dashboard-stock-title">
                       <?php echo esc_html( $order['title'] ); ?>
                     </div>
-                    <div class="dashboard-list-meta">
+                    <div class="dashboard-stock-meta">
                       <?php
-                      echo esc_html( $order['site'] );
+                      echo esc_html( $order['provider'] );
                       echo ' · ';
                       echo esc_html( $order['created_at'] );
                       ?>
                     </div>
                   </div>
-                  <div>
-                    <span class="dashboard-list-pill">
+                  <div class="dashboard-stock-actions">
+                    <span class="dashboard-stock-status dashboard-stock-status--<?php echo esc_attr( $order['status_class'] ); ?>">
                       <?php echo esc_html( $order['status'] ); ?>
                     </span>
                     <?php if ( ! empty( $order['link'] ) ) : ?>
-                      <a class="dashboard-list-link" href="<?php echo esc_url( $order['link'] ); ?>">
+                      <a class="dashboard-stock-view" href="<?php echo esc_url( $order['link'] ); ?>" target="_blank" rel="noopener noreferrer">
                         <?php esc_html_e( 'View', 'artly' ); ?>
                       </a>
                     <?php endif; ?>
@@ -303,12 +322,12 @@ if ( is_array( $stock_orders_source ) ) {
               <?php esc_html_e( 'No downloads yet. Browse stock files and download full-size assets with your points.', 'artly' ); ?>
             </p>
           <?php endif; ?>
-          <div class="dashboard-actions">
+          <div class="dashboard-actions dashboard-actions--stock">
             <a class="dashboard-btn-primary" href="<?php echo esc_url( home_url( '/stock-order/' ) ); ?>">
               <?php esc_html_e( 'Order stock images', 'artly' ); ?>
             </a>
-            <a class="dashboard-btn-secondary" href="<?php echo esc_url( home_url( '/app/stock/' ) ); ?>">
-              <?php esc_html_e( 'Go to stock', 'artly' ); ?>
+            <a class="dashboard-btn-secondary dashboard-btn-secondary--orange" href="<?php echo esc_url( home_url( '/my-downloads/' ) ); ?>">
+              <?php esc_html_e( 'View full history', 'artly' ); ?>
             </a>
           </div>
         </div>

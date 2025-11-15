@@ -9,7 +9,7 @@ defined( 'ABSPATH' ) || exit;
 if ( is_user_logged_in() ) {
     $redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
     if ( ! $redirect_to ) {
-        $redirect_to = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : home_url( '/' );
+        $redirect_to = home_url( '/dashboard/' );
     }
     wp_safe_redirect( $redirect_to );
     exit;

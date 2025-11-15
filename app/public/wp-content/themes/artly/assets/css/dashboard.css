@@ -307,3 +307,151 @@
   background: linear-gradient(145deg, rgba(251, 146, 60, 0.12), rgba(15, 23, 42, 0.68));
   border-color: rgba(251, 146, 60, 0.32);
 }
+
+/* Stock Downloads List - Redesigned */
+.artly-dashboard-page .dashboard-stock-list {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.artly-dashboard-page .dashboard-stock-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  transition: all 0.2s ease;
+}
+
+.artly-dashboard-page .dashboard-stock-item:hover {
+  background: rgba(15, 23, 42, 0.75);
+  border-color: rgba(251, 146, 60, 0.3);
+  transform: translateY(-1px);
+}
+
+.artly-dashboard-page .dashboard-stock-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.artly-dashboard-page .dashboard-stock-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.artly-dashboard-page .dashboard-stock-meta {
+  font-size: 0.875rem;
+  color: rgba(148, 163, 184, 0.8);
+  line-height: 1.4;
+}
+
+.artly-dashboard-page .dashboard-stock-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.artly-dashboard-page .dashboard-stock-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.artly-dashboard-page .dashboard-stock-status--completed {
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #020617;
+  box-shadow: 0 4px 12px rgba(6, 245, 232, 0.3);
+}
+
+.artly-dashboard-page .dashboard-stock-status--ready {
+  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  color: #020617;
+  box-shadow: 0 4px 12px rgba(6, 245, 232, 0.3);
+}
+
+.artly-dashboard-page .dashboard-stock-status--processing {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.4);
+}
+
+.artly-dashboard-page .dashboard-stock-status--failed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.artly-dashboard-page .dashboard-stock-view {
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.9);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-weight: 500;
+}
+
+.artly-dashboard-page .dashboard-stock-view:hover {
+  color: #06f5e8;
+}
+
+/* Stock Actions - Orange button variant */
+.artly-dashboard-page .dashboard-actions--stock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.artly-dashboard-page .dashboard-btn-secondary--orange {
+  background: transparent;
+  border: 1px solid rgba(251, 146, 60, 0.5);
+  color: #fb923c;
+  box-shadow: 0 0 20px rgba(251, 146, 60, 0.2);
+}
+
+.artly-dashboard-page .dashboard-btn-secondary--orange:hover {
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.7);
+  color: #fb923c;
+  box-shadow: 0 0 30px rgba(251, 146, 60, 0.35);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 640px) {
+  .artly-dashboard-page .dashboard-stock-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .artly-dashboard-page .dashboard-stock-actions {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .artly-dashboard-page .dashboard-actions--stock {
+    width: 100%;
+  }
+
+  .artly-dashboard-page .dashboard-actions--stock a {
+    width: 100%;
+    text-align: center;
+  }
+}

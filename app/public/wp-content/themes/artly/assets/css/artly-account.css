@@ -64,9 +64,11 @@ body.woocommerce-account #primary {
   z-index: 1;
 }
 
-/* Ensure header is visible on account pages */
+/* Ensure header is visible on account pages and dashboard */
 body.woocommerce-account .artly-site-header,
-body.woocommerce-account header.artly-site-header {
+body.woocommerce-account header.artly-site-header,
+body.page-template-page-dashboard .artly-site-header,
+body.page-template-page-dashboard header.artly-site-header {
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
@@ -83,10 +85,26 @@ body.woocommerce-account header.artly-site-header {
 }
 
 /* Ensure announcement bar is also visible */
-body.woocommerce-account .artly-announcement-bar {
+body.woocommerce-account .artly-announcement-bar,
+body.page-template-page-dashboard .artly-announcement-bar {
   z-index: 101 !important;
   position: sticky !important;
   top: 0 !important;
+}
+
+/* Dashboard shell wrapper for WooCommerce endpoints */
+.artly-dashboard-shell--woo {
+  padding: clamp(16px, 2vw, 32px);
+  max-width: 1280px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.artly-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 2vw, 32px);
 }
 
 /* Shell Container */

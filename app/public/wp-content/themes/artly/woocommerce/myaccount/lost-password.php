@@ -8,13 +8,18 @@
 
 defined( 'ABSPATH' ) || exit;
 
-// If user is already logged in, redirect
+// If user is already logged in, redirect to dashboard
 if ( is_user_logged_in() ) {
-    wp_safe_redirect( home_url( '/my-account/' ) );
+    wp_safe_redirect( home_url( '/dashboard/' ) );
     exit;
 }
 
 $lost_password_sent = isset( $_GET['reset-link-sent'] );
+
+// Ensure header is loaded (in case this template is loaded standalone)
+if ( ! did_action( 'get_header' ) ) {
+    get_header();
+}
 ?>
 
 <main id="primary" class="artly-login" aria-labelledby="lostPasswordHeading">
@@ -111,7 +116,7 @@ $lost_password_sent = isset( $_GET['reset-link-sent'] );
                         <?php echo esc_html__( '← Back to Sign in', 'artly' ); ?>
                     </a>
                     <span class="separator-text"><?php echo esc_html__( 'or', 'artly' ); ?></span>
-                    <a class="link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">
+                    <a class="link" href="<?php echo esc_url( home_url( '/signup/' ) ); ?>">
                         <?php echo esc_html__( 'Create a free account', 'artly' ); ?>
                     </a>
                 </div>

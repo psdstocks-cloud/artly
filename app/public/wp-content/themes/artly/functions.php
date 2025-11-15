@@ -23,6 +23,15 @@ function artly_theme_setup() {
 add_action( 'after_setup_theme', 'artly_theme_setup' );
 
 /**
+ * Add canonical meta tag for dashboard page to avoid duplicate content
+ */
+add_action( 'wp_head', function() {
+    if ( is_page( 'dashboard' ) ) {
+        echo '<link rel="canonical" href="' . esc_url( home_url( '/dashboard/' ) ) . '" />' . "\n";
+    }
+}, 5 );
+
+/**
  * Get all supported websites with their URLs for header navigation
  *
  * @return array Array of sites with label and URL
@@ -683,7 +692,7 @@ function artly_ajax_login() {
     $username = sanitize_user( $_POST['artly_username'] ?? '' );
     $password = $_POST['artly_password'] ?? '';
     $remember = isset( $_POST['artly_remember'] ) ? true : false;
-    $redirect_to = isset( $_POST['redirect_to'] ) ? esc_url_raw( $_POST['redirect_to'] ) : home_url( '/my-downloads/' );
+    $redirect_to = isset( $_POST['redirect_to'] ) ? esc_url_raw( $_POST['redirect_to'] ) : home_url( '/dashboard/' );
     
     // Validation
     if ( empty( $username ) ) {
@@ -1038,21 +1047,31 @@ add_filter( 'woocommerce_account_menu_items', function ( $items ) {
     );
 } );
 
-// === 3. Load assets only on My Account ===
+// === 3. Load assets for Dashboard and WooCommerce account endpoints ===
 add_action( 'wp_enqueue_scripts', function () {
-    if ( is_account_page() ) {
+    $theme   = wp_get_theme();
+    $version = $theme->get( 'Version' );
+
+    $is_dashboard = is_page( 'dashboard' );
+    $is_login     = is_page( 'login' );
+    $is_wc_account = function_exists( 'is_account_page' ) && is_account_page();
+    $is_wc_lost    = $is_wc_account && function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'lost-password' );
+    $is_wc_reset   = $is_wc_account && ( isset( $_GET['key'], $_GET['id'] ) ); // reset key screen
+
+    if ( $is_dashboard || $is_login || $is_wc_account || $is_wc_lost || $is_wc_reset ) {
+        // Main dashboard/login/account styles
         wp_enqueue_style(
             'artly-account',
             get_stylesheet_directory_uri() . '/assets/css/artly-account.css',
             array(),
-            wp_get_theme()->get( 'Version' )
+            $version
         );
 
         wp_enqueue_script(
             'artly-account',
             get_stylesheet_directory_uri() . '/assets/js/artly-account.js',
             array( 'jquery' ),
-            wp_get_theme()->get( 'Version' ),
+            $version,
             true
         );
 
@@ -1067,7 +1086,7 @@ add_action( 'wp_enqueue_scripts', function () {
             )
         );
     }
-} );
+}, 20 );
 
 // === 4. Data providers (safe wrappers) ===
 
@@ -1129,22 +1148,47 @@ function artly_get_recent_downloads( $user_id, $limit = 10 ) {
 }
 // Canonicalize login to /login
 add_action('template_redirect', function () {
-    if (function_exists('is_account_page') && is_account_page() && !is_user_logged_in()) {
-  
-      // If we are on a Woo endpoint like /my-account/lost-password/ or /reset-password/
-      if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url()) {
-        // Do NOT redirect endpoints (lost password, reset, etc.)
-        return;
-      }
-  
-      // We are on the base /my-account/ and user is not logged in -> send to /login
-      $login_url = home_url('/login/');
-      if (!is_page_template('page-login.php')) {
-        wp_safe_redirect($login_url, 301);
-        exit;
-      }
+    // Comprehensive routing logic for dashboard and account pages
+  if ( is_admin() ) {
+    return;
+  }
+
+  $is_account   = function_exists( 'is_account_page' ) && is_account_page();
+  $is_wc_ep     = function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url();
+  $is_dashboard = is_page( 'dashboard' );
+  $is_login     = is_page( 'login' );
+
+  // LOGGED OUT
+  if ( ! is_user_logged_in() ) {
+    // My Account base (no endpoint) → Login
+    if ( $is_account && ! $is_wc_ep ) {
+      wp_safe_redirect( home_url( '/login/' ), 302 );
+      exit;
     }
-  });
+
+    // Dashboard should not be visible when logged out
+    if ( $is_dashboard ) {
+      wp_safe_redirect( home_url( '/login/' ), 302 );
+      exit;
+    }
+
+    // Allow /my-account/lost-password/ and reset key endpoints to work
+    return;
+  }
+
+  // LOGGED IN
+  // My Account base → Dashboard
+  if ( $is_account && ! $is_wc_ep ) {
+    wp_safe_redirect( home_url( '/dashboard/' ), 301 );
+    exit;
+  }
+
+  // Already logged in and hits /login → Dashboard
+  if ( $is_login ) {
+    wp_safe_redirect( home_url( '/dashboard/' ), 302 );
+    exit;
+  }
+});
   
 /**
  * Subscriptions summary: ask backend/plugin; return normalized structure.
