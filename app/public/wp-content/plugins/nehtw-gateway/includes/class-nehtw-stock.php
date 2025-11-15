@@ -22,11 +22,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 function nehtw_gateway_get_stock_sites_config() {
     // Always try to get from database first
     if ( class_exists( 'Nehtw_Sites' ) ) {
+        // Force fresh data by clearing cache on stock-order page to ensure all sites are shown
+        if ( ! is_admin() && ( is_page( 'stock-order' ) || isset( $_GET['refresh_sites'] ) ) ) {
+            delete_transient( 'nehtw_sites_cache' );
+        }
+        
         $rows = Nehtw_Sites::all();
         if ( ! empty( $rows ) && is_array( $rows ) ) {
             $sites = array();
             foreach ( $rows as $row ) {
                 // Include ALL sites regardless of status (frontend will show disabled state for inactive ones)
+                // Only skip if row is invalid
+                if ( empty( $row->site_key ) || empty( $row->label ) ) {
+                    continue;
+                }
                 $sites[ $row->site_key ] = array(
                     'key'     => $row->site_key,
                     'label'   => $row->label,

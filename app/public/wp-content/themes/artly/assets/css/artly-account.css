@@ -64,6 +64,31 @@ body.woocommerce-account #primary {
   z-index: 1;
 }
 
+/* Ensure header is visible on account pages */
+body.woocommerce-account .artly-site-header,
+body.woocommerce-account header.artly-site-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: linear-gradient(
+    to bottom,
+    rgba(15, 23, 42, 0.96),
+    rgba(15, 23, 42, 0.9)
+  ) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+
+/* Ensure announcement bar is also visible */
+body.woocommerce-account .artly-announcement-bar {
+  z-index: 101 !important;
+  position: sticky !important;
+  top: 0 !important;
+}
+
 /* Shell Container */
 .artly-shell {
   padding: clamp(16px, 2vw, 32px);

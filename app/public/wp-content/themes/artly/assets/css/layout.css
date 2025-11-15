@@ -218,6 +218,163 @@
   width: 100%;
 }
 
+/* Dropdown menu for Supported Websites */
+.artly-header-menu-item--has-dropdown {
+  position: relative;
+}
+
+.artly-header-menu-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  color: var(--artly-text-muted);
+  font-size: 0.9rem;
+  padding: 0.3rem 0;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  position: relative;
+}
+
+.artly-header-menu-dropdown-trigger svg {
+  transition: transform 0.2s ease;
+}
+
+.artly-header-menu-item--has-dropdown:hover .artly-header-menu-dropdown-trigger,
+.artly-header-menu-item--has-dropdown.is-open .artly-header-menu-dropdown-trigger {
+  color: var(--artly-text-main);
+}
+
+.artly-header-menu-item--has-dropdown.is-open .artly-header-menu-dropdown-trigger svg {
+  transform: rotate(180deg);
+}
+
+.artly-header-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 600px;
+  max-width: 800px;
+  background: rgba(15, 23, 42, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(6, 245, 232, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-10px);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.artly-header-menu-item--has-dropdown:hover .artly-header-menu-dropdown,
+.artly-header-menu-item--has-dropdown.is-open .artly-header-menu-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.artly-header-menu-dropdown-inner {
+  padding: 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.artly-header-menu-dropdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.artly-header-menu-dropdown-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.artly-header-menu-dropdown-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--artly-text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.artly-header-menu-dropdown-link:hover {
+  color: var(--artly-text-main);
+  background: rgba(6, 245, 232, 0.1);
+  border-color: rgba(6, 245, 232, 0.2);
+  transform: translateX(4px);
+}
+
+.artly-header-menu-dropdown-link svg {
+  opacity: 0.5;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.artly-header-menu-dropdown-link:hover svg {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.artly-header-menu-dropdown-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--artly-text-muted);
+}
+
+/* Wallet badge in header */
+.artly-header-wallet-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(6, 245, 232, 0.1);
+  border: 1px solid rgba(6, 245, 232, 0.2);
+  color: var(--artly-accent-primary-start);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.artly-header-wallet-badge:hover {
+  background: rgba(6, 245, 232, 0.15);
+  border-color: rgba(6, 245, 232, 0.3);
+  transform: translateY(-1px);
+}
+
+.artly-header-wallet-badge svg {
+  flex-shrink: 0;
+}
+
+.artly-header-wallet-balance {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--artly-text-main);
+}
+
+.artly-header-wallet-label {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 /* CTA area on right */
 
 .artly-header-cta {
@@ -465,6 +622,55 @@
     opacity: 1;
     pointer-events: auto;
     transform: scaleY(1) translateY(0);
+  }
+
+  /* Mobile dropdown styles */
+  .artly-header-menu-item--has-dropdown {
+    width: 100%;
+  }
+
+  .artly-header-menu-dropdown-trigger {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .artly-header-menu-dropdown {
+    position: static;
+    min-width: auto;
+    max-width: none;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    margin-top: 0.5rem;
+    border-radius: 8px;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: none;
+  }
+
+  .artly-header-menu-item--has-dropdown.is-open .artly-header-menu-dropdown {
+    display: block;
+  }
+
+  .artly-header-menu-dropdown-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .artly-header-menu-dropdown-inner {
+    padding: 1rem;
+    max-height: 50vh;
+  }
+
+  .artly-header-wallet-badge {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 0.5rem;
   }
 }
 

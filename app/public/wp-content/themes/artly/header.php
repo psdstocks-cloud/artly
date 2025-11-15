@@ -36,25 +36,91 @@ if ( ! defined( 'ABSPATH' ) ) {
 
     <div class="artly-header-main">
       <nav class="artly-header-nav" aria-label="<?php esc_attr_e( 'Primary', 'artly' ); ?>">
-        <?php
-        wp_nav_menu(
-            array(
-                'theme_location' => 'primary',
-                'menu_class'     => 'artly-header-menu',
-                'container'      => false,
-                'fallback_cb'    => false,
-            )
-        );
-        ?>
+        <ul class="artly-header-menu">
+          <li>
+            <a href="<?php echo esc_url( home_url( '/' ) ); ?>">
+              <?php esc_html_e( 'Home', 'artly' ); ?>
+            </a>
+          </li>
+          <li>
+            <a href="<?php echo esc_url( home_url( '/pricing/' ) ); ?>">
+              <?php esc_html_e( 'Pricing', 'artly' ); ?>
+            </a>
+          </li>
+          <?php if ( is_user_logged_in() ) : ?>
+            <li>
+              <a href="<?php echo esc_url( home_url( '/stock-order/' ) ); ?>">
+                <?php esc_html_e( 'Order Stock', 'artly' ); ?>
+              </a>
+            </li>
+            <li>
+              <a href="<?php echo esc_url( home_url( '/my-downloads/' ) ); ?>">
+                <?php esc_html_e( 'My Downloads', 'artly' ); ?>
+              </a>
+            </li>
+          <?php endif; ?>
+          <li class="artly-header-menu-item--has-dropdown">
+            <button 
+              type="button" 
+              class="artly-header-menu-dropdown-trigger"
+              aria-expanded="false"
+              aria-haspopup="true"
+              id="websites-menu-trigger"
+            >
+              <?php esc_html_e( 'Supported Websites', 'artly' ); ?>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="artly-header-menu-dropdown" id="websites-menu-dropdown" role="menu" aria-labelledby="websites-menu-trigger">
+              <div class="artly-header-menu-dropdown-inner">
+                <?php
+                $websites = artly_get_supported_websites();
+                if ( ! empty( $websites ) ) :
+                  // Split into columns for better organization
+                  $chunk_size = ceil( count( $websites ) / 3 );
+                  $columns = array_chunk( $websites, $chunk_size );
+                  ?>
+                  <div class="artly-header-menu-dropdown-grid">
+                    <?php foreach ( $columns as $column ) : ?>
+                      <div class="artly-header-menu-dropdown-column">
+                        <?php foreach ( $column as $website ) : ?>
+                          <a 
+                            href="<?php echo esc_url( $website['url'] ); ?>" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            class="artly-header-menu-dropdown-link"
+                            role="menuitem"
+                          >
+                            <span class="artly-header-menu-dropdown-link-label">
+                              <?php echo esc_html( $website['label'] ); ?>
+                            </span>
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                              <path d="M5.25 3.5L9.75 8L5.25 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </a>
+                        <?php endforeach; ?>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php else : ?>
+                  <div class="artly-header-menu-dropdown-empty">
+                    <p><?php esc_html_e( 'No websites configured yet.', 'artly' ); ?></p>
+                  </div>
+                <?php endif; ?>
+              </div>
+            </div>
+          </li>
+        </ul>
         
         <!-- Mobile CTA buttons -->
         <div class="artly-header-cta-mobile">
           <?php if ( is_user_logged_in() ) : ?>
-            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/app/stock/' ) ); ?>">
-              <?php esc_html_e( 'Dashboard', 'artly' ); ?>
+            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/stock-order/' ) ); ?>">
+              <?php esc_html_e( 'Order Stock', 'artly' ); ?>
             </a>
-            <a class="artly-header-link" href="<?php echo esc_url( home_url( '/my-points/' ) ); ?>">
-              <?php esc_html_e( 'My Points', 'artly' ); ?>
+            <a class="artly-header-link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">
+              <?php esc_html_e( 'My Account', 'artly' ); ?>
             </a>
             <a class="artly-header-button artly-header-button--ghost" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
               <?php esc_html_e( 'Log out', 'artly' ); ?>
@@ -75,11 +141,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 
       <div class="artly-header-cta">
         <?php if ( is_user_logged_in() ) : ?>
-          <a class="artly-header-link" href="<?php echo esc_url( home_url( '/app/stock/' ) ); ?>">
-            <?php esc_html_e( 'Dashboard', 'artly' ); ?>
+          <?php
+          $current_user = wp_get_current_user();
+          $wallet_balance = function_exists( 'nehtw_gateway_get_user_points_balance' ) 
+            ? nehtw_gateway_get_user_points_balance( $current_user->ID ) 
+            : 0;
+          ?>
+          <a href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) . 'wallet/' ); ?>" class="artly-header-wallet-badge" title="<?php esc_attr_e( 'Your wallet balance', 'artly' ); ?>">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M21 18V19C21 20.1 20.1 21 19 21H5C3.89 21 3 20.1 3 19V5C3 3.9 3.89 3 5 3H19C20.1 3 21 3.9 21 5V6H12C10.89 6 10 6.9 10 8V16C10 17.1 10.89 18 12 18H21ZM12 16H22V8H12V16ZM16 13.5C15.17 13.5 14.5 12.83 14.5 12C14.5 11.17 15.17 10.5 16 10.5C16.83 10.5 17.5 11.17 17.5 12C17.5 12.83 16.83 13.5 16 13.5Z" fill="currentColor"/>
+            </svg>
+            <span class="artly-header-wallet-balance">
+              <?php echo esc_html( number_format_i18n( $wallet_balance, 0 ) ); ?>
+            </span>
+            <span class="artly-header-wallet-label"><?php esc_html_e( 'points', 'artly' ); ?></span>
           </a>
-          <a class="artly-header-link" href="<?php echo esc_url( home_url( '/my-points/' ) ); ?>">
-            <?php esc_html_e( 'My Points', 'artly' ); ?>
+          <a class="artly-header-link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">
+            <?php esc_html_e( 'My Account', 'artly' ); ?>
           </a>
           <a class="artly-header-button artly-header-button--ghost" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
             <?php esc_html_e( 'Log out', 'artly' ); ?>

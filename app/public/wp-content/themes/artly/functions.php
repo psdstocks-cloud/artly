@@ -23,6 +23,35 @@ function artly_theme_setup() {
 add_action( 'after_setup_theme', 'artly_theme_setup' );
 
 /**
+ * Get all supported websites with their URLs for header navigation
+ *
+ * @return array Array of sites with label and URL
+ */
+function artly_get_supported_websites() {
+    $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
+        ? nehtw_gateway_get_stock_sites_config()
+        : array();
+
+    $websites = array();
+    foreach ( $sites_config as $site_key => $site ) {
+        if ( ! empty( $site['url'] ) && ! empty( $site['label'] ) ) {
+            $websites[] = array(
+                'label' => $site['label'],
+                'url'   => $site['url'],
+                'key'   => $site_key,
+            );
+        }
+    }
+
+    // Sort alphabetically by label
+    usort( $websites, function( $a, $b ) {
+        return strcasecmp( $a['label'], $b['label'] );
+    } );
+
+    return $websites;
+}
+
+/**
  * Enqueue styles & scripts
  */
 function artly_enqueue_assets() {

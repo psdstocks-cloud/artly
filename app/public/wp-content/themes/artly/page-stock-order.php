@@ -19,13 +19,18 @@ get_header();
 $user_id = get_current_user_id();
 
 // Get supported sites config from plugin.
-// Force fresh data by temporarily bypassing cache if needed
-if ( class_exists( 'Nehtw_Sites' ) && isset( $_GET['refresh_sites'] ) ) {
+// Force clear cache to ensure we get ALL sites from database (not just cached subset)
+if ( class_exists( 'Nehtw_Sites' ) ) {
     delete_transient( 'nehtw_sites_cache' );
 }
 $sites_config = function_exists( 'nehtw_gateway_get_stock_sites_config' )
     ? nehtw_gateway_get_stock_sites_config()
     : array();
+
+// Debug: Log site count if WP_DEBUG is enabled
+if ( defined( 'WP_DEBUG' ) && WP_DEBUG && function_exists( 'error_log' ) ) {
+    error_log( 'Artly Stock Order: Found ' . count( $sites_config ) . ' sites in config' );
+}
 
 ?>
 

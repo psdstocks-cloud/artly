@@ -59,6 +59,81 @@
       }
     });
 
+    // Dropdown menu functionality for "Supported Websites"
+    var dropdownTrigger = document.getElementById("websites-menu-trigger");
+    var dropdownMenu = document.getElementById("websites-menu-dropdown");
+    var dropdownItem = dropdownTrigger ? dropdownTrigger.closest(".artly-header-menu-item--has-dropdown") : null;
+
+    if (dropdownTrigger && dropdownMenu && dropdownItem) {
+      // Toggle dropdown on click
+      dropdownTrigger.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var isOpen = dropdownItem.classList.contains("is-open");
+        
+        // Close all other dropdowns
+        document.querySelectorAll(".artly-header-menu-item--has-dropdown.is-open").forEach(function (item) {
+          if (item !== dropdownItem) {
+            item.classList.remove("is-open");
+            var trigger = item.querySelector(".artly-header-menu-dropdown-trigger");
+            if (trigger) {
+              trigger.setAttribute("aria-expanded", "false");
+            }
+          }
+        });
+
+        // Toggle current dropdown
+        if (isOpen) {
+          dropdownItem.classList.remove("is-open");
+          dropdownTrigger.setAttribute("aria-expanded", "false");
+        } else {
+          dropdownItem.classList.add("is-open");
+          dropdownTrigger.setAttribute("aria-expanded", "true");
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", function (e) {
+        if (!dropdownItem.contains(e.target)) {
+          dropdownItem.classList.remove("is-open");
+          dropdownTrigger.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      // Close dropdown on ESC key
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && dropdownItem.classList.contains("is-open")) {
+          dropdownItem.classList.remove("is-open");
+          dropdownTrigger.setAttribute("aria-expanded", "false");
+          dropdownTrigger.focus();
+        }
+      });
+
+      // Keyboard navigation within dropdown
+      var dropdownLinks = dropdownMenu.querySelectorAll(".artly-header-menu-dropdown-link");
+      if (dropdownLinks.length > 0) {
+        dropdownLinks.forEach(function (link, index) {
+          link.addEventListener("keydown", function (e) {
+            var nextIndex;
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              nextIndex = index < dropdownLinks.length - 1 ? index + 1 : 0;
+              dropdownLinks[nextIndex].focus();
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              nextIndex = index > 0 ? index - 1 : dropdownLinks.length - 1;
+              dropdownLinks[nextIndex].focus();
+            } else if (e.key === "Home") {
+              e.preventDefault();
+              dropdownLinks[0].focus();
+            } else if (e.key === "End") {
+              e.preventDefault();
+              dropdownLinks[dropdownLinks.length - 1].focus();
+            }
+          });
+        });
+      }
+    }
+
     // Currency toggle handler
     var currencyToggle = document.getElementById("currencyToggle");
     var currencyDisplay = document.getElementById("currencyDisplay");
