@@ -1,120 +1,109 @@
 <?php
 /**
  * Template Name: Artly Login
- * Description: Branded login screen for Artly accounts.
+ * Description: Custom glassmorphism login page.
  */
 
-// If user is already logged in, redirect
+defined( 'ABSPATH' ) || exit;
+
 if ( is_user_logged_in() ) {
-    $redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( $_GET['redirect_to'] ) : home_url( '/my-downloads/' );
+    $redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
+    if ( ! $redirect_to ) {
+        $redirect_to = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : home_url( '/' );
+    }
     wp_safe_redirect( $redirect_to );
     exit;
 }
 
 get_header();
+
+do_action( 'woocommerce_before_customer_login_form' );
+$error_message = function_exists( 'artly_login_get_notice_message' ) ? artly_login_get_notice_message() : '';
+$username_value = isset( $_POST['username'] ) ? sanitize_text_field( wp_unslash( $_POST['username'] ) ) : '';
+$remember_checked = ! empty( $_POST['rememberme'] );
+$account_page    = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : wp_login_url();
 ?>
-
-<main class="artly-login-page" role="main">
-  <div class="artly-login-wrapper">
-
-    <!-- Left: story / benefits -->
-    <section class="artly-login-panel artly-login-panel--story">
-      <div class="artly-login-kicker">Creative wallet · Single place</div>
-      <h1 class="artly-login-title">Welcome back</h1>
-      <p class="artly-login-subtitle">
-        Sign in to your Artly account to continue downloading stock assets from one wallet.
-      </p>
-
-      <ul class="artly-login-benefits" aria-label="What you can do in Artly">
-        <li>
-          <span class="artly-login-badge">01</span>
-          <div>
-            <h3>Access your download history</h3>
-            <p>See every asset you&apos;ve ever downloaded across all providers.</p>
-          </div>
-        </li>
-        <li>
-          <span class="artly-login-badge">02</span>
-          <div>
-            <h3>Manage your wallet &amp; points</h3>
-            <p>Buy points once, use them on Shutterstock, Adobe Stock, Freepik and more.</p>
-          </div>
-        </li>
-        <li>
-          <span class="artly-login-badge">03</span>
-          <div>
-            <h3>Re-download past orders for free</h3>
-            <p>Any stock file you bought through Artly stays available for re-download.</p>
-          </div>
-        </li>
-      </ul>
-
-      <div class="artly-login-footer-note">
-        No long-term contracts. Upgrade or downgrade any time from your dashboard.
+<main id="primary" class="artly-login" aria-labelledby="loginHeading">
+  <div class="artly-login__glow" aria-hidden="true"></div>
+  <div class="artly-login__wrap">
+    <section class="artly-login__left" aria-hidden="true">
+      <div class="artly-login__intro">
+        <p class="eyebrow"><?php echo esc_html__( 'CREATIVE WALLET, SINGLE PLACE', 'artly' ); ?></p>
+        <h1 id="loginHeading"><?php echo esc_html__( 'Welcome back', 'artly' ); ?></h1>
+        <ul class="benefits" role="list">
+          <li><strong>01</strong> <?php echo esc_html__( 'Access your download history', 'artly' ); ?></li>
+          <li><strong>02</strong> <?php echo esc_html__( 'Manage your wallet & points', 'artly' ); ?></li>
+          <li><strong>03</strong> <?php echo esc_html__( 'Re-download past orders for free', 'artly' ); ?></li>
+        </ul>
       </div>
     </section>
 
-    <!-- Right: login form -->
-    <section class="artly-login-panel artly-login-panel--form" aria-label="Sign in to Artly">
-      <div class="artly-login-form-header">
-        <p class="artly-login-chip">Already have an account?</p>
-        <h2>Sign in to continue</h2>
-        <p class="artly-login-form-subtitle">
-          Use the email and password you registered with. We&apos;ll keep you signed in on this device.
-        </p>
-      </div>
+    <section class="artly-login__card" role="region" aria-label="<?php echo esc_attr__( 'Sign in form', 'artly' ); ?>">
+      <header class="card__hd">
+        <p class="muted"><?php echo esc_html__( 'ALREADY HAVE AN ACCOUNT?', 'artly' ); ?></p>
+        <h2><?php echo esc_html__( 'Sign in to continue', 'artly' ); ?></h2>
+      </header>
 
-      <?php if ( isset( $_GET['login'] ) && 'failed' === $_GET['login'] ) : ?>
-        <div class="artly-login-alert artly-login-alert--error" role="alert">
-          <strong>Couldn&apos;t sign you in.</strong>
-          <span>Check your email and password, then try again.</span>
+      <form class="artly-form" method="post" action="<?php echo esc_url( $account_page ); ?>" novalidate>
+        <?php wp_nonce_field( 'artly_login' ); ?>
+        <?php if ( function_exists( 'wp_nonce_field' ) ) : ?>
+          <?php wp_nonce_field( 'woocommerce-login', 'woocommerce-login-nonce' ); ?>
+        <?php endif; ?>
+        <input type="hidden" name="artly_login_submission" value="1" />
+        <input type="text" name="artly_login_hp" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+
+        <?php do_action( 'woocommerce_login_form_start' ); ?>
+
+        <div class="field">
+          <label for="username"><?php echo esc_html__( 'Username or Email', 'artly' ); ?></label>
+          <input id="username" name="username" type="text" autocomplete="username" required aria-required="true" value="<?php echo esc_attr( $username_value ); ?>" />
         </div>
-      <?php endif; ?>
 
-      <form class="artly-login-form" method="post" action="<?php echo esc_url( wp_login_url() ); ?>">
-        <?php
-        // Use wp_login_form() but with our own markup containers.
-        $args = array(
-          'echo'           => true,
-          'remember'       => true,
-          'value_remember' => true,
-          'label_username' => __( 'Username or Email', 'artly' ),
-          'label_password' => __( 'Password', 'artly' ),
-          'label_log_in'   => __( 'Sign in', 'artly' ),
-          'id_submit'      => 'artly-login-submit',
-          'class_form'     => 'artly-login-form-inner',
-          'class_input'    => 'artly-login-input',
-          'class_button'   => 'artly-login-button',
-        );
+        <div class="field field--password">
+          <label for="password"><?php echo esc_html__( 'Password', 'artly' ); ?></label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required aria-required="true" />
+          <button type="button" class="toggle-pass" aria-label="<?php echo esc_attr__( 'Show password', 'artly' ); ?>" aria-pressed="false">
+            <span class="toggle-pass__label"><?php echo esc_html__( 'Show', 'artly' ); ?></span>
+          </button>
+        </div>
 
-        wp_login_form( $args );
-        ?>
-
-        <div class="artly-login-form-meta">
-          <a href="<?php echo esc_url( wp_lostpassword_url() ); ?>" class="artly-login-link">
-            <?php esc_html_e( 'Forgot password?', 'artly' ); ?>
+        <div class="row">
+          <label class="remember">
+            <input type="checkbox" name="rememberme" value="forever" <?php checked( $remember_checked ); ?> />
+            <span><?php echo esc_html__( 'Remember Me', 'artly' ); ?></span>
+          </label>
+          <a class="link" href="<?php echo esc_url( wp_lostpassword_url() ); ?>">
+            <?php echo esc_html__( 'Forgot password?', 'artly' ); ?>
           </a>
         </div>
+
+        <?php do_action( 'woocommerce_login_form' ); ?>
+
+        <div class="actions">
+          <button id="artlyLoginBtn" type="submit" class="btn btn--primary" disabled aria-disabled="true">
+            <span class="btn__label"><?php echo esc_html__( 'Sign in', 'artly' ); ?></span>
+            <span class="btn__spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <input type="hidden" name="login" value="1" />
+        <?php do_action( 'woocommerce_login_form_end' ); ?>
       </form>
 
-      <div class="artly-login-divider">
-        <span>New to Artly?</span>
-      </div>
+      <?php do_action( 'woocommerce_after_customer_login_form' ); ?>
 
-      <a href="<?php echo esc_url( home_url( '/signup/' ) ); ?>" class="artly-login-secondary-btn">
-        <span>Create a free account</span>
-        <span aria-hidden="true">→</span>
+      <div class="separator" role="separator" aria-hidden="true"></div>
+
+      <a class="btn btn--ghost" href="<?php echo esc_url( $account_page . '#register' ); ?>">
+        <?php echo esc_html__( 'Create a free account', 'artly' ); ?>
+        <span class="arrow" aria-hidden="true">→</span>
       </a>
 
-      <p class="artly-login-muted">
-        By continuing you agree to our
-        <a href="<?php echo esc_url( home_url( '/terms/' ) ); ?>">Terms</a>
-        and
-        <a href="<?php echo esc_url( home_url( '/privacy/' ) ); ?>">Privacy Policy</a>.
-      </p>
+      <p class="microcopy"><?php echo esc_html__( 'Your credentials are securely encrypted.', 'artly' ); ?></p>
+      <div id="artlyLoginErrors" class="errors<?php echo $error_message ? ' is-visible' : ''; ?>" role="status" aria-live="assertive" tabindex="-1">
+        <?php echo esc_html( $error_message ); ?>
+      </div>
     </section>
-
   </div>
 </main>
-
 <?php get_footer(); ?>

@@ -373,6 +373,54 @@ function artly_enqueue_home_styles() {
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_home_styles' );
 
 /**
+ * Enqueue login template assets only when needed.
+ */
+function artly_enqueue_login_assets() {
+    if ( ! ( is_page_template( 'page-login.php' ) || is_page( 'login' ) ) ) {
+        return;
+    }
+
+    $version = wp_get_theme()->get( 'Version' );
+
+    wp_enqueue_style(
+        'artly-login',
+        get_template_directory_uri() . '/assets/css/login.css',
+        array(),
+        $version
+    );
+
+    wp_enqueue_script(
+        'gsap',
+        'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js',
+        array(),
+        null,
+        true
+    );
+
+    wp_enqueue_script(
+        'artly-login',
+        get_template_directory_uri() . '/assets/js/login.js',
+        array( 'gsap' ),
+        $version,
+        true
+    );
+
+    $localized = array(
+        'i18n' => array(
+            'show'     => __( 'Show', 'artly' ),
+            'hide'     => __( 'Hide', 'artly' ),
+            'showPassword' => __( 'Show password', 'artly' ),
+            'hidePassword' => __( 'Hide password', 'artly' ),
+            'required' => __( 'Please fill all required fields.', 'artly' ),
+            'invalid'  => __( 'Invalid email or password.', 'artly' ),
+        ),
+    );
+
+    wp_localize_script( 'artly-login', 'ARTLY_LOGIN', $localized );
+}
+add_action( 'wp_enqueue_scripts', 'artly_enqueue_login_assets', 20 );
+
+/**
  * Cinematic GSAP + Lottie setup for Artly home
  */
 function artly_enqueue_cinematic_scripts() {
@@ -578,22 +626,6 @@ add_action( 'wp_ajax_artly_signup_ajax', 'artly_ajax_signup' );
 add_action( 'wp_ajax_nopriv_artly_signup_ajax', 'artly_ajax_signup' );
 
 /**
- * Enqueue login page assets
- */
-function artly_enqueue_login_assets() {
-    if ( is_page_template( 'page-login.php' ) || is_page( 'login' ) ) {
-        wp_enqueue_style(
-            'artly-login',
-            get_template_directory_uri() . '/assets/css/login.css',
-            array( 'artly-style' ),
-            wp_get_theme()->get( 'Version' )
-        );
-        // Note: wp_login_form() handles form submission natively, no custom JS needed
-    }
-}
-add_action( 'wp_enqueue_scripts', 'artly_enqueue_login_assets' );
-
-/**
  * Enqueue My Points page assets
  */
 function artly_enqueue_points_assets() {
@@ -761,6 +793,74 @@ function artly_redirect_failed_login( $username ) {
     }
 }
 add_filter( 'wp_login_failed', 'artly_redirect_failed_login' );
+
+/**
+ * Capture WooCommerce error notices for the custom login experience.
+ */
+function artly_login_collect_wc_notices() {
+    static $cached = null;
+
+    if ( null !== $cached ) {
+        return $cached;
+    }
+
+    if ( ! function_exists( 'wc_print_notices' ) ) {
+        $cached = '';
+        return $cached;
+    }
+
+    if ( ! is_page_template( 'page-login.php' ) ) {
+        wc_print_notices();
+        $cached = '';
+        return $cached;
+    }
+
+    ob_start();
+    wc_print_notices();
+    $markup = ob_get_clean();
+
+    if ( empty( $markup ) ) {
+        $cached = '';
+        return $cached;
+    }
+
+    $cached = trim( wp_strip_all_tags( $markup ) );
+
+    return $cached;
+}
+
+if ( function_exists( 'wc_print_notices' ) ) {
+    add_action( 'woocommerce_before_customer_login_form', 'artly_login_collect_wc_notices', 5 );
+}
+
+/**
+ * Helper accessor for login error message.
+ */
+function artly_login_get_notice_message() {
+    return artly_login_collect_wc_notices();
+}
+
+/**
+ * Honeypot and nonce validation for the custom login form.
+ */
+function artly_login_security_checks( $user, $username, $password ) {
+    if ( empty( $_POST['artly_login_submission'] ) ) {
+        return $user;
+    }
+
+    $honeypot = isset( $_POST['artly_login_hp'] ) ? trim( wp_unslash( $_POST['artly_login_hp'] ) ) : '';
+    if ( '' !== $honeypot ) {
+        return new WP_Error( 'artly_spam', __( 'Invalid email or password.', 'artly' ) );
+    }
+
+    $nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+    if ( ! $nonce || ! wp_verify_nonce( $nonce, 'artly_login' ) ) {
+        return new WP_Error( 'artly_nonce', __( 'Security check failed. Please try again.', 'artly' ) );
+    }
+
+    return $user;
+}
+add_filter( 'authenticate', 'artly_login_security_checks', 5, 3 );
 
 /**
  * Get client IP address in a safe way (X-Forwarded-For aware)
@@ -998,7 +1098,25 @@ function artly_get_recent_downloads( $user_id, $limit = 10 ) {
 
     return array();
 }
-
+// Canonicalize login to /login
+add_action('template_redirect', function () {
+    if (function_exists('is_account_page') && is_account_page() && !is_user_logged_in()) {
+  
+      // If we are on a Woo endpoint like /my-account/lost-password/ or /reset-password/
+      if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url()) {
+        // Do NOT redirect endpoints (lost password, reset, etc.)
+        return;
+      }
+  
+      // We are on the base /my-account/ and user is not logged in -> send to /login
+      $login_url = home_url('/login/');
+      if (!is_page_template('page-login.php')) {
+        wp_safe_redirect($login_url, 301);
+        exit;
+      }
+    }
+  });
+  
 /**
  * Subscriptions summary: ask backend/plugin; return normalized structure.
  *
