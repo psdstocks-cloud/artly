@@ -20,6 +20,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  * }
  */
 function nehtw_gateway_get_stock_sites_config() {
+    if ( class_exists( 'Nehtw_Sites' ) ) {
+        $rows = Nehtw_Sites::all();
+        if ( ! empty( $rows ) ) {
+            $sites = array();
+            foreach ( $rows as $row ) {
+                $sites[ $row->site_key ] = array(
+                    'key'     => $row->site_key,
+                    'label'   => $row->label,
+                    'points'  => (float) $row->points_per_file,
+                    'enabled' => 'active' === $row->status,
+                    'status'  => $row->status,
+                    'url'     => '',
+                    'domains' => array(),
+                );
+            }
+            return $sites;
+        }
+    }
+
     $sites = get_option( 'nehtw_gateway_stock_sites', array() );
 
     // Provide comprehensive defaults if option is empty.
@@ -168,6 +187,7 @@ function nehtw_gateway_get_stock_sites_config() {
                 'enabled' => true,
                 'url'     => 'https://www.shutterstock.com/video',
                 'domains' => array( 'shutterstock.com' ),
+                'status'  => 'active',
             ),
             'mshutter' => array(
                 'key'     => 'mshutter',
@@ -176,6 +196,7 @@ function nehtw_gateway_get_stock_sites_config() {
                 'enabled' => true,
                 'url'     => 'https://www.shutterstock.com/music',
                 'domains' => array( 'shutterstock.com' ),
+                'status'  => 'active',
             ),
             'depositphotos_video' => array(
                 'key'     => 'depositphotos_video',
