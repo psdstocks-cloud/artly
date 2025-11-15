@@ -20,6 +20,31 @@ if ( ! defined( 'ABSPATH' ) ) {
  * }
  */
 function nehtw_gateway_get_stock_sites_config() {
+    // Always try to get from database first
+    if ( class_exists( 'Nehtw_Sites' ) ) {
+        $rows = Nehtw_Sites::all();
+        if ( ! empty( $rows ) && is_array( $rows ) ) {
+            $sites = array();
+            foreach ( $rows as $row ) {
+                // Include ALL sites regardless of status (frontend will show disabled state for inactive ones)
+                $sites[ $row->site_key ] = array(
+                    'key'     => $row->site_key,
+                    'label'   => $row->label,
+                    'points'  => (float) $row->points_per_file,
+                    'enabled' => 'active' === $row->status,
+                    'status'  => $row->status,
+                    'url'     => isset( $row->url ) && ! empty( $row->url ) ? esc_url_raw( $row->url ) : '',
+                    'domains' => array(),
+                );
+            }
+            // Return all sites, sorted by label
+            uasort( $sites, function( $a, $b ) {
+                return strcasecmp( $a['label'], $b['label'] );
+            } );
+            return $sites;
+        }
+    }
+
     $sites = get_option( 'nehtw_gateway_stock_sites', array() );
 
     // Provide comprehensive defaults if option is empty.
@@ -168,6 +193,7 @@ function nehtw_gateway_get_stock_sites_config() {
                 'enabled' => true,
                 'url'     => 'https://www.shutterstock.com/video',
                 'domains' => array( 'shutterstock.com' ),
+                'status'  => 'active',
             ),
             'mshutter' => array(
                 'key'     => 'mshutter',
@@ -176,6 +202,7 @@ function nehtw_gateway_get_stock_sites_config() {
                 'enabled' => true,
                 'url'     => 'https://www.shutterstock.com/music',
                 'domains' => array( 'shutterstock.com' ),
+                'status'  => 'active',
             ),
             'depositphotos_video' => array(
                 'key'     => 'depositphotos_video',
@@ -1002,4 +1029,3 @@ function nehtw_gateway_get_existing_stock_order( $user_id, $site, $remote_id ) {
 
     return null;
 }
-

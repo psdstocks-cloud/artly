@@ -18,6 +18,15 @@ define( 'NEHTW_GATEWAY_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'NEHTW_GATEWAY_API_BASE', 'https://nehtw.com' );
 define( 'NEHTW_GATEWAY_OPTION_API_KEY', 'nehtw_gateway_api_key' );
 
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-activator.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-maint-scheduler.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-sites.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-audit-log.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-site-notifier.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/bootstrap-seeder.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-sites.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/rest/class-nehtw-rest-sites.php';
+
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscriptions.php';
@@ -70,6 +79,104 @@ add_action(
         }
     }
 );
+
+register_activation_hook( NEHTW_GATEWAY_PLUGIN_FILE, array( 'Nehtw_Activator', 'activate' ) );
+
+function nehtw_gateway_get_advanced_controls_defaults() {
+    return array(
+        'enable_scheduled_maintenance' => false,
+        'enable_notify_back_online'    => false,
+        'enable_audit_log'             => false,
+        'provider_list_chips_public'   => false,
+    );
+}
+
+function nehtw_gateway_get_advanced_controls() {
+    $saved = get_option( 'nehtw_gateway_advanced_controls', array() );
+    if ( ! is_array( $saved ) ) {
+        $saved = array();
+    }
+    return wp_parse_args( $saved, nehtw_gateway_get_advanced_controls_defaults() );
+}
+
+function nehtw_gateway_update_advanced_controls( $data ) {
+    $defaults = nehtw_gateway_get_advanced_controls_defaults();
+    $clean    = array();
+    foreach ( $defaults as $key => $default ) {
+        $clean[ $key ] = ! empty( $data[ $key ] ) ? 1 : 0;
+    }
+    update_option( 'nehtw_gateway_advanced_controls', $clean );
+}
+
+function nehtw_gateway_is_control_enabled( $key ) {
+    $controls = nehtw_gateway_get_advanced_controls();
+    return ! empty( $controls[ $key ] );
+}
+
+function nehtw_gateway_ensure_manage_cap() {
+    $role = get_role( 'administrator' );
+    if ( $role && ! $role->has_cap( 'manage_nehtw' ) ) {
+        $role->add_cap( 'manage_nehtw' );
+    }
+}
+add_action( 'admin_init', 'nehtw_gateway_ensure_manage_cap' );
+
+function nehtw_gateway_enqueue_site_controls_assets() {
+    if ( is_admin() ) {
+        return;
+    }
+
+    wp_register_style(
+        'nehtw-site-controls',
+        NEHTW_GATEWAY_PLUGIN_URL . 'assets/css/nehtw-site-controls.css',
+        array(),
+        NEHTW_GATEWAY_VERSION
+    );
+
+    wp_register_script(
+        'nehtw-stock-input-guard',
+        NEHTW_GATEWAY_PLUGIN_URL . 'assets/js/stock-input-guard.js',
+        array(),
+        NEHTW_GATEWAY_VERSION,
+        true
+    );
+
+    $strings = array(
+        'unsupported' => __( 'Unsupported provider', 'nehtw-gateway' ),
+        'maintenance' => __( 'Maintenance', 'nehtw-gateway' ),
+        'offline'     => __( 'Offline', 'nehtw-gateway' ),
+        'active'      => __( 'Active', 'nehtw-gateway' ),
+        'unavailable' => __( 'is not available right now.', 'nehtw-gateway' ),
+        'points'      => __( '%d points per file', 'nehtw-gateway' ),
+        'error'       => __( 'Something went wrong.', 'nehtw-gateway' ),
+        'notifyLabel' => __( 'Email me when %s is back online', 'nehtw-gateway' ),
+        'notifyEmail' => __( 'your@email.com', 'nehtw-gateway' ),
+        'notifyCta'   => __( 'Notify me', 'nehtw-gateway' ),
+        'notifyThanks'=> __( 'We will email you once it is active.', 'nehtw-gateway' ),
+        'tooltip'     => __( 'Temporarily unavailable; we will be back soon.', 'nehtw-gateway' ),
+    );
+
+    wp_localize_script(
+        'nehtw-stock-input-guard',
+        'nehtwSiteControls',
+        array(
+            'root'          => esc_url_raw( rest_url() ),
+            'notifyEnabled' => nehtw_gateway_is_control_enabled( 'enable_notify_back_online' ),
+            'providerChips' => nehtw_gateway_is_control_enabled( 'provider_list_chips_public' ),
+            'l10n'          => $strings,
+        )
+    );
+
+    wp_enqueue_style( 'nehtw-site-controls' );
+    wp_enqueue_script( 'nehtw-stock-input-guard' );
+}
+add_action( 'wp_enqueue_scripts', 'nehtw_gateway_enqueue_site_controls_assets' );
+
+add_action( 'init', function() {
+    if ( nehtw_gateway_is_control_enabled( 'enable_scheduled_maintenance' ) ) {
+        Nehtw_Maint_Scheduler::schedule_event();
+    }
+} );
 
 function nehtw_gateway_activate() {
     global $wpdb;
@@ -479,6 +586,27 @@ function nehtw_gateway_maybe_migrate_stock_orders() {
     }
 }
 add_action( 'admin_init', 'nehtw_gateway_maybe_migrate_stock_orders' );
+
+// Migration function to add url column to nehtw_sites table
+function nehtw_gateway_maybe_migrate_sites_table() {
+    global $wpdb;
+    $table_sites = $wpdb->prefix . 'nehtw_sites';
+    
+    // Check if table exists
+    $table_exists = $wpdb->get_var( "SHOW TABLES LIKE '{$table_sites}'" ) === $table_sites;
+    if ( ! $table_exists ) {
+        return;
+    }
+    
+    $sites_columns = $wpdb->get_col( "DESC {$table_sites}", 0 );
+    $needs_url = ! in_array( 'url', $sites_columns, true );
+    
+    if ( $needs_url ) {
+        $wpdb->query( "ALTER TABLE {$table_sites} ADD COLUMN url VARCHAR(255) NULL AFTER regex_pattern" );
+        delete_transient( 'nehtw_sites_cache' );
+    }
+}
+add_action( 'admin_init', 'nehtw_gateway_maybe_migrate_sites_table' );
 
 register_activation_hook( NEHTW_GATEWAY_PLUGIN_FILE, 'nehtw_gateway_activate' );
 
@@ -1689,6 +1817,27 @@ function nehtw_gateway_rest_stock_order( WP_REST_Request $request ) {
         $source_url = null;
     }
 
+    if ( class_exists( 'Nehtw_Sites' ) ) {
+        $site_row = $site ? Nehtw_Sites::get( $site ) : null;
+        if ( ! $site_row && $source_url ) {
+            $site_row = Nehtw_Sites::match_from_url( $source_url );
+        }
+
+        if ( ! $site_row ) {
+            return new WP_Error( 'nehtw_site_unknown', __( 'This provider is not supported.', 'nehtw-gateway' ), array( 'status' => 400 ) );
+        }
+
+        $site = $site_row->site_key;
+        $cost_points = (float) $site_row->points_per_file;
+
+        if ( 'active' !== $site_row->status ) {
+            $message = 'maintenance' === $site_row->status
+                ? sprintf( __( '%s is under maintenance. Try again soon.', 'nehtw-gateway' ), $site_row->label )
+                : sprintf( __( '%s is offline right now.', 'nehtw-gateway' ), $site_row->label );
+            return new WP_Error( 'nehtw_site_disabled', $message, array( 'status' => 403 ) );
+        }
+    }
+
     if ( '' === $site || '' === $stock_id ) {
         return new WP_Error( 'nehtw_missing_params', __( 'Both "site" and "stock_id" are required.', 'nehtw-gateway' ), array( 'status' => 400 ) );
     }
@@ -1843,7 +1992,15 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
             continue;
         }
 
-        $cost_points = (float) $sites_config[ $site ]['points'];
+        $site_meta = $sites_config[ $site ];
+        if ( isset( $site_meta['status'] ) && 'active' !== $site_meta['status'] ) {
+            $result['status']  = 'error';
+            $result['message'] = sprintf( __( '%s is temporarily unavailable.', 'nehtw-gateway' ), $site_meta['label'] );
+            $results[] = $result;
+            continue;
+        }
+
+        $cost_points = (float) $site_meta['points'];
 
         // Check for existing completed order (no double charge)
         $existing = function_exists( 'nehtw_gateway_get_existing_stock_order' )
@@ -4563,8 +4720,10 @@ function nehtw_gateway_render_user_points_page() {
             $amount  = isset( $_POST['amount'] ) ? floatval( wp_unslash( $_POST['amount'] ) ) : 0;
             $note    = isset( $_POST['note'] ) ? sanitize_text_field( wp_unslash( $_POST['note'] ) ) : '';
 
-            if ( $user_id <= 0 || 0 == $amount ) {
-                $error_message = __( 'Please provide a valid user and amount.', 'nehtw-gateway' );
+            if ( $user_id <= 0 ) {
+                $error_message = __( 'Please provide a valid user.', 'nehtw-gateway' );
+            } elseif ( 0.0 === $amount ) {
+                $error_message = __( 'Please provide a non-zero amount. Use positive numbers to add points, negative numbers to subtract.', 'nehtw-gateway' );
             } else {
                 $meta = array(
                     'source' => 'admin_manual_adjustment',
@@ -4640,16 +4799,31 @@ function nehtw_gateway_render_user_points_page() {
                             <td><?php echo esc_html( $user->user_email ); ?></td>
                             <td><?php echo esc_html( number_format_i18n( $balance, 2 ) ); ?></td>
                             <td>
-                                <form method="post" style="display:flex; gap:6px; align-items:center;">
+                                <form method="post" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                     <?php wp_nonce_field( 'nehtw_gateway_adjust_points', 'nehtw_gateway_nonce' ); ?>
                                     <input type="hidden" name="nehtw_gateway_action" value="adjust_points" />
                                     <input type="hidden" name="user_id" value="<?php echo esc_attr( $user->ID ); ?>" />
-                                    <input type="number" step="0.01" name="amount" placeholder="<?php esc_attr_e( 'Amount', 'nehtw-gateway' ); ?>" />
-                                    <input type="text" name="note" placeholder="<?php esc_attr_e( 'Note (optional)', 'nehtw-gateway' ); ?>" />
+                                    <input 
+                                        type="number" 
+                                        step="0.01" 
+                                        name="amount" 
+                                        placeholder="<?php esc_attr_e( 'Amount', 'nehtw-gateway' ); ?>"
+                                        style="width: 120px;"
+                                        title="<?php esc_attr_e( 'Positive number to add points, negative number to subtract (e.g., -10 to remove 10 points)', 'nehtw-gateway' ); ?>"
+                                    />
+                                    <input 
+                                        type="text" 
+                                        name="note" 
+                                        placeholder="<?php esc_attr_e( 'Note (optional)', 'nehtw-gateway' ); ?>"
+                                        style="width: 150px;"
+                                    />
                                     <button type="submit" class="button button-small">
-                                        <?php esc_html_e( 'Add / Subtract', 'nehtw-gateway' ); ?>
+                                        <?php esc_html_e( 'Apply', 'nehtw-gateway' ); ?>
                                     </button>
                                 </form>
+                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
+                                    <?php esc_html_e( 'Use positive numbers to add, negative to subtract (e.g., -10)', 'nehtw-gateway' ); ?>
+                                </p>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -5488,6 +5662,20 @@ function nehtw_gateway_render_admin_page() {
 
     $current_user_id = get_current_user_id();
     $wallet_message = $api_error = $api_result = $stock_order_message = $stock_order_error = $stock_order_result = $download_check_error = $download_check_result = '';
+    $advanced_controls = nehtw_gateway_get_advanced_controls();
+
+    if ( isset( $_POST['nehtw_gateway_action'] ) && 'save_advanced_controls' === $_POST['nehtw_gateway_action'] ) {
+        check_admin_referer( 'nehtw_gateway_save_advanced_controls', 'nehtw_gateway_advanced_controls_nonce' );
+        $payload = array(
+            'enable_scheduled_maintenance' => isset( $_POST['enable_scheduled_maintenance'] ),
+            'enable_notify_back_online'    => isset( $_POST['enable_notify_back_online'] ),
+            'enable_audit_log'             => isset( $_POST['enable_audit_log'] ),
+            'provider_list_chips_public'   => isset( $_POST['provider_list_chips_public'] ),
+        );
+        nehtw_gateway_update_advanced_controls( $payload );
+        $advanced_controls = nehtw_gateway_get_advanced_controls();
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Advanced controls updated.', 'nehtw-gateway' ) . '</p></div>';
+    }
 
     if ( isset( $_POST['nehtw_wallet_action'] ) && 'add_test_points' === $_POST['nehtw_wallet_action'] ) {
         check_admin_referer( 'nehtw_wallet_add_points' );
@@ -5590,8 +5778,50 @@ function nehtw_gateway_render_admin_page() {
 
         <hr />
 
-        <h2><?php esc_html_e( 'React Test – Paste URL (Prototype)', 'nehtw-gateway' ); ?></h2>
-        <div id="nehtw-gateway-react-app"></div>
+        <h2><?php esc_html_e( 'Advanced Controls', 'nehtw-gateway' ); ?></h2>
+        <form method="post">
+            <?php wp_nonce_field( 'nehtw_gateway_save_advanced_controls', 'nehtw_gateway_advanced_controls_nonce' ); ?>
+            <input type="hidden" name="nehtw_gateway_action" value="save_advanced_controls" />
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Scheduled maintenance', 'nehtw-gateway' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="enable_scheduled_maintenance" <?php checked( $advanced_controls['enable_scheduled_maintenance'] ); ?> />
+                            <?php esc_html_e( 'Enable scheduler to flip provider statuses automatically.', 'nehtw-gateway' ); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Notify when back online', 'nehtw-gateway' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="enable_notify_back_online" <?php checked( $advanced_controls['enable_notify_back_online'] ); ?> />
+                            <?php esc_html_e( 'Allow users to subscribe for email notifications.', 'nehtw-gateway' ); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Audit log', 'nehtw-gateway' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="enable_audit_log" <?php checked( $advanced_controls['enable_audit_log'] ); ?> />
+                            <?php esc_html_e( 'Track every status or points update.', 'nehtw-gateway' ); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Provider chips on public page', 'nehtw-gateway' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="provider_list_chips_public" <?php checked( $advanced_controls['provider_list_chips_public'] ); ?> />
+                            <?php esc_html_e( 'Render status chips on the Stock page.', 'nehtw-gateway' ); ?>
+                        </label>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button( __( 'Save Advanced Controls', 'nehtw-gateway' ) ); ?>
+        </form>
 
     </div>
     <?php
