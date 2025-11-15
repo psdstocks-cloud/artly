@@ -4451,6 +4451,21 @@ function nehtw_gateway_register_transaction_history_submenu() {
 add_action( 'admin_menu', 'nehtw_gateway_register_transaction_history_submenu' );
 
 /**
+ * Register the Stock Orders submenu under Nehtw Gateway.
+ */
+function nehtw_gateway_register_stock_orders_submenu() {
+    add_submenu_page(
+        'nehtw-gateway',
+        __( 'Stock Orders', 'nehtw-gateway' ),
+        __( 'Stock Orders', 'nehtw-gateway' ),
+        'manage_options',
+        'nehtw-gateway-stock-orders',
+        'nehtw_gateway_render_stock_orders_page'
+    );
+}
+add_action( 'admin_menu', 'nehtw_gateway_register_stock_orders_submenu' );
+
+/**
  * Render transaction history page.
  */
 function nehtw_gateway_render_transaction_history_page() {
@@ -4684,6 +4699,317 @@ function nehtw_gateway_render_transaction_history_page() {
                 for user: <strong><?php echo esc_html($selected_user->display_name); ?></strong>
             <?php endif; ?>
         </p>
+    </div>
+    <?php
+}
+
+/**
+ * Render the Stock Orders admin page.
+ */
+function nehtw_gateway_render_stock_orders_page() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( __( 'You do not have permission to access this page.', 'nehtw-gateway' ) );
+    }
+
+    global $wpdb;
+    $table = nehtw_gateway_get_table_name( 'stock_orders' );
+
+    if ( ! $table ) {
+        echo '<div class="wrap"><h1>' . esc_html__( 'Stock Orders', 'nehtw-gateway' ) . '</h1><p>' . esc_html__( 'Stock orders table not found.', 'nehtw-gateway' ) . '</p></div>';
+        return;
+    }
+
+    // Get filters
+    $selected_user_id = isset( $_GET['user_id'] ) ? intval( wp_unslash( $_GET['user_id'] ) ) : 0;
+    $selected_status = isset( $_GET['status'] ) ? sanitize_text_field( wp_unslash( $_GET['status'] ) ) : '';
+    $selected_site = isset( $_GET['site'] ) ? sanitize_text_field( wp_unslash( $_GET['site'] ) ) : '';
+    $search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+
+    // Pagination
+    $paged = isset( $_GET['paged'] ) ? max( 1, intval( wp_unslash( $_GET['paged'] ) ) ) : 1;
+    $per_page = 50;
+    $offset = ( $paged - 1 ) * $per_page;
+
+    // Build WHERE clause
+    $where = array( '1=1' );
+    $where_values = array();
+
+    if ( $selected_user_id > 0 ) {
+        $where[] = 'user_id = %d';
+        $where_values[] = $selected_user_id;
+    }
+
+    if ( ! empty( $selected_status ) ) {
+        $where[] = 'status = %s';
+        $where_values[] = $selected_status;
+    }
+
+    if ( ! empty( $selected_site ) ) {
+        $where[] = 'site = %s';
+        $where_values[] = $selected_site;
+    }
+
+    if ( ! empty( $search ) ) {
+        $where[] = '(task_id LIKE %s OR source_url LIKE %s OR stock_id LIKE %s)';
+        $search_like = '%' . $wpdb->esc_like( $search ) . '%';
+        $where_values[] = $search_like;
+        $where_values[] = $search_like;
+        $where_values[] = $search_like;
+    }
+
+    $where_clause = implode( ' AND ', $where );
+
+    // Get total count
+    if ( ! empty( $where_values ) ) {
+        $count_sql = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}",
+            $where_values
+        );
+    } else {
+        $count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}";
+    }
+    $total = (int) $wpdb->get_var( $count_sql );
+    $total_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 1;
+
+    // Get orders
+    if ( ! empty( $where_values ) ) {
+        $orders_sql = $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY created_at DESC LIMIT %d OFFSET %d",
+            array_merge( $where_values, array( $per_page, $offset ) )
+        );
+    } else {
+        $orders_sql = $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY created_at DESC LIMIT %d OFFSET %d",
+            $per_page,
+            $offset
+        );
+    }
+    $orders = $wpdb->get_results( $orders_sql, ARRAY_A );
+
+    // Get unique sites for filter
+    $sites = $wpdb->get_col( "SELECT DISTINCT site FROM {$table} WHERE site IS NOT NULL AND site != '' ORDER BY site ASC" );
+    $statuses = array( 'pending', 'processing', 'completed', 'ready', 'failed', 'error' );
+
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Stock Orders', 'nehtw-gateway' ); ?></h1>
+
+        <div style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccd0d4; border-radius: 4px;">
+            <p style="margin: 0; font-size: 16px;">
+                <strong><?php echo esc_html( number_format_i18n( $total ) ); ?></strong> 
+                <?php echo esc_html( _n( 'order found', 'orders found', $total, 'nehtw-gateway' ) ); ?>
+            </p>
+        </div>
+
+        <!-- Filters -->
+        <form method="get" action="" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccd0d4; border-radius: 4px;">
+            <input type="hidden" name="page" value="nehtw-gateway-stock-orders" />
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label for="user_id" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <?php esc_html_e( 'User ID', 'nehtw-gateway' ); ?>
+                    </label>
+                    <input 
+                        type="number" 
+                        id="user_id" 
+                        name="user_id" 
+                        value="<?php echo esc_attr( $selected_user_id ); ?>" 
+                        class="regular-text" 
+                        placeholder="<?php esc_attr_e( 'Filter by user', 'nehtw-gateway' ); ?>"
+                    />
+                </div>
+                <div>
+                    <label for="status" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <?php esc_html_e( 'Status', 'nehtw-gateway' ); ?>
+                    </label>
+                    <select id="status" name="status" class="regular-text">
+                        <option value=""><?php esc_html_e( 'All Statuses', 'nehtw-gateway' ); ?></option>
+                        <?php foreach ( $statuses as $status ) : ?>
+                            <option value="<?php echo esc_attr( $status ); ?>" <?php selected( $selected_status, $status ); ?>>
+                                <?php echo esc_html( ucfirst( $status ) ); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="site" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <?php esc_html_e( 'Provider', 'nehtw-gateway' ); ?>
+                    </label>
+                    <select id="site" name="site" class="regular-text">
+                        <option value=""><?php esc_html_e( 'All Providers', 'nehtw-gateway' ); ?></option>
+                        <?php foreach ( $sites as $site ) : ?>
+                            <option value="<?php echo esc_attr( $site ); ?>" <?php selected( $selected_site, $site ); ?>>
+                                <?php echo esc_html( ucfirst( $site ) ); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="s" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <?php esc_html_e( 'Search', 'nehtw-gateway' ); ?>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="s" 
+                        name="s" 
+                        value="<?php echo esc_attr( $search ); ?>" 
+                        class="regular-text" 
+                        placeholder="<?php esc_attr_e( 'Task ID, URL, or Stock ID', 'nehtw-gateway' ); ?>"
+                    />
+                </div>
+            </div>
+            
+            <button type="submit" class="button button-primary"><?php esc_html_e( 'Filter', 'nehtw-gateway' ); ?></button>
+            <a href="<?php echo esc_url( menu_page_url( 'nehtw-gateway-stock-orders', false ) ); ?>" class="button">
+                <?php esc_html_e( 'Clear', 'nehtw-gateway' ); ?>
+            </a>
+        </form>
+
+        <!-- Orders Table -->
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th style="width: 60px;"><?php esc_html_e( 'ID', 'nehtw-gateway' ); ?></th>
+                    <th style="width: 200px;"><?php esc_html_e( 'Task ID', 'nehtw-gateway' ); ?></th>
+                    <th style="width: 120px;"><?php esc_html_e( 'User', 'nehtw-gateway' ); ?></th>
+                    <th style="width: 100px;"><?php esc_html_e( 'Provider', 'nehtw-gateway' ); ?></th>
+                    <th style="width: 100px;"><?php esc_html_e( 'Status', 'nehtw-gateway' ); ?></th>
+                    <th style="width: 100px;"><?php esc_html_e( 'Cost', 'nehtw-gateway' ); ?></th>
+                    <th><?php esc_html_e( 'Source URL (Ordered Link)', 'nehtw-gateway' ); ?></th>
+                    <th style="width: 150px;"><?php esc_html_e( 'Ordered At', 'nehtw-gateway' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ( empty( $orders ) ) : ?>
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            <?php esc_html_e( 'No orders found.', 'nehtw-gateway' ); ?>
+                        </td>
+                    </tr>
+                <?php else : ?>
+                    <?php foreach ( $orders as $order ) : ?>
+                        <?php
+                        $user = $order['user_id'] > 0 ? get_user_by( 'id', $order['user_id'] ) : null;
+                        $status = isset( $order['status'] ) ? strtolower( $order['status'] ) : 'pending';
+                        $status_class = in_array( $status, array( 'completed', 'ready' ), true ) ? 'success' : ( in_array( $status, array( 'failed', 'error' ), true ) ? 'error' : 'warning' );
+                        $source_url = isset( $order['source_url'] ) ? $order['source_url'] : '';
+                        $provider_label = isset( $order['provider_label'] ) && ! empty( $order['provider_label'] ) ? $order['provider_label'] : ucfirst( $order['site'] );
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html( $order['id'] ); ?></td>
+                            <td>
+                                <code style="font-size: 11px; word-break: break-all;">
+                                    <?php echo esc_html( $order['task_id'] ); ?>
+                                </code>
+                            </td>
+                            <td>
+                                <?php if ( $user ) : ?>
+                                    <a href="<?php echo esc_url( admin_url( 'user-edit.php?user_id=' . $order['user_id'] ) ); ?>">
+                                        <?php echo esc_html( $user->display_name ); ?>
+                                    </a>
+                                    <br>
+                                    <small style="color: #666;"><?php echo esc_html( $user->user_email ); ?></small>
+                                <?php else : ?>
+                                    <span style="color: #999;"><?php esc_html_e( 'User #', 'nehtw-gateway' ); ?><?php echo esc_html( $order['user_id'] ); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <strong><?php echo esc_html( $provider_label ); ?></strong>
+                                <?php if ( $order['site'] !== strtolower( $provider_label ) ) : ?>
+                                    <br><small style="color: #666;"><?php echo esc_html( $order['site'] ); ?></small>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <span class="status-badge status-<?php echo esc_attr( $status_class ); ?>" style="
+                                    padding: 4px 8px;
+                                    border-radius: 3px;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    text-transform: uppercase;
+                                    background: <?php echo $status_class === 'success' ? '#00a32a' : ( $status_class === 'error' ? '#d63638' : '#f0b849' ); ?>;
+                                    color: white;
+                                ">
+                                    <?php echo esc_html( ucfirst( $status ) ); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ( isset( $order['nehtw_cost'] ) && $order['nehtw_cost'] > 0 ) : ?>
+                                    <strong>$<?php echo esc_html( number_format_i18n( $order['nehtw_cost'], 2 ) ); ?></strong>
+                                    <br>
+                                    <small style="color: #666;"><?php echo esc_html( number_format_i18n( $order['cost_points'], 2 ) ); ?> pts</small>
+                                <?php else : ?>
+                                    <?php echo esc_html( number_format_i18n( $order['cost_points'], 2 ) ); ?> pts
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ( ! empty( $source_url ) ) : ?>
+                                    <a 
+                                        href="<?php echo esc_url( $source_url ); ?>" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style="word-break: break-all; color: #2271b1; text-decoration: none;"
+                                        title="<?php echo esc_attr( $source_url ); ?>"
+                                    >
+                                        <?php echo esc_html( strlen( $source_url ) > 80 ? substr( $source_url, 0, 80 ) . '...' : $source_url ); ?>
+                                    </a>
+                                <?php else : ?>
+                                    <span style="color: #999;">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php
+                                $created = isset( $order['created_at'] ) ? $order['created_at'] : '';
+                                if ( $created ) {
+                                    $created_date = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $created ) );
+                                    echo esc_html( $created_date );
+                                } else {
+                                    echo '—';
+                                }
+                                ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <?php if ( $total_pages > 1 ) : ?>
+            <div class="tablenav">
+                <div class="tablenav-pages">
+                    <?php
+                    $base_url = menu_page_url( 'nehtw-gateway-stock-orders', false );
+                    if ( ! $base_url ) {
+                        $base_url = add_query_arg( 'page', 'nehtw-gateway-stock-orders', admin_url( 'admin.php' ) );
+                    }
+                    // Preserve filters in pagination
+                    $pagination_args = array(
+                        'base'    => add_query_arg( 'paged', '%#%', $base_url ),
+                        'format'  => '',
+                        'current' => $paged,
+                        'total'   => $total_pages,
+                        'prev_text' => '&laquo;',
+                        'next_text' => '&raquo;',
+                    );
+                    // Add filters to base URL
+                    if ( $selected_user_id > 0 ) {
+                        $pagination_args['base'] = add_query_arg( 'user_id', $selected_user_id, $pagination_args['base'] );
+                    }
+                    if ( ! empty( $selected_status ) ) {
+                        $pagination_args['base'] = add_query_arg( 'status', $selected_status, $pagination_args['base'] );
+                    }
+                    if ( ! empty( $selected_site ) ) {
+                        $pagination_args['base'] = add_query_arg( 'site', $selected_site, $pagination_args['base'] );
+                    }
+                    if ( ! empty( $search ) ) {
+                        $pagination_args['base'] = add_query_arg( 's', $search, $pagination_args['base'] );
+                    }
+                    echo paginate_links( $pagination_args );
+                    ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
     <?php
 }
@@ -5163,10 +5489,36 @@ function nehtw_gateway_render_user_subscriptions_page() {
 
     $plans = nehtw_gateway_get_subscription_plans();
     $user_subscriptions = array();
+    $all_subscriptions = array();
+
+    // Get all subscriptions or filter by user if searched
+    $paged = isset( $_GET['paged'] ) ? max( 1, intval( wp_unslash( $_GET['paged'] ) ) ) : 1;
+    $per_page = 20;
+    $offset = ( $paged - 1 ) * $per_page;
 
     if ( $selected_user_id > 0 ) {
+        // Show subscriptions for selected user
         $user_subscriptions = nehtw_gateway_get_user_subscriptions( $selected_user_id );
+        $all_subscriptions = $user_subscriptions;
+    } else {
+        // Show all subscriptions by default
+        $all_subscriptions = function_exists( 'nehtw_gateway_get_all_subscriptions' )
+            ? nehtw_gateway_get_all_subscriptions( array(
+                'limit'  => $per_page,
+                'offset' => $offset,
+                'orderby' => 'created_at',
+                'order'   => 'DESC',
+            ) )
+            : array();
     }
+
+    $total_subscriptions = function_exists( 'nehtw_gateway_get_subscriptions_count' )
+        ? nehtw_gateway_get_subscriptions_count( array(
+            'user_id' => $selected_user_id > 0 ? $selected_user_id : 0,
+        ) )
+        : count( $all_subscriptions );
+
+    $total_pages = $total_subscriptions > 0 ? (int) ceil( $total_subscriptions / $per_page ) : 1;
 
     ?>
     <div class="wrap">
@@ -5180,12 +5532,33 @@ function nehtw_gateway_render_user_subscriptions_page() {
             <div class="notice notice-error is-dismissible"><p><?php echo esc_html( $error_message ); ?></p></div>
         <?php endif; ?>
 
-        <h2><?php esc_html_e( 'Search User', 'nehtw-gateway' ); ?></h2>
-        <form method="get" style="margin-bottom: 20px;">
-            <input type="hidden" name="page" value="nehtw-gateway-user-subscriptions" />
-            <input type="text" name="user_search" placeholder="<?php esc_attr_e( 'User ID, email, or username', 'nehtw-gateway' ); ?>" value="<?php echo isset( $_GET['user_search'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['user_search'] ) ) ) : ''; ?>" />
-            <button type="submit" class="button"><?php esc_html_e( 'Search', 'nehtw-gateway' ); ?></button>
-        </form>
+        <div style="display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-end;">
+            <div>
+                <h2 style="margin-top: 0;"><?php esc_html_e( 'Search User', 'nehtw-gateway' ); ?></h2>
+                <form method="get" style="display: flex; gap: 10px; align-items: center;">
+                    <input type="hidden" name="page" value="nehtw-gateway-user-subscriptions" />
+                    <input 
+                        type="text" 
+                        name="user_search" 
+                        placeholder="<?php esc_attr_e( 'User ID, email, or username', 'nehtw-gateway' ); ?>" 
+                        value="<?php echo isset( $_GET['user_search'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['user_search'] ) ) ) : ''; ?>" 
+                        style="width: 300px;"
+                    />
+                    <button type="submit" class="button"><?php esc_html_e( 'Search', 'nehtw-gateway' ); ?></button>
+                    <?php if ( $selected_user_id > 0 ) : ?>
+                        <a href="<?php echo esc_url( menu_page_url( 'nehtw-gateway-user-subscriptions', false ) ); ?>" class="button">
+                            <?php esc_html_e( 'Show All', 'nehtw-gateway' ); ?>
+                        </a>
+                    <?php endif; ?>
+                </form>
+            </div>
+            <div style="margin-left: auto;">
+                <p style="margin: 0; color: #666;">
+                    <strong><?php echo esc_html( number_format_i18n( $total_subscriptions ) ); ?></strong> 
+                    <?php echo esc_html( _n( 'subscription', 'subscriptions', $total_subscriptions, 'nehtw-gateway' ) ); ?>
+                </p>
+            </div>
+        </div>
 
         <?php if ( $selected_user ) : ?>
             <h2><?php printf( esc_html__( 'Subscriptions for: %s (ID: %d)', 'nehtw-gateway' ), esc_html( $selected_user->display_name ), esc_html( $selected_user->ID ) ); ?></h2>
@@ -5251,38 +5624,108 @@ function nehtw_gateway_render_user_subscriptions_page() {
                     }
                 });
             </script>
+        <?php endif; ?>
 
+        <?php if ( $selected_user ) : ?>
             <h3><?php esc_html_e( 'Existing Subscriptions', 'nehtw-gateway' ); ?></h3>
-            <?php if ( ! empty( $user_subscriptions ) ) : ?>
-                <table class="widefat striped">
-                    <thead>
+        <?php else : ?>
+            <h2><?php esc_html_e( 'All Subscriptions', 'nehtw-gateway' ); ?></h2>
+        <?php endif; ?>
+
+        <?php if ( ! empty( $all_subscriptions ) ) : ?>
+            <table class="widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'ID', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'User', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Plan', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Points', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Status', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Next Renewal', 'nehtw-gateway' ); ?></th>
+                        <th><?php esc_html_e( 'Created', 'nehtw-gateway' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $all_subscriptions as $sub ) : ?>
+                        <?php
+                        $sub_user_id = isset( $sub['user_id'] ) ? intval( $sub['user_id'] ) : 0;
+                        $sub_user = $sub_user_id > 0 ? get_user_by( 'id', $sub_user_id ) : null;
+                        ?>
                         <tr>
-                            <th><?php esc_html_e( 'ID', 'nehtw-gateway' ); ?></th>
-                            <th><?php esc_html_e( 'Plan', 'nehtw-gateway' ); ?></th>
-                            <th><?php esc_html_e( 'Points', 'nehtw-gateway' ); ?></th>
-                            <th><?php esc_html_e( 'Status', 'nehtw-gateway' ); ?></th>
-                            <th><?php esc_html_e( 'Next Renewal', 'nehtw-gateway' ); ?></th>
-                            <th><?php esc_html_e( 'Created', 'nehtw-gateway' ); ?></th>
+                            <td><?php echo esc_html( isset( $sub['id'] ) ? $sub['id'] : '' ); ?></td>
+                            <td>
+                                <?php if ( $sub_user ) : ?>
+                                    <a href="<?php echo esc_url( add_query_arg( 'user_search', $sub_user->ID, menu_page_url( 'nehtw-gateway-user-subscriptions', false ) ) ); ?>">
+                                        <?php echo esc_html( $sub_user->display_name ); ?>
+                                    </a>
+                                    <br>
+                                    <small style="color: #666;"><?php echo esc_html( $sub_user->user_email ); ?></small>
+                                <?php else : ?>
+                                    <span style="color: #999;"><?php esc_html_e( 'User not found', 'nehtw-gateway' ); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo esc_html( isset( $sub['plan_key'] ) ? $sub['plan_key'] : '' ); ?></td>
+                            <td><?php echo esc_html( isset( $sub['points_per_interval'] ) ? number_format_i18n( $sub['points_per_interval'], 2 ) : '0' ); ?></td>
+                            <td>
+                                <span class="nehtw-chip nehtw-chip-<?php echo esc_attr( isset( $sub['status'] ) ? $sub['status'] : 'unknown' ); ?>">
+                                    <?php echo esc_html( isset( $sub['status'] ) ? ucfirst( $sub['status'] ) : '' ); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php
+                                $next_renewal = isset( $sub['next_renewal_at'] ) ? $sub['next_renewal_at'] : '';
+                                if ( $next_renewal ) {
+                                    $renewal_date = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $next_renewal ) );
+                                    echo esc_html( $renewal_date );
+                                } else {
+                                    echo '—';
+                                }
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                $created = isset( $sub['created_at'] ) ? $sub['created_at'] : '';
+                                if ( $created ) {
+                                    $created_date = date_i18n( get_option( 'date_format' ), strtotime( $created ) );
+                                    echo esc_html( $created_date );
+                                } else {
+                                    echo '—';
+                                }
+                                ?>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ( $user_subscriptions as $sub ) : ?>
-                            <tr>
-                                <td><?php echo esc_html( isset( $sub['id'] ) ? $sub['id'] : '' ); ?></td>
-                                <td><?php echo esc_html( isset( $sub['plan_key'] ) ? $sub['plan_key'] : '' ); ?></td>
-                                <td><?php echo esc_html( isset( $sub['points_per_interval'] ) ? number_format_i18n( $sub['points_per_interval'], 2 ) : '0' ); ?></td>
-                                <td><?php echo esc_html( isset( $sub['status'] ) ? $sub['status'] : '' ); ?></td>
-                                <td><?php echo esc_html( isset( $sub['next_renewal_at'] ) ? $sub['next_renewal_at'] : '' ); ?></td>
-                                <td><?php echo esc_html( isset( $sub['created_at'] ) ? $sub['created_at'] : '' ); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php else : ?>
-                <p><?php esc_html_e( 'No subscriptions found for this user.', 'nehtw-gateway' ); ?></p>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <?php if ( $total_pages > 1 && $selected_user_id <= 0 ) : ?>
+                <div class="tablenav">
+                    <div class="tablenav-pages">
+                        <?php
+                        $base_url = menu_page_url( 'nehtw-gateway-user-subscriptions', false );
+                        if ( ! $base_url ) {
+                            $base_url = add_query_arg( 'page', 'nehtw-gateway-user-subscriptions', admin_url( 'admin.php' ) );
+                        }
+                        echo paginate_links( array(
+                            'base'    => add_query_arg( 'paged', '%#%', $base_url ),
+                            'format'  => '',
+                            'current' => $paged,
+                            'total'   => $total_pages,
+                            'prev_text' => '&laquo;',
+                            'next_text' => '&raquo;',
+                        ) );
+                        ?>
+                    </div>
+                </div>
             <?php endif; ?>
         <?php else : ?>
-            <p><?php esc_html_e( 'Search for a user above to manage their subscriptions.', 'nehtw-gateway' ); ?></p>
+            <p>
+                <?php if ( $selected_user_id > 0 ) : ?>
+                    <?php esc_html_e( 'No subscriptions found for this user.', 'nehtw-gateway' ); ?>
+                <?php else : ?>
+                    <?php esc_html_e( 'No subscriptions found. Subscriptions will appear here once users subscribe to plans.', 'nehtw-gateway' ); ?>
+                <?php endif; ?>
+            </p>
         <?php endif; ?>
     </div>
     <?php

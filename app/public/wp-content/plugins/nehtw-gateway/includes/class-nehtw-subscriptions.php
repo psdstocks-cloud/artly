@@ -93,6 +93,137 @@ function nehtw_gateway_get_user_subscriptions( $user_id ) {
 }
 
 /**
+ * Get all subscriptions from the database (for admin listing).
+ *
+ * @param array $args Optional arguments for filtering and pagination
+ * @return array
+ */
+function nehtw_gateway_get_all_subscriptions( $args = array() ) {
+    global $wpdb;
+
+    $table = nehtw_gateway_get_subscriptions_table();
+    if ( ! $table ) {
+        return array();
+    }
+
+    $defaults = array(
+        'user_id' => 0,
+        'status'  => '',
+        'limit'    => 100,
+        'offset'   => 0,
+        'orderby'  => 'created_at',
+        'order'    => 'DESC',
+    );
+
+    $args = wp_parse_args( $args, $defaults );
+
+    $where = array( '1=1' );
+    $where_values = array();
+
+    if ( $args['user_id'] > 0 ) {
+        $where[] = 'user_id = %d';
+        $where_values[] = $args['user_id'];
+    }
+
+    if ( ! empty( $args['status'] ) ) {
+        $where[] = 'status = %s';
+        $where_values[] = $args['status'];
+    }
+
+    $where_clause = implode( ' AND ', $where );
+
+    $orderby = sanitize_sql_orderby( $args['orderby'] . ' ' . $args['order'] );
+    if ( ! $orderby ) {
+        $orderby = 'created_at DESC';
+    }
+
+    $limit = intval( $args['limit'] );
+    $offset = intval( $args['offset'] );
+
+    if ( ! empty( $where_values ) ) {
+        $sql = $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d",
+            array_merge( $where_values, array( $limit, $offset ) )
+        );
+    } else {
+        // No placeholders needed when there are no WHERE values
+        $sql = $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d",
+            $limit,
+            $offset
+        );
+    }
+
+    $rows = $wpdb->get_results( $sql, ARRAY_A );
+
+    if ( ! is_array( $rows ) ) {
+        return array();
+    }
+
+    // Decode meta for each subscription
+    foreach ( $rows as &$row ) {
+        if ( ! empty( $row['meta'] ) ) {
+            $meta = json_decode( $row['meta'], true );
+            if ( is_array( $meta ) ) {
+                $row['meta'] = $meta;
+            }
+        } else {
+            $row['meta'] = array();
+        }
+    }
+
+    return $rows;
+}
+
+/**
+ * Get total count of subscriptions (for pagination).
+ *
+ * @param array $args Optional arguments for filtering
+ * @return int
+ */
+function nehtw_gateway_get_subscriptions_count( $args = array() ) {
+    global $wpdb;
+
+    $table = nehtw_gateway_get_subscriptions_table();
+    if ( ! $table ) {
+        return 0;
+    }
+
+    $defaults = array(
+        'user_id' => 0,
+        'status'  => '',
+    );
+
+    $args = wp_parse_args( $args, $defaults );
+
+    $where = array( '1=1' );
+    $where_values = array();
+
+    if ( $args['user_id'] > 0 ) {
+        $where[] = 'user_id = %d';
+        $where_values[] = $args['user_id'];
+    }
+
+    if ( ! empty( $args['status'] ) ) {
+        $where[] = 'status = %s';
+        $where_values[] = $args['status'];
+    }
+
+    $where_clause = implode( ' AND ', $where );
+
+    if ( ! empty( $where_values ) ) {
+        $sql = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}",
+            $where_values
+        );
+    } else {
+        $sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}";
+    }
+
+    return (int) $wpdb->get_var( $sql );
+}
+
+/**
  * Create or update a subscription for a user.
  *
  * @param array $data
