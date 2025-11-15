@@ -1,0 +1,564 @@
+/* ===== Artly My Account (SaaS Dashboard) ===== */
+
+/* CSS Custom Properties */
+:root {
+  --account-bg: radial-gradient(circle at top, rgba(13, 27, 42, 0.95) 0%, rgba(8, 12, 24, 0.98) 60%, rgba(5, 8, 18, 1) 100%);
+  --account-text: #f8fafc;
+  --account-text-muted: rgba(226, 232, 240, 0.82);
+  --account-surface: rgba(255, 255, 255, 0.06);
+  --account-surface-hover: rgba(255, 255, 255, 0.08);
+  --account-border: rgba(255, 255, 255, 0.08);
+  --account-accent-start: #06f5e8;
+  --account-accent-end: #16a3ff;
+  --account-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --account-bg: radial-gradient(circle at top, rgba(249, 250, 251, 0.9) 0%, rgba(241, 245, 249, 0.95) 60%, rgba(255, 255, 255, 1) 100%);
+  --account-text: #1f2937;
+  --account-text-muted: rgba(75, 85, 99, 0.9);
+  --account-surface: rgba(255, 255, 255, 0.95);
+  --account-surface-hover: rgba(255, 255, 255, 1);
+  --account-border: rgba(148, 163, 184, 0.3);
+  --account-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Page Background */
+body.woocommerce-account {
+  background: var(--account-bg);
+  color: var(--account-text);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body.woocommerce-account::before,
+body.woocommerce-account::after {
+  content: "";
+  position: fixed;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  filter: blur(40px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+body.woocommerce-account::before {
+  top: -160px;
+  right: -120px;
+  background: radial-gradient(circle, rgba(6, 245, 232, 0.25) 0%, rgba(22, 163, 255, 0) 70%);
+}
+
+body.woocommerce-account::after {
+  bottom: -200px;
+  left: -150px;
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.28) 0%, rgba(251, 113, 133, 0) 70%);
+}
+
+body.woocommerce-account .site,
+body.woocommerce-account .site-main,
+body.woocommerce-account #primary {
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Shell Container */
+.artly-shell {
+  padding: clamp(16px, 2vw, 32px);
+  max-width: 1280px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* Page Head */
+.artly-pagehead {
+  margin-bottom: 32px;
+}
+
+.artly-pagehead h1,
+.artly-pagehead h2 {
+  margin: 0 0 8px;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 700;
+  color: var(--account-text);
+}
+
+.artly-pagehead .muted {
+  color: var(--account-text-muted);
+  font-size: 1rem;
+}
+
+.muted {
+  opacity: 0.75;
+  color: var(--account-text-muted);
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+/* Glass Card */
+.card.glass {
+  background: var(--account-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--account-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--account-shadow);
+  transition: all 0.3s ease;
+}
+
+.card.glass:hover {
+  background: var(--account-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Card Head */
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--account-border);
+}
+
+.card-head h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--account-text);
+}
+
+.card-head .link {
+  color: var(--account-accent-start);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.card-head .link:hover {
+  color: var(--account-accent-end);
+}
+
+/* KPI Card */
+.kpi .kpi-label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--account-text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.kpi .kpi-value {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  color: var(--account-accent-start);
+  line-height: 1.2;
+}
+
+/* Card Actions */
+.card-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--account-accent-start), var(--account-accent-end));
+  color: #020617;
+  box-shadow: 0 4px 16px rgba(6, 245, 232, 0.3);
+}
+
+.btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(6, 245, 232, 0.4);
+}
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--account-border);
+  color: var(--account-text);
+}
+
+.btn.ghost:hover {
+  background: var(--account-surface-hover);
+  border-color: var(--account-accent-start);
+  color: var(--account-accent-start);
+}
+
+.btn.small {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+/* Quick Actions */
+.qa h3 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--account-text);
+}
+
+.qa-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--account-border);
+  color: var(--account-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pill:hover {
+  background: rgba(6, 245, 232, 0.1);
+  border-color: var(--account-accent-start);
+  color: var(--account-accent-start);
+  transform: translateY(-2px);
+}
+
+/* Table List */
+.table .list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.table .row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--account-border);
+}
+
+.table .row:last-child {
+  border-bottom: none;
+}
+
+.table .col {
+  flex: 1;
+}
+
+.table .col:first-child {
+  flex: 0 0 auto;
+}
+
+.table .thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--account-surface);
+}
+
+.table .title {
+  font-weight: 600;
+  color: var(--account-text);
+  margin-bottom: 4px;
+}
+
+.table .meta {
+  font-size: 0.85rem;
+  color: var(--account-text-muted);
+}
+
+/* Masonry Grid for Downloads */
+.masonry {
+  column-width: 260px;
+  column-gap: 16px;
+}
+
+.file-card {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 16px;
+  break-inside: avoid;
+}
+
+.file-thumb {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: var(--account-surface);
+}
+
+.file-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--account-text);
+}
+
+.file-meta {
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+/* Navigation */
+.artly-acc-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 0 0 32px;
+  list-style: none;
+}
+
+.artly-acc-nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--account-border);
+  text-decoration: none;
+  color: var(--account-text-muted);
+  transition: all 0.2s ease;
+  background: var(--account-surface);
+}
+
+.artly-acc-nav a:hover {
+  background: var(--account-surface-hover);
+  border-color: var(--account-accent-start);
+  color: var(--account-accent-start);
+}
+
+.artly-acc-nav .is-active a,
+.artly-acc-nav .woocommerce-MyAccount-navigation-link--is-active a {
+  background: rgba(6, 245, 232, 0.1);
+  border-color: var(--account-accent-start);
+  color: var(--account-accent-start);
+}
+
+.artly-acc-nav .icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+}
+
+/* Plan Card */
+.plan-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--account-border);
+}
+
+.plan-top h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--account-text);
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge.active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge.cancelled,
+.badge.expired {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.plan-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.plan-body .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--account-text-muted);
+}
+
+.plan-body .row strong {
+  color: var(--account-text);
+  font-weight: 600;
+}
+
+/* Form Styling */
+.woocommerce-EditAccountForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.woocommerce-EditAccountForm .form-row {
+  margin-bottom: 0;
+}
+
+.woocommerce-EditAccountForm label {
+  display: block;
+  font-weight: 600;
+  color: var(--account-text);
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.woocommerce-EditAccountForm .required {
+  color: var(--account-accent-start);
+}
+
+.woocommerce-EditAccountForm input[type="text"],
+.woocommerce-EditAccountForm input[type="email"],
+.woocommerce-EditAccountForm input[type="password"] {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--account-border);
+  border-radius: 8px;
+  color: var(--account-text);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.woocommerce-EditAccountForm input:focus {
+  outline: none;
+  border-color: var(--account-accent-start);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(6, 245, 232, 0.1);
+}
+
+.woocommerce-EditAccountForm fieldset {
+  border: 1px solid var(--account-border);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.woocommerce-EditAccountForm legend {
+  padding: 0 12px;
+  font-weight: 600;
+  color: var(--account-text);
+}
+
+.woocommerce-EditAccountForm .clear {
+  clear: both;
+}
+
+.woocommerce-EditAccountForm em {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--account-text-muted);
+  font-style: italic;
+}
+
+/* RTL Support */
+:root[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+:root[dir="rtl"] .card-head {
+  flex-direction: row-reverse;
+}
+
+:root[dir="rtl"] .table .row {
+  flex-direction: row-reverse;
+}
+
+:root[dir="rtl"] .plan-body .row {
+  flex-direction: row-reverse;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .artly-shell {
+    padding: 16px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .masonry {
+    column-width: 100%;
+  }
+
+  .card-actions {
+    flex-direction: column;
+  }
+
+  .card-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .artly-acc-nav ul {
+    flex-direction: column;
+  }
+
+  .artly-acc-nav a {
+    width: 100%;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

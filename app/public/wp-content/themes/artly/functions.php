@@ -884,3 +884,164 @@ function artly_detect_currency() {
 
     return $currency;
 }
+
+// ===== Artly My Account (SaaS Dashboard) =====
+
+// === 1. Add SaaS endpoints (wallet, subscriptions) ===
+add_action( 'init', function () {
+    add_rewrite_endpoint( 'wallet', EP_ROOT | EP_PAGES );
+    add_rewrite_endpoint( 'subscriptions', EP_ROOT | EP_PAGES );
+} );
+
+// === 2. Replace My Account menu items ===
+add_filter( 'woocommerce_account_menu_items', function ( $items ) {
+    // Remove irrelevant for digital-only SaaS
+    unset( $items['edit-address'], $items['downloads'] ); // we re-add custom downloads
+
+    // Rebuild in desired order
+    return array(
+        'dashboard'       => __( 'Dashboard', 'artly' ),
+        'wallet'          => __( 'My Wallet', 'artly' ),
+        'downloads'       => __( 'Downloads', 'artly' ),
+        'subscriptions'   => __( 'Subscriptions', 'artly' ),
+        'edit-account'    => __( 'Profile Settings', 'artly' ),
+        'customer-logout' => __( 'Log out', 'artly' ),
+    );
+} );
+
+// === 3. Load assets only on My Account ===
+add_action( 'wp_enqueue_scripts', function () {
+    if ( is_account_page() ) {
+        wp_enqueue_style(
+            'artly-account',
+            get_stylesheet_directory_uri() . '/assets/css/artly-account.css',
+            array(),
+            wp_get_theme()->get( 'Version' )
+        );
+
+        wp_enqueue_script(
+            'artly-account',
+            get_stylesheet_directory_uri() . '/assets/js/artly-account.js',
+            array( 'jquery' ),
+            wp_get_theme()->get( 'Version' ),
+            true
+        );
+
+        wp_localize_script(
+            'artly-account',
+            'ARTLY_ACC',
+            array(
+                'nonce' => wp_create_nonce( 'wp_rest' ),
+                'i18n'  => array(
+                    'addPoints' => __( 'Add Points', 'artly' ),
+                ),
+            )
+        );
+    }
+} );
+
+// === 4. Data providers (safe wrappers) ===
+
+/**
+ * Wallet balance: try filter first (backend owns truth), fallback to user meta or Nehtw Gateway.
+ *
+ * @param int $user_id
+ * @return int
+ */
+function artly_get_wallet_points( $user_id ) {
+    $points = apply_filters( 'artly_wallet_balance', null, $user_id ); // Your plugin/BFF can return an int
+    if ( $points !== null ) {
+        return max( 0, (int) $points );
+    }
+
+    // Try Nehtw Gateway function
+    if ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
+        $points = nehtw_gateway_get_user_points_balance( $user_id );
+        if ( $points !== false ) {
+            return max( 0, (int) $points );
+        }
+    }
+
+    // Fallback to user meta
+    $points = (int) get_user_meta( $user_id, 'artly_wallet_points', true );
+    return max( 0, $points );
+}
+
+/**
+ * Recent downloads: ask backend, fallback to Woo orders w/ download permissions.
+ *
+ * @param int $user_id
+ * @param int $limit
+ * @return array
+ */
+function artly_get_recent_downloads( $user_id, $limit = 10 ) {
+    $items = apply_filters( 'artly_recent_downloads', null, $user_id, $limit ); // expect array of ['title','thumb','url','created_at','size']
+    if ( is_array( $items ) ) {
+        return array_slice( $items, 0, $limit );
+    }
+
+    // Fallback to Woo (digital products)
+    if ( function_exists( 'wc_get_customer_available_downloads' ) ) {
+        $downloads = wc_get_customer_available_downloads( $user_id );
+        $out       = array();
+        foreach ( array_slice( $downloads, 0, $limit ) as $d ) {
+            $out[] = array(
+                'title'      => $d['download_name'] ?? '',
+                'thumb'      => get_the_post_thumbnail_url( $d['product_id'], 'thumbnail' ),
+                'url'        => $d['download_url'],
+                'created_at' => strtotime( $d['access_granted'] ?? 'now' ),
+                'size'       => null,
+            );
+        }
+        return $out;
+    }
+
+    return array();
+}
+
+/**
+ * Subscriptions summary: ask backend/plugin; return normalized structure.
+ *
+ * @param int $user_id
+ * @return array
+ */
+function artly_get_subscriptions( $user_id ) {
+    $subs = apply_filters( 'artly_subscriptions_summary', null, $user_id );
+    if ( is_array( $subs ) ) {
+        return $subs;
+    }
+
+    // Try Nehtw Gateway subscriptions
+    if ( function_exists( 'nehtw_gateway_get_user_active_subscription' ) ) {
+        $sub = nehtw_gateway_get_user_active_subscription( $user_id );
+        if ( $sub ) {
+            return array(
+                array(
+                    'name'      => $sub['plan_name'] ?? __( 'Subscription', 'artly' ),
+                    'status'    => $sub['status'] ?? 'active',
+                    'renews_at' => $sub['next_renewal_at'] ?? date( 'Y-m-d', strtotime( '+1 month' ) ),
+                    'plan'      => $sub['plan_key'] ?? '',
+                    'amount'    => $sub['amount'] ?? 0,
+                    'currency'  => $sub['currency'] ?? 'EGP',
+                ),
+            );
+        }
+    }
+
+    return array(); // each: ['name','status','renews_at','plan','amount','currency']
+}
+
+/**
+ * Utility: currency toggle (display only)
+ *
+ * @param float $amount_egp
+ * @param float|null $usd_rate
+ * @return string
+ */
+function artly_display_price( $amount_egp, $usd_rate = null ) {
+    $show_usd = apply_filters( 'artly_show_usd_prices', false );
+    if ( $show_usd && $usd_rate ) {
+        return '$' . number_format( ( $amount_egp / $usd_rate ), 2 );
+    }
+    return number_format_i18n( $amount_egp, 2 ) . ' ' . __( 'EGP', 'artly' );
+}
