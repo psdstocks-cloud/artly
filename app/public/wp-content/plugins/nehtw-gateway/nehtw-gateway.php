@@ -478,10 +478,12 @@ function nehtw_gateway_activate() {
     }
     
     // Initialize webhook secret if not already set
-    $webhook_secret = get_option( 'nehtw_webhook_secret' );
-    if ( ! $webhook_secret ) {
+    $webhook_secret_encrypted = get_option( 'nehtw_webhook_secret' );
+    $webhook_secret = ! empty( $webhook_secret_encrypted ) ? nehtw_gateway_decrypt_option( $webhook_secret_encrypted ) : '';
+    if ( empty( $webhook_secret ) ) {
         $webhook_secret = wp_generate_password( 32, false );
-        update_option( 'nehtw_webhook_secret', $webhook_secret );
+        $encrypted = nehtw_gateway_encrypt_option( $webhook_secret );
+        update_option( 'nehtw_webhook_secret', $encrypted !== false ? $encrypted : $webhook_secret );
     }
     
     // Add new columns if they don't exist
@@ -632,6 +634,128 @@ function nehtw_gateway_get_table_name( $alias ) {
         'subscriptions'        => $wpdb->prefix . 'nehtw_subscriptions',
     );
     return isset( $map[ $alias ] ) ? $map[ $alias ] : '';
+}
+
+/**
+ * Validate input against strict rules.
+ *
+ * @param mixed $value The value to validate
+ * @param string $type The type of validation (int, string, email, url, array, etc.)
+ * @param array $rules Optional validation rules (min, max, pattern, required, etc.)
+ * @return WP_Error|mixed WP_Error on validation failure, validated value on success
+ */
+function nehtw_gateway_validate_input( $value, $type, $rules = array() ) {
+    $defaults = array(
+        'required' => false,
+        'min' => null,
+        'max' => null,
+        'pattern' => null,
+        'enum' => null,
+    );
+    $rules = wp_parse_args( $rules, $defaults );
+
+    // Check required
+    if ( $rules['required'] && ( $value === null || $value === '' || ( is_array( $value ) && empty( $value ) ) ) ) {
+        return new WP_Error( 'validation_required', __( 'This field is required.', 'nehtw-gateway' ) );
+    }
+
+    // Skip further validation if value is empty and not required
+    if ( empty( $value ) && ! $rules['required'] ) {
+        return $value;
+    }
+
+    // Type-specific validation
+    switch ( $type ) {
+        case 'int':
+        case 'integer':
+            $value = is_numeric( $value ) ? intval( $value ) : $value;
+            if ( ! is_int( $value ) ) {
+                return new WP_Error( 'validation_invalid_int', __( 'Invalid integer value.', 'nehtw-gateway' ) );
+            }
+            if ( $rules['min'] !== null && $value < $rules['min'] ) {
+                return new WP_Error( 'validation_min', sprintf( __( 'Value must be at least %d.', 'nehtw-gateway' ), $rules['min'] ) );
+            }
+            if ( $rules['max'] !== null && $value > $rules['max'] ) {
+                return new WP_Error( 'validation_max', sprintf( __( 'Value must be at most %d.', 'nehtw-gateway' ), $rules['max'] ) );
+            }
+            break;
+
+        case 'string':
+            $value = sanitize_text_field( $value );
+            if ( $rules['min'] !== null && strlen( $value ) < $rules['min'] ) {
+                return new WP_Error( 'validation_min_length', sprintf( __( 'Value must be at least %d characters.', 'nehtw-gateway' ), $rules['min'] ) );
+            }
+            if ( $rules['max'] !== null && strlen( $value ) > $rules['max'] ) {
+                return new WP_Error( 'validation_max_length', sprintf( __( 'Value must be at most %d characters.', 'nehtw-gateway' ), $rules['max'] ) );
+            }
+            if ( $rules['pattern'] !== null && ! preg_match( $rules['pattern'], $value ) ) {
+                return new WP_Error( 'validation_pattern', __( 'Value does not match required pattern.', 'nehtw-gateway' ) );
+            }
+            break;
+
+        case 'email':
+            $value = sanitize_email( $value );
+            if ( ! is_email( $value ) ) {
+                return new WP_Error( 'validation_invalid_email', __( 'Invalid email address.', 'nehtw-gateway' ) );
+            }
+            break;
+
+        case 'url':
+            $value = esc_url_raw( $value );
+            if ( ! filter_var( $value, FILTER_VALIDATE_URL ) ) {
+                return new WP_Error( 'validation_invalid_url', __( 'Invalid URL.', 'nehtw-gateway' ) );
+            }
+            break;
+
+        case 'array':
+            if ( ! is_array( $value ) ) {
+                return new WP_Error( 'validation_invalid_array', __( 'Invalid array value.', 'nehtw-gateway' ) );
+            }
+            if ( $rules['min'] !== null && count( $value ) < $rules['min'] ) {
+                return new WP_Error( 'validation_min_items', sprintf( __( 'Array must have at least %d items.', 'nehtw-gateway' ), $rules['min'] ) );
+            }
+            if ( $rules['max'] !== null && count( $value ) > $rules['max'] ) {
+                return new WP_Error( 'validation_max_items', sprintf( __( 'Array must have at most %d items.', 'nehtw-gateway' ), $rules['max'] ) );
+            }
+            break;
+    }
+
+    // Enum validation
+    if ( $rules['enum'] !== null && is_array( $rules['enum'] ) && ! in_array( $value, $rules['enum'], true ) ) {
+        return new WP_Error( 'validation_enum', __( 'Value is not in allowed list.', 'nehtw-gateway' ) );
+    }
+
+    return $value;
+}
+
+/**
+ * Verify that a resource belongs to the current user.
+ *
+ * @param int $current_user_id The current logged-in user ID
+ * @param int $resource_user_id The user ID that owns the resource
+ * @param string $resource_type Optional resource type for logging (e.g., 'order', 'transaction')
+ * @param int|string $resource_id Optional resource ID for logging
+ * @return bool True if ownership matches, false otherwise
+ */
+function nehtw_gateway_verify_user_ownership( $current_user_id, $resource_user_id, $resource_type = '', $resource_id = 0 ) {
+    if ( (int) $current_user_id !== (int) $resource_user_id ) {
+        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            $log_message = sprintf(
+                '[nehtw-gateway] Authorization failure: user_id=%d attempted to access %s owned by user_id=%d, ip=%s',
+                (int) $current_user_id,
+                ! empty( $resource_type ) ? $resource_type : 'resource',
+                (int) $resource_user_id,
+                $ip
+            );
+            if ( $resource_id ) {
+                $log_message .= sprintf( ', resource_id=%s', is_numeric( $resource_id ) ? (int) $resource_id : sanitize_text_field( $resource_id ) );
+            }
+            error_log( $log_message );
+        }
+        return false;
+    }
+    return true;
 }
 
 function nehtw_gateway_add_transaction( $user_id, $type, $points, $args = array() ) {
@@ -1160,14 +1284,91 @@ function nehtw_gateway_api_ai_public( $job_id ) {
     return nehtw_gateway_api_get( $path );
 }
 
-function nehtw_gateway_get_api_key() {
-    $key = get_option( NEHTW_GATEWAY_OPTION_API_KEY, '' );
-
-    if ( ! is_string( $key ) ) {
-        $key = '';
+/**
+ * Encrypt a sensitive value for storage.
+ *
+ * @param string $value The value to encrypt
+ * @return string|false Encrypted value or false on failure
+ */
+function nehtw_gateway_encrypt_option( $value ) {
+    if ( empty( $value ) ) {
+        return $value;
     }
 
-    return trim( $key );
+    // Get encryption key from wp-config.php constant
+    if ( ! defined( 'NEHTW_ENCRYPTION_KEY' ) ) {
+        // Fallback: use a hash of the site URL and salt (less secure but better than plaintext)
+        $fallback_key = hash( 'sha256', AUTH_SALT . get_site_url() );
+    } else {
+        $fallback_key = NEHTW_ENCRYPTION_KEY;
+    }
+
+    $key = substr( hash( 'sha256', $fallback_key ), 0, 32 );
+    $iv_length = openssl_cipher_iv_length( 'AES-256-CBC' );
+    $iv = openssl_random_pseudo_bytes( $iv_length );
+    
+    $encrypted = openssl_encrypt( $value, 'AES-256-CBC', $key, 0, $iv );
+    if ( $encrypted === false ) {
+        return false;
+    }
+    
+    // Prepend IV to encrypted data
+    return base64_encode( $iv . $encrypted );
+}
+
+/**
+ * Decrypt a sensitive value from storage.
+ *
+ * @param string $encrypted The encrypted value
+ * @return string|false Decrypted value or false on failure
+ */
+function nehtw_gateway_decrypt_option( $encrypted ) {
+    if ( empty( $encrypted ) ) {
+        return $encrypted;
+    }
+
+    // Check if value is already plaintext (for backward compatibility during migration)
+    // Encrypted values are base64 encoded and longer than typical API keys
+    if ( strlen( $encrypted ) < 50 || ! base64_decode( $encrypted, true ) ) {
+        // Likely plaintext, return as-is (will be encrypted on next save)
+        return $encrypted;
+    }
+
+    // Get encryption key from wp-config.php constant
+    if ( ! defined( 'NEHTW_ENCRYPTION_KEY' ) ) {
+        // Fallback: use a hash of the site URL and salt
+        $fallback_key = hash( 'sha256', AUTH_SALT . get_site_url() );
+    } else {
+        $fallback_key = NEHTW_ENCRYPTION_KEY;
+    }
+
+    $key = substr( hash( 'sha256', $fallback_key ), 0, 32 );
+    $data = base64_decode( $encrypted, true );
+    
+    if ( $data === false ) {
+        return false;
+    }
+    
+    $iv_length = openssl_cipher_iv_length( 'AES-256-CBC' );
+    $iv = substr( $data, 0, $iv_length );
+    $encrypted_data = substr( $data, $iv_length );
+    
+    return openssl_decrypt( $encrypted_data, 'AES-256-CBC', $key, 0, $iv );
+}
+
+function nehtw_gateway_get_api_key() {
+    $encrypted = get_option( NEHTW_GATEWAY_OPTION_API_KEY, '' );
+
+    if ( ! is_string( $encrypted ) ) {
+        $encrypted = '';
+    }
+
+    if ( empty( $encrypted ) ) {
+        return '';
+    }
+    
+    $decrypted = nehtw_gateway_decrypt_option( $encrypted );
+    return $decrypted !== false ? trim( $decrypted ) : trim( $encrypted );
 }
 
 function nehtw_gateway_require_api_key() {
@@ -1282,9 +1483,12 @@ function nehtw_gateway_api_get( $path, $query_args = array() ) {
         $query_args = array();
     }
 
-    $query_args['apikey'] = $api_key;
+    // API key is sent in X-Api-Key header only, not in query parameters for security
+    // Removed: $query_args['apikey'] = $api_key;
 
-    $url = add_query_arg( $query_args, $url );
+    if ( ! empty( $query_args ) ) {
+        $url = add_query_arg( $query_args, $url );
+    }
 
     $response = wp_remote_get( $url, array(
         'headers' => nehtw_gateway_build_api_headers(),
@@ -1350,9 +1554,12 @@ function nehtw_gateway_api_post_json( $path, $body = array(), $query_args = arra
         $query_args = array();
     }
 
-    $query_args['apikey'] = $api_key;
+    // API key is sent in X-Api-Key header only, not in query parameters for security
+    // Removed: $query_args['apikey'] = $api_key;
 
-    $url = add_query_arg( $query_args, $url );
+    if ( ! empty( $query_args ) ) {
+        $url = add_query_arg( $query_args, $url );
+    }
 
     $headers = nehtw_gateway_build_api_headers();
     $headers['Content-Type'] = 'application/json';
@@ -1744,6 +1951,12 @@ function artly_get_wallet_info( WP_REST_Request $request ) {
         );
     }
 
+    // Rate limiting: 60 requests per minute per user
+    $rate_limit = nehtw_gateway_rate_limit( 'wallet-info', $user_id, 60, 60 );
+    if ( is_wp_error( $rate_limit ) ) {
+        return $rate_limit;
+    }
+
     $balance = function_exists( 'nehtw_gateway_get_balance' )
         ? nehtw_gateway_get_balance( $user_id )
         : 0.0;
@@ -1935,6 +2148,19 @@ function nehtw_gateway_rest_stock_order_batch( WP_REST_Request $request ) {
     }
 
     $user_id = get_current_user_id();
+
+    // Rate limiting: 10 requests per minute per user
+    $rate_limit = nehtw_gateway_rate_limit( 'stock-order', $user_id, 10, 60 );
+    if ( is_wp_error( $rate_limit ) ) {
+        $error_data = $rate_limit->get_error_data();
+        return new WP_REST_Response(
+            array(
+                'message' => $rate_limit->get_error_message(),
+                'retry_after' => isset( $error_data['retry_after'] ) ? $error_data['retry_after'] : 60,
+            ),
+            429
+        );
+    }
 
     $key_check = nehtw_gateway_require_api_key();
     if ( is_wp_error( $key_check ) ) {
@@ -2930,6 +3156,20 @@ function nehtw_gateway_rest_stock_order_preview( WP_REST_Request $request ) {
     }
 
     $user_id = get_current_user_id();
+
+    // Rate limiting: 30 requests per minute per user
+    $rate_limit = nehtw_gateway_rate_limit( 'stock-order-preview', $user_id, 30, 60 );
+    if ( is_wp_error( $rate_limit ) ) {
+        $error_data = $rate_limit->get_error_data();
+        return new WP_REST_Response(
+            array(
+                'message' => $rate_limit->get_error_message(),
+                'retry_after' => isset( $error_data['retry_after'] ) ? $error_data['retry_after'] : 60,
+            ),
+            429
+        );
+    }
+
     $url     = trim( (string) $request->get_param( 'url' ) );
 
     $key_check = nehtw_gateway_require_api_key();
@@ -3386,6 +3626,73 @@ function nehtw_rest_get_download_history( WP_REST_Request $request ) {
  * POST /wp-json/artly/v1/download-redownload
  * Body: { "history_id": 123 }
  */
+/**
+ * General rate limiting helper for REST API endpoints.
+ *
+ * @param string $endpoint The endpoint identifier (e.g., 'stock-order', 'wallet-info')
+ * @param int $user_id User ID (0 for anonymous)
+ * @param int $limit Maximum requests allowed
+ * @param int $window Time window in seconds
+ * @return true|WP_Error True if allowed, WP_Error if rate limit exceeded
+ */
+function nehtw_gateway_rate_limit( $endpoint, $user_id, $limit, $window ) {
+    $user_id = (int) $user_id;
+    $identifier = $user_id > 0 ? 'user_' . $user_id : 'ip_' . ( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_key( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown' );
+    $key = 'nehtw_rate_limit_' . sanitize_key( $endpoint ) . '_' . $identifier;
+    
+    $now = time();
+    $state = get_transient( $key );
+    
+    // State structure: array( 'count' => int, 'start' => timestamp )
+    if ( empty( $state ) || ! is_array( $state ) || empty( $state['start'] ) || ( $now - (int) $state['start'] ) >= $window ) {
+        // New window
+        $state = array(
+            'count' => 1,
+            'start' => $now,
+        );
+        set_transient( $key, $state, $window + 10 );
+        return true;
+    }
+    
+    // Existing window
+    $count = (int) $state['count'];
+    
+    if ( $count >= $limit ) {
+        $retry_after = $window - ( $now - (int) $state['start'] );
+        if ( $retry_after < 0 ) {
+            $retry_after = 0;
+        }
+        
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            error_log(
+                sprintf(
+                    '[nehtw-gateway] Rate limit exceeded: endpoint=%s, user_id=%d, count=%d/%d, window=%ds',
+                    $endpoint,
+                    $user_id,
+                    $count,
+                    $limit,
+                    $window
+                )
+            );
+        }
+        
+        return new WP_Error(
+            'too_many_requests',
+            __( 'Too many requests. Please slow down.', 'nehtw-gateway' ),
+            array(
+                'status' => 429,
+                'retry_after' => $retry_after,
+            )
+        );
+    }
+    
+    // Increment count
+    $state['count'] = $count + 1;
+    set_transient( $key, $state, $window + 10 );
+    
+    return true;
+}
+
 /**
  * Simple per-user rate limiting for re-download requests.
  *
@@ -4228,6 +4535,20 @@ function nehtw_rest_get_wallet_transactions( WP_REST_Request $request ) {
     }
 
     $user_id  = get_current_user_id();
+
+    // Rate limiting: 30 requests per minute per user
+    $rate_limit = nehtw_gateway_rate_limit( 'wallet-transactions', $user_id, 30, 60 );
+    if ( is_wp_error( $rate_limit ) ) {
+        $error_data = $rate_limit->get_error_data();
+        return new WP_REST_Response(
+            array(
+                'message' => $rate_limit->get_error_message(),
+                'retry_after' => isset( $error_data['retry_after'] ) ? $error_data['retry_after'] : 60,
+            ),
+            429
+        );
+    }
+
     $page     = (int) $request->get_param( 'page' ) ?: 1;
     $per_page = (int) $request->get_param( 'per_page' ) ?: 20;
     $type     = $request->get_param( 'type' ) ?: 'all';
@@ -6090,7 +6411,14 @@ function nehtw_gateway_render_admin_page() {
             $api_settings_notice       = __( 'Nehtw API key removed. Remote requests will be disabled until you add a key.', 'nehtw-gateway' );
             $api_settings_notice_class = 'notice-warning';
         } else {
-            update_option( NEHTW_GATEWAY_OPTION_API_KEY, $clean_key );
+            // Encrypt the API key before storing
+            $encrypted_key = nehtw_gateway_encrypt_option( $clean_key );
+            if ( $encrypted_key !== false ) {
+                update_option( NEHTW_GATEWAY_OPTION_API_KEY, $encrypted_key );
+            } else {
+                // Fallback to plaintext if encryption fails (shouldn't happen)
+                update_option( NEHTW_GATEWAY_OPTION_API_KEY, $clean_key );
+            }
             $api_settings_notice       = __( 'Nehtw API key updated successfully.', 'nehtw-gateway' );
             $api_settings_notice_class = 'notice-success';
         }

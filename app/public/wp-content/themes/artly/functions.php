@@ -32,6 +32,29 @@ add_action( 'wp_head', function() {
 }, 5 );
 
 /**
+ * Add security headers to all responses.
+ */
+function artly_security_headers() {
+    // Prevent MIME type sniffing
+    header( 'X-Content-Type-Options: nosniff' );
+    
+    // Prevent clickjacking
+    header( 'X-Frame-Options: SAMEORIGIN' );
+    
+    // Enable XSS protection (legacy browsers)
+    header( 'X-XSS-Protection: 1; mode=block' );
+    
+    // Control referrer information
+    header( 'Referrer-Policy: strict-origin-when-cross-origin' );
+    
+    // Content Security Policy - basic policy
+    // Note: Adjust CSP based on your actual needs (external scripts, styles, etc.)
+    $csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'self';";
+    header( 'Content-Security-Policy: ' . $csp );
+}
+add_action( 'send_headers', 'artly_security_headers' );
+
+/**
  * Get all supported websites with their URLs for header navigation
  *
  * @return array Array of sites with label and URL
@@ -586,8 +609,16 @@ function artly_ajax_signup() {
     
     if ( empty( $password ) ) {
         $errors[] = 'Password is required.';
-    } elseif ( strlen( $password ) < 8 ) {
-        $errors[] = 'Password must be at least 8 characters.';
+    } elseif ( strlen( $password ) < 12 ) {
+        $errors[] = 'Password must be at least 12 characters long.';
+    } elseif ( ! preg_match( '/[a-z]/', $password ) ) {
+        $errors[] = 'Password must contain at least one lowercase letter.';
+    } elseif ( ! preg_match( '/[A-Z]/', $password ) ) {
+        $errors[] = 'Password must contain at least one uppercase letter.';
+    } elseif ( ! preg_match( '/[0-9]/', $password ) ) {
+        $errors[] = 'Password must contain at least one number.';
+    } elseif ( ! preg_match( '/[^a-zA-Z0-9]/', $password ) ) {
+        $errors[] = 'Password must contain at least one special character.';
     }
     
     if ( $password !== $password_confirm ) {
@@ -843,6 +874,106 @@ function artly_login_get_notice_message() {
 }
 
 /**
+ * Track login attempt for brute force protection.
+ *
+ * @param string $username The username or email attempted
+ * @param string $ip The IP address of the attempt
+ */
+function artly_track_login_attempt( $username, $ip ) {
+    $username_key = sanitize_key( $username );
+    $ip_key = sanitize_key( $ip );
+    
+    // Track by both username and IP for better security
+    $key_username = 'artly_login_attempts_' . $username_key;
+    $key_ip = 'artly_login_attempts_ip_' . $ip_key;
+    $key_combined = 'artly_login_attempts_' . md5( $username_key . '|' . $ip_key );
+    
+    $attempts_username = (int) get_transient( $key_username );
+    $attempts_ip = (int) get_transient( $key_ip );
+    $attempts_combined = (int) get_transient( $key_combined );
+    
+    $attempts_username++;
+    $attempts_ip++;
+    $attempts_combined++;
+    
+    // Store attempts for 1 hour
+    set_transient( $key_username, $attempts_username, HOUR_IN_SECONDS );
+    set_transient( $key_ip, $attempts_ip, HOUR_IN_SECONDS );
+    set_transient( $key_combined, $attempts_combined, HOUR_IN_SECONDS );
+    
+    // Log excessive attempts
+    if ( $attempts_combined >= 10 ) {
+        error_log( sprintf( 'Artly: Excessive login attempts detected. Username: %s, IP: %s, Attempts: %d', sanitize_text_field( $username ), $ip, $attempts_combined ) );
+    }
+}
+
+/**
+ * Check if login rate limit has been exceeded.
+ *
+ * @param string $username The username or email
+ * @param string $ip The IP address
+ * @return WP_Error|true Returns WP_Error if rate limited, true otherwise
+ */
+function artly_check_login_rate_limit( $username, $ip ) {
+    $username_key = sanitize_key( $username );
+    $ip_key = sanitize_key( $ip );
+    $key_combined = 'artly_login_attempts_' . md5( $username_key . '|' . $ip_key );
+    
+    $attempts = (int) get_transient( $key_combined );
+    
+    // Exponential backoff: 5 attempts = 1 min, 10 attempts = 5 min, 15 attempts = 15 min
+    if ( $attempts >= 15 ) {
+        $lockout_time = 15 * MINUTE_IN_SECONDS;
+        $lockout_key = 'artly_login_lockout_' . md5( $username_key . '|' . $ip_key );
+        set_transient( $lockout_key, true, $lockout_time );
+        return new WP_Error(
+            'artly_rate_limited',
+            __( 'Too many login attempts. Please try again in 15 minutes.', 'artly' )
+        );
+    } elseif ( $attempts >= 10 ) {
+        $lockout_time = 5 * MINUTE_IN_SECONDS;
+        $lockout_key = 'artly_login_lockout_' . md5( $username_key . '|' . $ip_key );
+        $is_locked = get_transient( $lockout_key );
+        if ( $is_locked ) {
+            return new WP_Error(
+                'artly_rate_limited',
+                __( 'Too many login attempts. Please try again in 5 minutes.', 'artly' )
+            );
+        }
+        set_transient( $lockout_key, true, $lockout_time );
+    } elseif ( $attempts >= 5 ) {
+        $lockout_time = 1 * MINUTE_IN_SECONDS;
+        $lockout_key = 'artly_login_lockout_' . md5( $username_key . '|' . $ip_key );
+        $is_locked = get_transient( $lockout_key );
+        if ( $is_locked ) {
+            return new WP_Error(
+                'artly_rate_limited',
+                __( 'Too many login attempts. Please try again in 1 minute.', 'artly' )
+            );
+        }
+        set_transient( $lockout_key, true, $lockout_time );
+    }
+    
+    return true;
+}
+
+/**
+ * Clear login attempts on successful login.
+ *
+ * @param string $username The username or email
+ * @param string $ip The IP address
+ */
+function artly_clear_login_attempts( $username, $ip ) {
+    $username_key = sanitize_key( $username );
+    $ip_key = sanitize_key( $ip );
+    
+    delete_transient( 'artly_login_attempts_' . $username_key );
+    delete_transient( 'artly_login_attempts_ip_' . $ip_key );
+    delete_transient( 'artly_login_attempts_' . md5( $username_key . '|' . $ip_key ) );
+    delete_transient( 'artly_login_lockout_' . md5( $username_key . '|' . $ip_key ) );
+}
+
+/**
  * Honeypot and nonce validation for the custom login form.
  */
 function artly_login_security_checks( $user, $username, $password ) {
@@ -850,19 +981,106 @@ function artly_login_security_checks( $user, $username, $password ) {
         return $user;
     }
 
+    // Get IP address
+    $ip = artly_get_client_ip();
+    
+    // Check rate limiting before other checks
+    $rate_limit_check = artly_check_login_rate_limit( $username, $ip );
+    if ( is_wp_error( $rate_limit_check ) ) {
+        return $rate_limit_check;
+    }
+
     $honeypot = isset( $_POST['artly_login_hp'] ) ? trim( wp_unslash( $_POST['artly_login_hp'] ) ) : '';
     if ( '' !== $honeypot ) {
+        artly_track_login_attempt( $username, $ip );
         return new WP_Error( 'artly_spam', __( 'Invalid email or password.', 'artly' ) );
     }
 
     $nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
     if ( ! $nonce || ! wp_verify_nonce( $nonce, 'artly_login' ) ) {
+        artly_track_login_attempt( $username, $ip );
         return new WP_Error( 'artly_nonce', __( 'Security check failed. Please try again.', 'artly' ) );
     }
 
     return $user;
 }
 add_filter( 'authenticate', 'artly_login_security_checks', 5, 3 );
+
+/**
+ * Track failed login attempts and clear on success.
+ */
+function artly_track_login_result( $user, $username, $password ) {
+    if ( empty( $_POST['artly_login_submission'] ) ) {
+        return $user;
+    }
+    
+    $ip = artly_get_client_ip();
+    
+    if ( is_wp_error( $user ) ) {
+        // Failed login - track attempt
+        artly_track_login_attempt( $username, $ip );
+    } else {
+        // Successful login - clear attempts
+        artly_clear_login_attempts( $username, $ip );
+    }
+    
+    return $user;
+}
+add_filter( 'authenticate', 'artly_track_login_result', 99, 3 );
+
+/**
+ * Implement secure session management.
+ */
+function artly_secure_session_settings() {
+    // Set secure cookie flags via WordPress filters
+    if ( ! headers_sent() ) {
+        // Force secure cookies on HTTPS
+        if ( is_ssl() ) {
+            ini_set( 'session.cookie_secure', '1' );
+        }
+        // HttpOnly flag (WordPress handles this by default)
+        ini_set( 'session.cookie_httponly', '1' );
+        // SameSite attribute
+        ini_set( 'session.cookie_samesite', 'Strict' );
+    }
+}
+add_action( 'init', 'artly_secure_session_settings', 1 );
+
+/**
+ * Regenerate session ID on login for security.
+ */
+function artly_regenerate_session_on_login( $user_login, $user ) {
+    if ( $user && ! is_wp_error( $user ) ) {
+        wp_set_current_user( $user->ID );
+        // WordPress doesn't expose session regeneration directly, but we can clear auth cookie and reset
+        wp_clear_auth_cookie();
+        wp_set_auth_cookie( $user->ID, true );
+    }
+}
+add_action( 'wp_login', 'artly_regenerate_session_on_login', 10, 2 );
+
+/**
+ * Implement session timeout (30 minutes inactivity).
+ */
+function artly_check_session_timeout() {
+    if ( ! is_user_logged_in() ) {
+        return;
+    }
+
+    $last_activity = get_user_meta( get_current_user_id(), 'artly_last_activity', true );
+    $timeout = 30 * MINUTE_IN_SECONDS; // 30 minutes
+
+    if ( ! empty( $last_activity ) && ( time() - (int) $last_activity ) > $timeout ) {
+        // Session expired, log out user
+        wp_logout();
+        wp_safe_redirect( home_url( '/login/?session_expired=1' ) );
+        exit;
+    }
+
+    // Update last activity timestamp
+    update_user_meta( get_current_user_id(), 'artly_last_activity', time() );
+}
+add_action( 'init', 'artly_check_session_timeout', 1 );
 
 /**
  * Get client IP address in a safe way (X-Forwarded-For aware)

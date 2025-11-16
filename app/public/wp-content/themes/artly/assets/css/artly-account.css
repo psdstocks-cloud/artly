@@ -132,6 +132,8 @@ body.page-template-page-dashboard .artly-announcement-bar {
 .artly-pagehead .muted {
   color: var(--account-text-muted);
   font-size: 1rem;
+  margin: 0;
+  line-height: 1.6;
 }
 
 .muted {
@@ -476,73 +478,206 @@ body.page-template-page-dashboard .artly-announcement-bar {
   font-weight: 600;
 }
 
-/* Form Styling */
-.woocommerce-EditAccountForm {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/* ===== Edit Account Form Styling ===== */
+
+/* Form Container */
+.artly-edit-account-form {
+  width: 100%;
 }
 
+/* Grid Layout */
+.artly-edit-account-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+/* Account Section Cards */
+.artly-account-section {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.artly-section-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(123, 76, 255, 0.3);
+}
+
+.artly-section-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--account-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.artly-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Form Rows */
+.artly-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.artly-form-row--split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+/* Form Field Styling */
 .woocommerce-EditAccountForm .form-row {
   margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .woocommerce-EditAccountForm label {
   display: block;
   font-weight: 600;
   color: var(--account-text);
-  margin-bottom: 8px;
+  margin-bottom: 0;
   font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .woocommerce-EditAccountForm .required {
   color: var(--account-accent-start);
+  margin-left: 2px;
 }
 
 .woocommerce-EditAccountForm input[type="text"],
 .woocommerce-EditAccountForm input[type="email"],
 .woocommerce-EditAccountForm input[type="password"] {
   width: 100%;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--account-border);
-  border-radius: 8px;
+  border-radius: 12px;
   color: var(--account-text);
   font-size: 0.95rem;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
-.woocommerce-EditAccountForm input:focus {
+.woocommerce-EditAccountForm input[type="text"]:hover,
+.woocommerce-EditAccountForm input[type="email"]:hover,
+.woocommerce-EditAccountForm input[type="password"]:hover {
+  border-color: rgba(123, 76, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.woocommerce-EditAccountForm input[type="text"]:focus,
+.woocommerce-EditAccountForm input[type="email"]:focus,
+.woocommerce-EditAccountForm input[type="password"]:focus {
   outline: none;
   border-color: var(--account-accent-start);
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(123, 76, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(123, 76, 255, 0.15), 0 4px 12px rgba(123, 76, 255, 0.1);
 }
 
-.woocommerce-EditAccountForm fieldset {
-  border: 1px solid var(--account-border);
-  border-radius: 8px;
-  padding: 20px;
-  margin: 20px 0;
+.woocommerce-EditAccountForm input::placeholder {
+  color: var(--account-text-muted);
+  opacity: 0.6;
 }
 
-.woocommerce-EditAccountForm legend {
+/* Field Hints */
+.artly-field-hint {
+  display: block;
+  margin-top: 6px;
+}
+
+.artly-field-hint em {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--account-text-muted);
+  font-style: normal;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+/* Password Section */
+.artly-password-section {
+  background: radial-gradient(circle at top left, rgba(123, 76, 255, 0.08), transparent 60%);
+}
+
+.artly-password-fieldset {
+  border: 1px solid rgba(123, 76, 255, 0.2);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 0;
+  background: rgba(123, 76, 255, 0.03);
+}
+
+.artly-password-legend {
   padding: 0 12px;
   font-weight: 600;
   color: var(--account-text);
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
+.artly-password-hint {
+  margin: 0 0 20px;
+  font-size: 0.85rem;
+  color: var(--account-text-muted);
+  opacity: 0.85;
+}
+
+.artly-password-fieldset .form-row {
+  margin-bottom: 0;
+}
+
+/* Form Actions */
+.artly-form-actions {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--account-border);
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+}
+
+.artly-btn-save {
+  min-width: 160px;
+  padding: 14px 28px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--account-accent-start), var(--account-accent-end));
+  color: #F7F7F7;
+  box-shadow: 0 4px 16px rgba(123, 76, 255, 0.3);
+  transition: all 0.25s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.artly-btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(123, 76, 255, 0.4);
+  filter: brightness(1.05);
+}
+
+.artly-btn-save:active {
+  transform: translateY(0);
 }
 
 .woocommerce-EditAccountForm .clear {
   clear: both;
-}
-
-.woocommerce-EditAccountForm em {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.85rem;
-  color: var(--account-text-muted);
-  font-style: italic;
+  display: none;
 }
 
 /* RTL Support */
@@ -562,10 +697,75 @@ body.page-template-page-dashboard .artly-announcement-bar {
   flex-direction: row-reverse;
 }
 
+/* ===== Edit Account Responsive Design ===== */
+
+/* Tablet and Desktop: Two-column layout for name fields */
+@media (min-width: 768px) {
+  .artly-edit-account-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .artly-form-row--split {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .artly-password-section {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Desktop: Three-column layout */
+@media (min-width: 1024px) {
+  .artly-edit-account-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .artly-password-section {
+    grid-column: span 1;
+  }
+}
+
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .artly-shell {
     padding: 16px;
+  }
+
+  .artly-account-section {
+    padding: 24px 20px;
+  }
+
+  .artly-section-header {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+  }
+
+  .artly-section-header h3 {
+    font-size: 1rem;
+  }
+
+  .artly-section-body {
+    gap: 20px;
+  }
+
+  .artly-form-row--split {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .artly-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .artly-btn-save {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .artly-password-fieldset {
+    padding: 20px 16px;
   }
 
   .grid {

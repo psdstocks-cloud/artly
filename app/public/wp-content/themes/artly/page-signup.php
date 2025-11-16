@@ -36,8 +36,16 @@ if ( isset( $_POST['artly_signup_submit'] ) && wp_verify_nonce( $_POST['artly_si
     
     if ( empty( $password ) ) {
         $errors[] = 'Password is required.';
-    } elseif ( strlen( $password ) < 8 ) {
-        $errors[] = 'Password must be at least 8 characters.';
+    } elseif ( strlen( $password ) < 12 ) {
+        $errors[] = 'Password must be at least 12 characters long.';
+    } elseif ( ! preg_match( '/[a-z]/', $password ) ) {
+        $errors[] = 'Password must contain at least one lowercase letter.';
+    } elseif ( ! preg_match( '/[A-Z]/', $password ) ) {
+        $errors[] = 'Password must contain at least one uppercase letter.';
+    } elseif ( ! preg_match( '/[0-9]/', $password ) ) {
+        $errors[] = 'Password must contain at least one number.';
+    } elseif ( ! preg_match( '/[^a-zA-Z0-9]/', $password ) ) {
+        $errors[] = 'Password must contain at least one special character.';
     }
     
     if ( $password !== $password_confirm ) {
@@ -183,7 +191,7 @@ get_header();
                                 required
                                 autocomplete="new-password"
                                 aria-describedby="password-hint"
-                                minlength="8"
+                                minlength="12"
                             />
                             <button type="button" class="artly-password-toggle" aria-label="Toggle password visibility">
                                 <svg class="artly-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -211,7 +219,7 @@ get_header();
                                 placeholder="Re-enter your password"
                                 required
                                 autocomplete="new-password"
-                                minlength="8"
+                                minlength="12"
                             />
                             <button type="button" class="artly-password-toggle" aria-label="Toggle password visibility">
                                 <svg class="artly-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">

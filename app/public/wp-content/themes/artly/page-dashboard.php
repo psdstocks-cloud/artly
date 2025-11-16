@@ -204,6 +204,11 @@ if ( function_exists( 'nehtw_get_user_download_history' ) ) {
               <?php endif; ?>
             </div>
           </div>
+          <div class="dashboard-actions">
+            <a class="dashboard-btn-primary" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) . 'edit-account/' ); ?>">
+              <?php esc_html_e( 'Edit account', 'artly' ); ?>
+            </a>
+          </div>
         </div>
       </article>
 

@@ -61,9 +61,45 @@ add_action( 'rest_api_init', function() {
                 return new WP_Error( 'nehtw_notify_disabled', __( 'Notifications are disabled.', 'nehtw-gateway' ), array( 'status' => 400 ) );
             }
 
+            // Rate limiting: 5 requests per hour per IP
+            $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+            $rate_key = 'nehtw_notify_rate_' . md5( $ip );
+            $count = (int) get_transient( $rate_key );
+            if ( $count >= 5 ) {
+                error_log( sprintf( 'Nehtw Sites Notify: Rate limit exceeded for IP %s', $ip ) );
+                return new WP_Error( 
+                    'nehtw_rate_limited', 
+                    __( 'Too many requests. Please try again later.', 'nehtw-gateway' ), 
+                    array( 'status' => 429 ) 
+                );
+            }
+            set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
+
+            // Honeypot field for spam protection
+            $honeypot = $request->get_param( 'website' );
+            if ( ! empty( $honeypot ) ) {
+                // Spam detected, silently fail
+                return array( 'success' => true );
+            }
+
             $site_key = sanitize_key( $request->get_param( 'site_key' ) );
             $email    = sanitize_email( $request->get_param( 'email' ) );
             $user_id  = get_current_user_id();
+
+            // Validate email
+            if ( empty( $email ) || ! is_email( $email ) ) {
+                return new WP_Error( 'nehtw_invalid_email', __( 'Invalid email address.', 'nehtw-gateway' ), array( 'status' => 400 ) );
+            }
+
+            // Validate site_key
+            if ( empty( $site_key ) ) {
+                return new WP_Error( 'nehtw_invalid_site', __( 'Invalid site key.', 'nehtw-gateway' ), array( 'status' => 400 ) );
+            }
+
+            // Log notification request for monitoring
+            if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+                error_log( sprintf( 'Nehtw Sites Notify: site_key=%s, email=%s, user_id=%d, ip=%s', $site_key, $email, $user_id, $ip ) );
+            }
 
             $result = Nehtw_Site_Notifier::subscribe( $site_key, $email, $user_id );
             if ( is_wp_error( $result ) ) {

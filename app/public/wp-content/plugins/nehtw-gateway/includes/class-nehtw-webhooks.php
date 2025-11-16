@@ -41,6 +41,62 @@ class Nehtw_Gateway_Webhooks {
     }
 
     /**
+     * Verify webhook signature using HMAC.
+     *
+     * @param string $payload The webhook payload
+     * @param string $signature The signature from X-Neh-Signature header
+     * @param string $secret The webhook secret
+     * @return bool True if signature is valid
+     */
+    protected static function verify_signature( $payload, $signature, $secret ) {
+        if ( empty( $secret ) || empty( $signature ) ) {
+            return false;
+        }
+
+        $expected_signature = hash_hmac( 'sha256', $payload, $secret );
+        return hash_equals( $expected_signature, $signature );
+    }
+
+    /**
+     * Check if IP is whitelisted.
+     *
+     * @param string $ip The IP address to check
+     * @return bool True if IP is whitelisted or whitelist is empty
+     */
+    protected static function is_ip_whitelisted( $ip ) {
+        $whitelist = get_option( 'nehtw_webhook_ip_whitelist', '' );
+        
+        // If whitelist is empty, allow all IPs (backward compatibility)
+        if ( empty( $whitelist ) ) {
+            return true;
+        }
+
+        $allowed_ips = array_map( 'trim', explode( "\n", $whitelist ) );
+        $allowed_ips = array_filter( $allowed_ips );
+
+        // Check exact match or CIDR notation
+        foreach ( $allowed_ips as $allowed_ip ) {
+            if ( $ip === $allowed_ip ) {
+                return true;
+            }
+            
+            // Check CIDR notation (e.g., 192.168.1.0/24)
+            if ( strpos( $allowed_ip, '/' ) !== false ) {
+                list( $subnet, $mask ) = explode( '/', $allowed_ip, 2 );
+                $ip_long = ip2long( $ip );
+                $subnet_long = ip2long( $subnet );
+                $mask_long = -1 << ( 32 - (int) $mask );
+                
+                if ( ( $ip_long & $mask_long ) === ( $subnet_long & $mask_long ) ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Handle Nehtw webhook request.
      *
      * Nehtw will send something like:
@@ -48,13 +104,67 @@ class Nehtw_Gateway_Webhooks {
      *  x-neh-event_name: download.status_changed
      *  x-neh-status: ready|completed|failed|error
      *  x-neh-task_id: 12345
+     *  x-neh-signature: <hmac-sha256-signature>
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response
      */
     public static function handle_webhook( WP_REST_Request $request ) {
+        // Get client IP
+        $client_ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+        
+        // Check IP whitelist if configured
+        if ( ! self::is_ip_whitelisted( $client_ip ) ) {
+            error_log( sprintf( 'Nehtw Webhook: IP %s not whitelisted', $client_ip ) );
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'Forbidden',
+                ),
+                403
+            );
+        }
+
         // Normalize header names
         $headers = array_change_key_case( $request->get_headers(), CASE_LOWER );
+
+        // Verify HMAC signature
+        $webhook_secret_encrypted = get_option( 'nehtw_webhook_secret', '' );
+        $webhook_secret = ! empty( $webhook_secret_encrypted ) && function_exists( 'nehtw_gateway_decrypt_option' ) 
+            ? nehtw_gateway_decrypt_option( $webhook_secret_encrypted ) 
+            : $webhook_secret_encrypted;
+        if ( ! empty( $webhook_secret ) ) {
+            $signature = isset( $headers['x-neh-signature'][0] ) ? sanitize_text_field( $headers['x-neh-signature'][0] ) : '';
+            
+            // Build payload from headers and query params
+            $payload_parts = array();
+            if ( isset( $headers['x-neh-event_name'][0] ) ) {
+                $payload_parts[] = 'event_name:' . $headers['x-neh-event_name'][0];
+            }
+            if ( isset( $headers['x-neh-status'][0] ) ) {
+                $payload_parts[] = 'status:' . $headers['x-neh-status'][0];
+            }
+            if ( isset( $headers['x-neh-task_id'][0] ) ) {
+                $payload_parts[] = 'task_id:' . $headers['x-neh-task_id'][0];
+            }
+            $payload = implode( '|', $payload_parts );
+            
+            // If no signature in headers, try query param (for backward compatibility during migration)
+            if ( empty( $signature ) ) {
+                $signature = sanitize_text_field( $request->get_param( 'signature' ) );
+            }
+            
+            if ( ! empty( $signature ) && ! self::verify_signature( $payload, $signature, $webhook_secret ) ) {
+                error_log( sprintf( 'Nehtw Webhook: Invalid signature from IP %s', $client_ip ) );
+                return new WP_REST_Response(
+                    array(
+                        'success' => false,
+                        'message' => 'Unauthorized',
+                    ),
+                    401
+                );
+            }
+        }
 
         $event_name = isset( $headers['x-neh-event_name'][0] ) ? sanitize_text_field( $headers['x-neh-event_name'][0] ) : '';
         $status     = isset( $headers['x-neh-status'][0] ) ? sanitize_text_field( $headers['x-neh-status'][0] ) : '';

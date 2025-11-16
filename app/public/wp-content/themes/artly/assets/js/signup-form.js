@@ -135,8 +135,26 @@
         return false;
       }
       
-      if (value.length < 8) {
-        showFieldError(passwordInput, 'Password must be at least 8 characters');
+      if (value.length < 12) {
+        showFieldError(passwordInput, 'Password must be at least 12 characters with uppercase, lowercase, number, and special character');
+        return false;
+      }
+      
+      // Check for required character types
+      if (!/[a-z]/.test(value)) {
+        showFieldError(passwordInput, 'Password must contain at least one lowercase letter');
+        return false;
+      }
+      if (!/[A-Z]/.test(value)) {
+        showFieldError(passwordInput, 'Password must contain at least one uppercase letter');
+        return false;
+      }
+      if (!/[0-9]/.test(value)) {
+        showFieldError(passwordInput, 'Password must contain at least one number');
+        return false;
+      }
+      if (!/[^a-zA-Z0-9]/.test(value)) {
+        showFieldError(passwordInput, 'Password must contain at least one special character');
         return false;
       }
       
