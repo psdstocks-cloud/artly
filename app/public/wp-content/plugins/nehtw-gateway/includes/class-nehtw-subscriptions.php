@@ -93,6 +93,78 @@ function nehtw_gateway_get_user_subscriptions( $user_id ) {
 }
 
 /**
+ * Fetch a subscription by ID.
+ *
+ * @param int $subscription_id
+ * @return array|null
+ */
+function nehtw_gateway_get_subscription( $subscription_id ) {
+    global $wpdb;
+
+    $table = nehtw_gateway_get_subscriptions_table();
+    $subscription_id = intval( $subscription_id );
+
+    if ( ! $table || $subscription_id <= 0 ) {
+        return null;
+    }
+
+    $row = $wpdb->get_row(
+        $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $subscription_id ),
+        ARRAY_A
+    );
+
+    if ( ! $row ) {
+        return null;
+    }
+
+    if ( ! empty( $row['meta'] ) && is_string( $row['meta'] ) ) {
+        $meta = json_decode( $row['meta'], true );
+        $row['meta'] = is_array( $meta ) ? $meta : array();
+    }
+
+    return $row;
+}
+
+/**
+ * Locate a subscription by user and plan key.
+ *
+ * @param int    $user_id
+ * @param string $plan_key
+ * @return array|null
+ */
+function nehtw_gateway_get_subscription_by_plan( $user_id, $plan_key ) {
+    global $wpdb;
+
+    $table   = nehtw_gateway_get_subscriptions_table();
+    $user_id = intval( $user_id );
+    $plan_key = sanitize_text_field( $plan_key );
+
+    if ( ! $table || $user_id <= 0 || empty( $plan_key ) ) {
+        return null;
+    }
+
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE user_id = %d AND plan_key = %s AND status IN ('active','overdue','paused') ORDER BY id DESC LIMIT 1",
+            $user_id,
+            $plan_key
+        ),
+        ARRAY_A
+    );
+
+    if ( ! $row ) {
+        return null;
+    }
+
+    if ( ! empty( $row['meta'] ) && is_string( $row['meta'] ) ) {
+        $meta = json_decode( $row['meta'], true );
+        $row['meta'] = is_array( $meta ) ? $meta : array();
+    }
+
+    return $row;
+}
+
+/**
  * Get all subscriptions from the database (for admin listing).
  *
  * @param array $args Optional arguments for filtering and pagination

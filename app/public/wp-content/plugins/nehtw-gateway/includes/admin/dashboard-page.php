@@ -19,6 +19,14 @@ if (!defined('ABSPATH')) {
 
 // Get realtime stats for display
 $realtime_stats = Nehtw_Analytics_Engine::get_realtime_stats();
+$subscription_health = class_exists( 'Nehtw_Admin_Subscriptions' )
+    ? Nehtw_Admin_Subscriptions::get_health_metrics()
+    : array(
+        'active'          => 0,
+        'overdue'         => 0,
+        'pending_retries' => 0,
+        'last_billing_run'=> get_option( 'nehtw_billing_cron_last_run' ),
+    );
 ?>
 
 <div class="wrap nehtw-dashboard">
@@ -116,6 +124,16 @@ $realtime_stats = Nehtw_Analytics_Engine::get_realtime_stats();
                 <?php endif; ?>
             </div>
         </div>
+    </div>
+
+    <div class="nehtw-panel" style="margin-top:20px;">
+        <h2><?php esc_html_e( 'Subscription Health', 'nehtw-gateway' ); ?></h2>
+        <ul>
+            <li><strong><?php esc_html_e( 'Active subscriptions:', 'nehtw-gateway' ); ?></strong> <?php echo esc_html( number_format_i18n( $subscription_health['active'] ) ); ?></li>
+            <li><strong><?php esc_html_e( 'Overdue subscriptions:', 'nehtw-gateway' ); ?></strong> <?php echo esc_html( number_format_i18n( $subscription_health['overdue'] ) ); ?></li>
+            <li><strong><?php esc_html_e( 'Pending payment retries:', 'nehtw-gateway' ); ?></strong> <?php echo esc_html( number_format_i18n( $subscription_health['pending_retries'] ) ); ?></li>
+            <li><strong><?php esc_html_e( 'Last billing audit:', 'nehtw-gateway' ); ?></strong> <?php echo esc_html( Nehtw_Admin_Subscriptions::format_date( $subscription_health['last_billing_run'] ) ); ?></li>
+        </ul>
     </div>
     
     <!-- Date Range Selector -->

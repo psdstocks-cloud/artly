@@ -30,6 +30,8 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/rest/class-nehtw-rest-sites.ph
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscriptions.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscription-product-helper.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-subscription-service.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-wallet-topups.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-email-templates.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock.php';
@@ -58,6 +60,8 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/billing/class-nehtw-usage-trac
 
 // Billing REST API
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-subscription-rest-api.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-product-subscriptions.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-subscriptions.php';
 
 // Billing Cron Jobs
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/cron/class-nehtw-billing-cron.php';
@@ -77,8 +81,16 @@ add_action(
         if ( class_exists( 'Nehtw_Gateway_Woo_Points' ) ) {
             Nehtw_Gateway_Woo_Points::init();
         }
+        if ( class_exists( 'Nehtw_Subscription_Service' ) ) {
+            Nehtw_Subscription_Service::init();
+        }
     }
 );
+
+if ( is_admin() ) {
+    Nehtw_Admin_Product_Subscriptions::init();
+    Nehtw_Admin_Subscriptions::init();
+}
 
 register_activation_hook( NEHTW_GATEWAY_PLUGIN_FILE, array( 'Nehtw_Activator', 'activate' ) );
 

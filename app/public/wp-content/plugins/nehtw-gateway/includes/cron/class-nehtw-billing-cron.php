@@ -197,77 +197,66 @@ class Nehtw_Billing_Cron {
      */
     public function process_renewals() {
         global $wpdb;
-        
+
         $results = [
             'processed' => 0,
-            'invoices_created' => 0,
+            'overdue_marked' => 0,
             'errors' => [],
         ];
-        
-        // Get subscriptions due for renewal
+
+        $table = nehtw_gateway_get_subscriptions_table();
+        if ( ! $table ) {
+            return $results;
+        }
+
+        $tolerance = apply_filters( 'nehtw_subscription_overdue_tolerance', 6 * HOUR_IN_SECONDS );
+        $threshold = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp', true ) - $tolerance );
+
         $due_subscriptions = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}nehtw_subscriptions
+                "SELECT * FROM {$table}
                  WHERE status = %s
                  AND next_renewal_at <= %s
                  AND cancelled_at IS NULL",
                 'active',
-                current_time( 'mysql' )
+                $threshold
             ),
             ARRAY_A
         );
-        
-        if ( ! $due_subscriptions ) {
-            return $results;
-        }
-        
-        $invoice_manager = new Nehtw_Invoice_Manager();
-        
-        foreach ( $due_subscriptions as $subscription ) {
+
+        foreach ( (array) $due_subscriptions as $subscription ) {
             $results['processed']++;
-            
             try {
-                // Create renewal invoice
-                $invoice_id = $invoice_manager->create_renewal_invoice( $subscription['id'] );
-                
-                if ( is_wp_error( $invoice_id ) ) {
-                    $results['errors'][] = [
-                        'subscription_id' => $subscription['id'],
-                        'error' => $invoice_id->get_error_message(),
-                    ];
-                    continue;
+                $latest_invoice = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT paid_at, status FROM {$wpdb->prefix}nehtw_invoices WHERE subscription_id = %d ORDER BY id DESC LIMIT 1",
+                        $subscription['id']
+                    ),
+                    ARRAY_A
+                );
+
+                $needs_attention = true;
+                if ( $latest_invoice && 'paid' === $latest_invoice['status'] && ! empty( $latest_invoice['paid_at'] ) ) {
+                    $paid_ts = strtotime( $latest_invoice['paid_at'] );
+                    $next_ts = strtotime( $subscription['next_renewal_at'] );
+                    if ( $paid_ts && $next_ts && $paid_ts >= $next_ts ) {
+                        $needs_attention = false;
+                    }
                 }
-                
-                $results['invoices_created']++;
-                
-                // Attempt payment
-                $retry_manager = new Nehtw_Payment_Retry();
-                $payment_result = $retry_manager->attempt_payment( $invoice_id );
-                
-                if ( is_wp_error( $payment_result ) ) {
-                    // Payment failed - retry system will handle it
-                    error_log( sprintf(
-                        '[Nehtw Cron] Renewal payment failed for subscription #%d: %s',
-                        $subscription['id'],
-                        $payment_result->get_error_message()
-                    ) );
-                } else {
-                    // Payment successful - update next renewal date
-                    $interval = $subscription['interval'];
-                    $new_renewal = date( 'Y-m-d H:i:s', strtotime( "+1 {$interval}" ) );
-                    
+
+                if ( $needs_attention ) {
                     $wpdb->update(
-                        $wpdb->prefix . 'nehtw_subscriptions',
+                        $table,
                         [
-                            'next_renewal_at' => $new_renewal,
+                            'status'     => 'overdue',
                             'updated_at' => current_time( 'mysql' ),
                         ],
                         [ 'id' => $subscription['id'] ],
                         [ '%s', '%s' ],
                         [ '%d' ]
                     );
+                    $results['overdue_marked']++;
                 }
-                
             } catch ( Exception $e ) {
                 $results['errors'][] = [
                     'subscription_id' => $subscription['id'],
@@ -275,14 +264,16 @@ class Nehtw_Billing_Cron {
                 ];
             }
         }
-        
+
+        update_option( 'nehtw_billing_cron_last_run', current_time( 'mysql' ) );
+
         error_log( sprintf(
-            '[Nehtw Cron] Renewals processed: %d total, %d invoices created, %d errors',
+            '[Nehtw Cron] Renewal audit complete: %d inspected, %d marked overdue, %d errors',
             $results['processed'],
-            $results['invoices_created'],
+            $results['overdue_marked'],
             count( $results['errors'] )
         ) );
-        
+
         return $results;
     }
     
