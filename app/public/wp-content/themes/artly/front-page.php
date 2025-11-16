@@ -10,18 +10,15 @@ get_header();
     <section class="artly-hero">
         <div class="artly-container artly-hero-inner">
             <div class="artly-hero-left">
-                <p class="artly-hero-eyebrow">Modern stock &amp; AI workspace</p>
-                <h1 class="artly-hero-title">
-                    One wallet for<br>
-                    every stock website.
-                </h1>
+                <p class="artly-hero-eyebrow">Modern workspace for stock &amp; AI visuals</p>
+                <h1 class="artly-hero-title">One wallet for every stock website</h1>
                 <p class="artly-hero-sub">
-                    Paste a link from top stock sites, get an instant download. Share points across your whole team, and never lose access to your files.
+                    Artly lets you buy points once and spend them across top stock sites. Paste a link, get the file, and keep every download organised for your team — in Egypt and worldwide.
                 </p>
 
                 <div class="artly-hero-actions">
                     <a href="<?php echo esc_url( site_url( '/signup/' ) ); ?>" class="artly-btn artly-btn-primary">
-                        Start free trial
+                        Start free in minutes
                         <span class="artly-btn-arrow">→</span>
                     </a>
                     <a href="<?php echo esc_url( site_url( '/pricing/' ) ); ?>" class="artly-btn artly-btn-ghost">
@@ -30,7 +27,7 @@ get_header();
                 </div>
 
                 <p class="artly-hero-meta">
-                    No long-term contracts · Works with major stock providers · Built for teams &amp; solo creators
+                    Pay in EGP or USD · Works with leading stock providers · Built for agencies, teams and freelancers
                 </p>
             </div>
 
@@ -44,14 +41,14 @@ get_header();
                     </div>
 
                     <div class="artly-console-body">
-                        <p><span class="artly-console-prompt">$</span> paste https://www.shutterstock.com/image-photo/...</p>
+                        <p><span class="artly-console-prompt">$</span> paste https://www.shutterstock.com/image-photo/emerald-couch-pillows...</p>
                         <p><span class="artly-console-label">site</span> shutterstock · <span class="artly-console-label">size</span> XL · <span class="artly-console-label">cost</span> 3 pts</p>
-                        <p><span class="artly-console-success">✔</span> order created · ready in a few seconds…</p>
-                        <p><span class="artly-console-download">↓</span> download-link.jpg · stored in your history</p>
+                        <p><span class="artly-console-success">✔</span> order created · processing…</p>
+                        <p><span class="artly-console-download">↓</span> download-ready.jpg · saved to your history</p>
                     </div>
 
                     <div class="artly-console-footer">
-                        <span>Live orders available after sign up</span>
+                        <span>Example workflow. Live orders available after sign-up.</span>
                     </div>
                 </div>
             </div>
@@ -61,12 +58,12 @@ get_header();
     <!-- TRUST STRIP -->
     <section class="artly-section artly-trusted">
         <div class="artly-container">
-            <p class="artly-trusted-label">Used by teams who ship fast visuals</p>
+            <p class="artly-trusted-label">Trusted by people who ship visuals every day</p>
             <div class="artly-trusted-logos">
                 <span class="artly-logo-pill">Design studios</span>
                 <span class="artly-logo-pill">Marketing teams</span>
-                <span class="artly-logo-pill">Freelancers</span>
-                <span class="artly-logo-pill">Agencies</span>
+                <span class="artly-logo-pill">Content creators</span>
+                <span class="artly-logo-pill">Freelancers &amp; agencies</span>
             </div>
         </div>
     </section>
@@ -75,22 +72,22 @@ get_header();
     <section class="artly-section artly-features">
         <div class="artly-container">
             <div class="artly-section-header">
-                <h2>Everything you need in one stock workspace</h2>
-                <p>Artly connects to major stock sites, gives you a single wallet, and keeps your downloads organized forever.</p>
+                <h2>All your stock and AI visuals in one place</h2>
+                <p>Stop juggling logins and subscriptions. Artly centralises your stock downloads, AI images, and billing into a single, clean workspace.</p>
             </div>
 
             <div class="artly-feature-grid">
                 <article class="artly-feature-card">
                     <h3>One wallet, many providers</h3>
-                    <p>Buy points once and let your whole team spend them on Shutterstock, Adobe Stock, Freepik, and more.</p>
+                    <p>Load your Artly wallet once and let your team spend points across multiple stock websites. No more separate balances, surprise invoices, or asking “whose card is this?”.</p>
                 </article>
                 <article class="artly-feature-card">
-                    <h3>Instant link → download</h3>
-                    <p>Paste any supported stock URL and get the right file in seconds, with full history and re-downloads.</p>
+                    <h3>Paste a link, get the file</h3>
+                    <p>Copy a URL from your favourite stock site, paste it into Artly, and we handle the rest. We detect the site, size, and cost, place the order, and give you a clean download link.</p>
                 </article>
                 <article class="artly-feature-card">
-                    <h3>Built for teams &amp; clients</h3>
-                    <p>Share points, track usage, and keep a clean audit log of every download across your projects.</p>
+                    <h3>Every download, in one history</h3>
+                    <p>Keep a searchable history of everything your team downloads. Re-download files without paying twice, see who used which asset, and stay safe on licensing.</p>
                 </article>
             </div>
         </div>
@@ -100,25 +97,25 @@ get_header();
     <section class="artly-section artly-how-it-works">
         <div class="artly-container">
             <div class="artly-section-header">
-                <h2>How Artly works</h2>
-                <p>From stock link to final file in three simple steps.</p>
+                <h2>How Artly fits into your day</h2>
+                <p>You already know how to copy a link. The rest is our job.</p>
             </div>
 
             <div class="artly-steps-grid">
                 <div class="artly-step-card">
                     <span class="artly-step-number">1</span>
                     <h3>Paste a stock URL</h3>
-                    <p>Grab a URL from your favorite provider and drop it into Artly’s downloader.</p>
+                    <p>Choose an image, video, or vector from a supported stock website and paste the link into Artly’s downloader.</p>
                 </div>
                 <div class="artly-step-card">
                     <span class="artly-step-number">2</span>
                     <h3>We handle the order</h3>
-                    <p>We detect the site, size, and license, and process the order using your shared wallet.</p>
+                    <p>Artly talks to the provider’s API, confirms the cost in points, and creates a secure order using your shared wallet balance.</p>
                 </div>
                 <div class="artly-step-card">
                     <span class="artly-step-number">3</span>
-                    <h3>Download &amp; reuse any time</h3>
-                    <p>Your team can re-download the same asset from history without spending extra points.</p>
+                    <h3>Download and reuse anytime</h3>
+                    <p>Grab the file from your dashboard in seconds. It stays in your history, so your team can re-download it later without extra cost.</p>
                 </div>
             </div>
         </div>
@@ -128,35 +125,35 @@ get_header();
     <section class="artly-section artly-personas">
         <div class="artly-container">
             <div class="artly-section-header">
-                <h2>Designed for real-world creative teams</h2>
-                <p>Whether you’re solo or running a full studio, Artly cleans up your stock workflow.</p>
+                <h2>Built for the way creative teams actually work</h2>
+                <p>Whether you’re solo in Cairo or running a global studio, Artly helps you move faster with less chaos.</p>
             </div>
 
             <div class="artly-persona-grid">
                 <article class="artly-persona-card">
                     <h3>Agencies</h3>
                     <ul>
-                        <li>Centralize stock spend across clients</li>
-                        <li>Control who can download what</li>
-                        <li>Export usage for invoicing</li>
+                        <li>Share one wallet across multiple client projects</li>
+                        <li>Track stock usage per client for easy invoicing</li>
+                        <li>Keep a clean audit trail for every download</li>
                     </ul>
                 </article>
 
                 <article class="artly-persona-card">
                     <h3>Marketing teams</h3>
                     <ul>
-                        <li>One wallet for campaigns and regions</li>
-                        <li>Share links and files with stakeholders</li>
-                        <li>Keep brand visuals consistent</li>
+                        <li>Give your team access without sharing card details</li>
+                        <li>Keep campaigns on brand with a shared asset history</li>
+                        <li>See what’s being used across regions and channels</li>
                     </ul>
                 </article>
 
                 <article class="artly-persona-card">
-                    <h3>Freelancers</h3>
+                    <h3>Freelancers &amp; creators</h3>
                     <ul>
-                        <li>Stop juggling multiple subscriptions</li>
-                        <li>Track download history by client</li>
-                        <li>Protect your margins on small projects</li>
+                        <li>Avoid 3–4 different subscriptions just to get one image</li>
+                        <li>Charge clients fairly with clear download history</li>
+                        <li>Keep all your assets backed up in one simple place</li>
                     </ul>
                 </article>
             </div>
@@ -167,12 +164,12 @@ get_header();
     <section class="artly-section artly-pricing-teaser">
         <div class="artly-container artly-pricing-inner">
             <div>
-                <h2>Simple points, clear pricing</h2>
-                <p>Top up your wallet or use subscriptions. Pay only for the stock you actually download.</p>
+                <h2>Clear pricing for Egypt and worldwide</h2>
+                <p>Top up a wallet or use subscriptions. Egyptian users can pay in EGP, international teams in USD — same features, same speed.</p>
             </div>
             <div>
                 <a href="<?php echo esc_url( site_url( '/pricing/' ) ); ?>" class="artly-btn artly-btn-primary">
-                    Explore pricing
+                    Explore plans &amp; points
                 </a>
             </div>
         </div>
@@ -182,15 +179,15 @@ get_header();
     <section class="artly-section artly-final-cta">
         <div class="artly-container artly-final-cta-inner">
             <div>
-                <h2>Ready to tidy up your stock chaos?</h2>
-                <p>Start a free trial and connect your favorite providers in a few minutes.</p>
+                <h2>Ready to un-mess your stock downloads?</h2>
+                <p>Start with a small wallet, invite your team, and see how much time you save on every project. No long-term contracts, cancel anytime.</p>
             </div>
             <div class="artly-final-cta-actions">
                 <a href="<?php echo esc_url( site_url( '/signup/' ) ); ?>" class="artly-btn artly-btn-primary">
-                    Get started
+                    Get started free
                 </a>
                 <a href="<?php echo esc_url( site_url( '/stock-order/' ) ); ?>" class="artly-btn artly-btn-ghost">
-                    Try the downloader
+                    Try link downloader
                 </a>
             </div>
         </div>
