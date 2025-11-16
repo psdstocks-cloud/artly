@@ -8,6 +8,7 @@ get_header();
 <main class="artly-front">
     <!-- HERO -->
     <section class="artly-hero">
+        <div class="artly-hero-blobs"></div>
         <div class="artly-container artly-hero-inner">
             <div class="artly-hero-left">
                 <p class="artly-hero-eyebrow">Modern workspace for stock &amp; AI visuals</p>
@@ -78,14 +79,23 @@ get_header();
 
             <div class="artly-feature-grid">
                 <article class="artly-feature-card">
+                    <div class="artly-feature-icon">
+                        <!-- TODO: insert inline SVG icon (e.g. wallet icon) -->
+                    </div>
                     <h3>One wallet, many providers</h3>
                     <p>Load your Artly wallet once and let your team spend points across multiple stock websites. No more separate balances, surprise invoices, or asking “whose card is this?”.</p>
                 </article>
                 <article class="artly-feature-card">
+                    <div class="artly-feature-icon">
+                        <!-- TODO: insert inline SVG icon (e.g. link icon) -->
+                    </div>
                     <h3>Paste a link, get the file</h3>
                     <p>Copy a URL from your favourite stock site, paste it into Artly, and we handle the rest. We detect the site, size, and cost, place the order, and give you a clean download link.</p>
                 </article>
                 <article class="artly-feature-card">
+                    <div class="artly-feature-icon">
+                        <!-- TODO: insert inline SVG icon (e.g. clock/history icon) -->
+                    </div>
                     <h3>Every download, in one history</h3>
                     <p>Keep a searchable history of everything your team downloads. Re-download files without paying twice, see who used which asset, and stay safe on licensing.</p>
                 </article>

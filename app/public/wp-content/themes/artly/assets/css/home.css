@@ -2,9 +2,37 @@
 
 .artly-front {
   min-height: 100vh;
+  position: relative;
+  overflow: hidden;
   background: radial-gradient(circle at top, #1E1540 0, #0C0B14 55%, #05030A 100%);
   color: #F7F7F7;
   padding-bottom: 5rem;
+}
+
+.artly-front::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background: linear-gradient(-45deg, #5800AA, #7B4CFF, #1DC3A0, #5800AA);
+  background-size: 400% 400%;
+  opacity: 0.35;
+  animation: artlyGradientShift 22s ease infinite;
+  filter: blur(8px);
+}
+
+@keyframes artlyGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .artly-container {
@@ -34,11 +62,28 @@
   background: linear-gradient(135deg, #5800AA, #7B4CFF);
   color: #F7F7F7;
   box-shadow: 0 15px 35px rgba(88, 0, 170, 0.45);
+  position: relative;
+  overflow: hidden;
 }
 
 .artly-btn-primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 20px 40px rgba(88, 0, 170, 0.55);
+}
+
+.artly-btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.3), transparent 55%);
+  opacity: 0;
+  transform: translate3d(-40%, -60%, 0);
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.artly-btn-primary:hover::after {
+  opacity: 1;
+  transform: translate3d(20%, 20%, 0);
 }
 
 .artly-btn-ghost {
@@ -63,7 +108,35 @@
 /* HERO */
 
 .artly-hero {
+  position: relative;
   padding: 5rem 0 3rem;
+  overflow: hidden;
+}
+
+.artly-hero-blobs {
+  position: absolute;
+  inset: -10%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(123, 76, 255, 0.45), transparent 60%),
+    radial-gradient(circle at 85% 20%, rgba(29, 195, 160, 0.45), transparent 60%),
+    radial-gradient(circle at 60% 85%, rgba(88, 0, 170, 0.4), transparent 55%);
+  animation: artlyBlobDrift 30s ease-in-out infinite alternate;
+}
+
+@keyframes artlyBlobDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-2%, -3%, 0) scale(1.05);
+  }
+
+  100% {
+    transform: translate3d(3%, 2%, 0) scale(1.02);
+  }
 }
 
 .artly-hero-inner {
@@ -257,6 +330,7 @@
   background: radial-gradient(circle at top, rgba(88, 0, 170, 0.25), rgba(12, 11, 20, 0.98));
   border: 1px solid rgba(123, 76, 255, 0.45);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
 }
 
 .artly-feature-card h3 {
@@ -267,6 +341,12 @@
 .artly-feature-card p {
   font-size: 0.96rem;
   color: rgba(226, 232, 240, 0.82);
+}
+
+.artly-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.7);
+  border-color: rgba(123, 76, 255, 0.9);
 }
 
 /* HOW IT WORKS */
@@ -282,6 +362,7 @@
   border-radius: 1.1rem;
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(148, 163, 184, 0.35);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
 }
 
 .artly-step-number {
@@ -306,6 +387,12 @@
   color: rgba(226, 232, 240, 0.78);
 }
 
+.artly-step-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.7);
+  border-color: rgba(123, 76, 255, 0.6);
+}
+
 /* PERSONAS */
 
 .artly-persona-grid {
@@ -319,6 +406,7 @@
   border-radius: 1.2rem;
   background: rgba(12, 11, 20, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.4);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
 }
 
 .artly-persona-card h3 {
@@ -335,6 +423,31 @@
   font-size: 0.94rem;
   color: rgba(226, 232, 240, 0.82);
   margin-bottom: 0.35rem;
+}
+
+.artly-persona-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.7);
+  border-color: rgba(123, 76, 255, 0.6);
+}
+
+.artly-feature-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+  background:
+    radial-gradient(circle at 30% 10%, rgba(255, 255, 255, 0.22), transparent 60%),
+    linear-gradient(135deg, #5800AA, #7B4CFF);
+  color: #F7F7F7;
+}
+
+.artly-feature-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* PRICING + CTA */
