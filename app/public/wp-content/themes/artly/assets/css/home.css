@@ -1085,3 +1085,265 @@
   .artly-hero-card {
     opacity: 0; /* Will be animated in by GSAP */
   }
+
+  .artly-hero-left {
+    max-width: 36rem;
+  }
+
+  .artly-hero-right {
+    display: flex;
+    justify-content: center;
+  }
+
+  .artly-hero-console {
+    width: 100%;
+    max-width: 460px;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(5, 9, 20, 0.96);
+    box-shadow: 0 32px 70px rgba(7, 6, 16, 0.55);
+    color: #e8f1ff;
+    overflow: hidden;
+  }
+
+  .artly-hero-console-body {
+    padding: 1.6rem 1.8rem 1.2rem;
+    font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .artly-hero-console-body p {
+    margin: 0 0 0.7rem;
+    color: rgba(232, 241, 255, 0.92);
+  }
+
+  .artly-console-prompt {
+    color: #63ffde;
+    margin-right: 0.45rem;
+  }
+
+  .artly-console-label {
+    color: #7dd3fc;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    margin-right: 0.2rem;
+  }
+
+  .artly-console-success {
+    color: #34d399;
+    margin-right: 0.4rem;
+  }
+
+  .artly-console-download {
+    color: #fbbf24;
+    margin-right: 0.4rem;
+  }
+
+  .artly-hero-console-footer {
+    padding: 0.85rem 1.6rem;
+    font-size: 0.85rem;
+    color: rgba(232, 241, 255, 0.75);
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(4, 8, 18, 0.85);
+  }
+
+  .artly-trusted {
+    text-align: center;
+  }
+
+  .artly-trusted-label {
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 1.5rem;
+  }
+
+  .artly-trusted-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    justify-content: center;
+  }
+
+  .artly-logo-pill {
+    padding: 0.5rem 1.2rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+    font-size: 0.95rem;
+    color: #0f172a;
+  }
+
+  .artly-section-header {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 3rem;
+  }
+
+  .artly-section-header h2 {
+    font-size: clamp(2rem, 2.6vw, 2.6rem);
+    margin-bottom: 0.8rem;
+    color: #0f172a;
+  }
+
+  .artly-section-header p {
+    color: #4b5563;
+    line-height: 1.6;
+  }
+
+  .artly-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .artly-feature-card {
+    padding: 1.9rem;
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  }
+
+  .artly-feature-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+    color: #0f172a;
+  }
+
+  .artly-feature-card p {
+    color: #475569;
+  }
+
+  .artly-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .artly-step-card {
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+    padding: 2rem 1.5rem;
+    text-align: left;
+    min-height: 220px;
+  }
+
+  .artly-step-number {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(14, 165, 233, 0.12);
+    color: #0284c7;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+
+  .artly-step-card h3 {
+    margin-bottom: 0.6rem;
+    font-size: 1.2rem;
+    color: #0f172a;
+  }
+
+  .artly-step-card p {
+    color: #4b5563;
+    line-height: 1.55;
+  }
+
+  .artly-persona-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .artly-persona-card {
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 1.75rem;
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  .artly-persona-card h3 {
+    margin-bottom: 0.9rem;
+    font-size: 1.2rem;
+    color: #0f172a;
+  }
+
+  .artly-persona-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    color: #4b5563;
+  }
+
+  .artly-persona-card li {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .artly-persona-card li::before {
+    content: "•";
+    color: #0ea5e9;
+    font-weight: 700;
+    display: inline-block;
+    width: 1.2rem;
+  }
+
+  .artly-pricing-teaser {
+    text-align: center;
+  }
+
+  .artly-pricing-inner {
+    border-radius: 28px;
+    padding: 3rem 2.5rem;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(99, 102, 241, 0.18));
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+  }
+
+  .artly-pricing-inner h2 {
+    margin-bottom: 0.8rem;
+    color: #0f172a;
+  }
+
+  .artly-pricing-inner p {
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+  }
+
+  .artly-final-cta {
+    text-align: center;
+  }
+
+  .artly-final-cta-inner {
+    border-radius: 32px;
+    padding: 3rem 2rem;
+    background: #050608;
+    color: #f8fafc;
+    box-shadow: 0 35px 60px rgba(5, 6, 8, 0.55);
+  }
+
+  .artly-final-cta-inner h2 {
+    font-size: clamp(2rem, 2.5vw, 2.8rem);
+    margin-bottom: 1rem;
+  }
+
+  .artly-final-cta-inner p {
+    font-size: 1.1rem;
+    color: rgba(248, 250, 252, 0.85);
+    margin-bottom: 1.5rem;
+  }
+
+  .artly-final-cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.8rem;
+  }
