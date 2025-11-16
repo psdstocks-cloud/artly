@@ -734,7 +734,18 @@ class Nehtw_Dunning_Manager {
     
     private function get_plan_name( $plan_key ) {
         $plans = nehtw_gateway_get_subscription_plans();
-        return isset( $plans[ $plan_key ]['name'] ) ? $plans[ $plan_key ]['name'] : 'Your Plan';
+        if ( isset( $plans[ $plan_key ]['name'] ) ) {
+            return $plans[ $plan_key ]['name'];
+        }
+
+        if ( class_exists( 'Nehtw_Subscription_Product_Helper' ) ) {
+            $product_id = Nehtw_Subscription_Product_Helper::get_product_id_from_plan_key( $plan_key );
+            if ( $product_id ) {
+                return Nehtw_Subscription_Product_Helper::get_product_name( $product_id );
+            }
+        }
+
+        return __( 'Your Plan', 'nehtw-gateway' );
     }
     
     private function get_update_payment_url( $subscription_id ) {
