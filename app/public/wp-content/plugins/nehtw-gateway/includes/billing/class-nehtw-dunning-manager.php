@@ -791,4 +791,3 @@ class Nehtw_Dunning_Manager {
 
 // Initialize
 new Nehtw_Dunning_Manager();
-

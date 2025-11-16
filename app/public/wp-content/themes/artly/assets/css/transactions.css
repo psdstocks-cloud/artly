@@ -2,10 +2,10 @@
   min-height: 100vh;
   padding: 4rem 0 5rem;
   background:
-    radial-gradient(circle at 0 0, rgba(15, 23, 42, 0.95) 0, transparent 55%),
+    radial-gradient(circle at 0 0, rgba(24, 18, 40, 0.95) 0, transparent 55%),
     radial-gradient(circle at 100% 0, rgba(8, 47, 73, 0.95) 0, transparent 55%),
-    radial-gradient(circle at 50% 100%, #020617 0, #000000 100%);
-  color: #e5edff;
+    radial-gradient(circle at 50% 100%, #0C0B14 0, #000000 100%);
+  color: #F7F7F7;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
 }
 
@@ -53,7 +53,7 @@
   align-items: center;
   padding: 0.25rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(24, 18, 40, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
@@ -68,8 +68,8 @@
 }
 
 .transactions-filter-pill.is-active {
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #020617;
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  color: #0C0B14;
   box-shadow: 0 8px 22px rgba(20, 184, 166, 0.35);
 }
 
@@ -84,8 +84,8 @@
   font-weight: 600;
   border: none;
   cursor: pointer;
-  background: linear-gradient(135deg, #fb923c, #fb7185);
-  color: #020617;
+  background: linear-gradient(135deg, #1DC3A0, #4FE5C4);
+  color: #0C0B14;
   text-decoration: none;
   box-shadow: 0 12px 30px rgba(248, 113, 113, 0.35);
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
@@ -103,7 +103,7 @@
   padding: 1.5rem 1.3rem;
   background:
     radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.06), transparent 60%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+    linear-gradient(145deg, rgba(24, 18, 40, 0.96), rgba(24, 18, 40, 0.98));
   box-shadow:
     0 12px 28px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(148, 163, 184, 0.15);
@@ -128,7 +128,7 @@
 }
 
 .transactions-table tbody tr {
-  border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(24, 18, 40, 0.9);
 }
 
 .transactions-table tbody tr:last-child {
@@ -144,7 +144,7 @@
   align-items: center;
   padding: 0.12rem 0.6rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(24, 18, 40, 0.9);
   border: 1px solid rgba(148, 163, 184, 0.45);
   font-size: 0.74rem;
   text-transform: uppercase;
@@ -198,8 +198,8 @@
 }
 
 .transactions-page-link.is-current {
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #020617;
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  color: #0C0B14;
   border-color: transparent;
 }
 

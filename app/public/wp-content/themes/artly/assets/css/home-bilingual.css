@@ -1,0 +1,261 @@
+/* Artly Bilingual Homepage Styles */
+
+/* Language Switcher in Header */
+.artly-header-menu-item--lang-switcher {
+  position: relative;
+}
+
+.artly-header-lang-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(123, 76, 255, 0.1);
+  border: 1px solid rgba(123, 76, 255, 0.2);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  color: var(--artly-accent-primary-start);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.artly-header-lang-toggle:hover {
+  background: rgba(123, 76, 255, 0.15);
+  border-color: rgba(123, 76, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.artly-lang-current {
+  color: var(--artly-text-main);
+}
+
+.artly-lang-separator {
+  color: var(--artly-text-muted);
+  opacity: 0.5;
+}
+
+.artly-lang-other {
+  color: var(--artly-text-muted);
+  transition: color 0.2s ease;
+}
+
+.artly-header-lang-toggle:hover .artly-lang-other {
+  color: var(--artly-accent-primary-start);
+}
+
+/* Bilingual Homepage Base */
+.artly-front-bilingual {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #E9E6F6 0, #D6CFF0 30%, #151226 140%);
+  color: #1E1E28;
+  padding-bottom: 5rem;
+}
+
+.artly-hero-bilingual {
+  padding: 6rem 0 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.artly-hero-bilingual::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(123, 76, 255, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(22, 163, 255, 0.15), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+  animation: gradientShift 20s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% { 
+    background-position: 0% 50%, 100% 50%; 
+  }
+  50% { 
+    background-position: 100% 50%, 0% 50%; 
+  }
+}
+
+.artly-hero-bilingual .artly-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Stats Section */
+.artly-section-stats {
+  padding: 3rem 0;
+  background: linear-gradient(180deg,
+    rgba(24, 18, 40, 0.02) 0%,
+    rgba(24, 18, 40, 0.08) 100%);
+}
+
+.artly-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.artly-stat-item {
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  transition: all 0.3s ease;
+}
+
+.artly-stat-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(123, 76, 255, 0.15);
+  border-color: rgba(123, 76, 255, 0.3);
+}
+
+.artly-stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.artly-stat-label {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Supported Sites Carousel */
+.artly-section-sites {
+  padding: 4rem 0;
+  background: linear-gradient(180deg,
+    rgba(24, 18, 40, 0.04) 0%,
+    rgba(24, 18, 40, 0.1) 100%);
+}
+
+.artly-sites-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  padding: 2rem 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.artly-site-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  filter: grayscale(100%);
+  opacity: 0.7;
+}
+
+.artly-site-logo:hover {
+  filter: grayscale(0%);
+  opacity: 1;
+  transform: translateY(-4px) scale(1.05);
+  border-color: rgba(123, 76, 255, 0.4);
+  box-shadow: 0 8px 24px rgba(123, 76, 255, 0.2);
+  color: #151226;
+}
+
+.artly-site-logo-text {
+  text-align: center;
+}
+
+/* Story CTA */
+.artly-story-cta {
+  text-align: center;
+  margin-top: 2.5rem;
+}
+
+/* Import base styles from home.css (reuse existing patterns) */
+/* All other styles inherit from home.css via cascade */
+
+/* Responsive adjustments for bilingual template */
+@media (max-width: 960px) {
+  .artly-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .artly-sites-carousel {
+    gap: 1rem;
+  }
+  
+  .artly-site-logo {
+    min-width: 120px;
+    padding: 0.8rem 1.2rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .artly-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .artly-stat-number {
+    font-size: 2rem;
+  }
+  
+  .artly-sites-carousel {
+    gap: 0.75rem;
+  }
+  
+  .artly-site-logo {
+    min-width: 100px;
+    padding: 0.7rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .artly-header-lang-toggle {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Animation states for GSAP */
+.artly-hero-bilingual .artly-hero-title,
+.artly-hero-bilingual .artly-hero-sub,
+.artly-hero-bilingual .artly-hero-actions {
+  opacity: 0;
+}
+
+.artly-hero-bilingual .artly-hero-card {
+  opacity: 0;
+}
+
+[data-animate] {
+  opacity: 0;
+}
+

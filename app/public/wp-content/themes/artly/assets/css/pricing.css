@@ -3,13 +3,13 @@
 /* CSS Custom Properties for Theme System */
 :root {
   --pricing-bg: radial-gradient(circle at 0 0, rgba(31, 41, 55, 0.8) 0, transparent 50%),
-      radial-gradient(circle at 100% 20%, rgba(15, 23, 42, 0.9) 0, transparent 60%),
-      radial-gradient(circle at 50% 100%, #020617 0, #000000 100%);
+      radial-gradient(circle at 100% 20%, rgba(24, 18, 40, 0.9) 0, transparent 60%),
+      radial-gradient(circle at 50% 100%, #0C0B14 0, #000000 100%);
   --pricing-text: #f9fafb;
-  --pricing-surface: rgba(15, 23, 42, 0.96);
-  --pricing-surface-hover: rgba(15, 23, 42, 0.98);
-  --pricing-accent: #fb923c;
-  --pricing-accent-secondary: #fb7185;
+  --pricing-surface: rgba(24, 18, 40, 0.96);
+  --pricing-surface-hover: rgba(24, 18, 40, 0.98);
+  --pricing-accent: #1DC3A0;
+  --pricing-accent-secondary: #4FE5C4;
   --pricing-border: rgba(148, 163, 184, 0.15);
   --pricing-text-muted: rgba(226, 232, 255, 0.85);
   --pricing-text-secondary: #c7d2fe;
@@ -23,7 +23,7 @@
   --pricing-surface: rgba(255, 255, 255, 0.95);
   --pricing-surface-hover: rgba(255, 255, 255, 1);
   --pricing-accent: #f97316;
-  --pricing-accent-secondary: #fb7185;
+  --pricing-accent-secondary: #4FE5C4;
   --pricing-border: rgba(148, 163, 184, 0.3);
   --pricing-text-muted: rgba(75, 85, 99, 0.9);
   --pricing-text-secondary: #4b5563;
@@ -156,7 +156,7 @@ body.page-template-page-pricing #primary {
 
 .pricing-tabs {
   display: inline-flex;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(24, 18, 40, 0.8);
   border-radius: 12px;
   padding: 4px;
   gap: 4px;
@@ -265,7 +265,7 @@ body.page-template-page-pricing #primary {
   background:
       radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.12), transparent 50%),
       radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.3), transparent 55%),
-      linear-gradient(140deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.97));
+      linear-gradient(140deg, rgba(24, 18, 40, 0.98), rgba(24, 18, 40, 0.97));
   box-shadow:
       0 30px 80px rgba(0, 0, 0, 0.8),
       0 0 0 1px rgba(148, 163, 184, 0.3);
@@ -326,7 +326,7 @@ body.page-template-page-pricing #primary {
   appearance: none;
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #fb7185, #fb923c, #facc15, #22c55e, #22d3ee);
+  background: linear-gradient(90deg, #4FE5C4, #1DC3A0, #facc15, #22c55e, #22d3ee);
   outline: none;
   margin-bottom: 18px;
 }
@@ -337,10 +337,10 @@ body.page-template-page-pricing #primary {
   height: 20px;
   border-radius: 999px;
   background: #f9fafb;
-  border: 2px solid #0f172a;
+  border: 2px solid #151226;
   box-shadow:
       0 0 0 4px rgba(248, 250, 252, 0.4),
-      0 8px 20px rgba(15, 23, 42, 0.7);
+      0 8px 20px rgba(24, 18, 40, 0.7);
   cursor: pointer;
 }
 
@@ -349,10 +349,10 @@ body.page-template-page-pricing #primary {
   height: 20px;
   border-radius: 999px;
   background: #f9fafb;
-  border: 2px solid #0f172a;
+  border: 2px solid #151226;
   box-shadow:
       0 0 0 4px rgba(248, 250, 252, 0.4),
-      0 8px 20px rgba(15, 23, 42, 0.7);
+      0 8px 20px rgba(24, 18, 40, 0.7);
   cursor: pointer;
 }
 
@@ -377,7 +377,7 @@ body.page-template-page-pricing #primary {
   border-radius: 999px;
   border: 0;
   outline: none;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(24, 18, 40, 0.85);
   color: #f9fafb;
   font-size: 14px;
   box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.5);
@@ -400,7 +400,7 @@ body.page-template-page-pricing #primary {
   border-radius: 24px;
   padding: 20px 20px 18px;
   background: radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.08), transparent 55%),
-      linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+      linear-gradient(145deg, rgba(24, 18, 40, 0.96), rgba(24, 18, 40, 0.98));
   box-shadow:
       0 16px 40px rgba(0, 0, 0, 0.65),
       0 0 0 1px rgba(148, 163, 184, 0.18);
@@ -412,7 +412,7 @@ body.page-template-page-pricing #primary {
   padding: 4px 10px;
   border-radius: 999px;
   background: radial-gradient(circle at 0 0, #22c55e, #16a34a);
-  color: #020617;
+  color: #0C0B14;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.11em;
@@ -473,8 +473,8 @@ body.page-template-page-pricing #primary {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: #020617;
-  background-image: linear-gradient(135deg, #fb923c, #fb7185);
+  color: #0C0B14;
+  background-image: linear-gradient(135deg, #1DC3A0, #4FE5C4);
   box-shadow:
       0 12px 30px rgba(248, 113, 113, 0.6),
       0 0 0 1px rgba(248, 250, 252, 0.15);
@@ -496,7 +496,7 @@ body.page-template-page-pricing #primary {
 .cta-button:active {
   transform: translateY(1px) scale(0.99);
   box-shadow:
-      0 6px 16px rgba(15, 23, 42, 0.7),
+      0 6px 16px rgba(24, 18, 40, 0.7),
       0 0 0 1px rgba(248, 250, 252, 0.22);
 }
 
@@ -589,7 +589,7 @@ body.page-template-page-pricing #primary {
   padding: 28px 20px 32px;
   border-radius: 24px;
   background: radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.08), transparent 60%),
-      linear-gradient(155deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+      linear-gradient(155deg, rgba(24, 18, 40, 0.96), rgba(24, 18, 40, 0.98));
   box-shadow:
       0 10px 25px rgba(0, 0, 0, 0.5),
       0 0 0 1px rgba(148, 163, 184, 0.15);
@@ -605,15 +605,15 @@ body.page-template-page-pricing #primary {
 }
 
 .plan-card.highlight {
-  background: linear-gradient(145deg, #fb923c, #fb7185);
-  color: #020617;
+  background: linear-gradient(145deg, #1DC3A0, #4FE5C4);
+  color: #0C0B14;
   box-shadow:
       0 20px 40px rgba(248, 113, 113, 0.6),
       0 0 0 2px rgba(248, 250, 252, 0.2);
 }
 
 .plan-card.highlight .plan-btn {
-  background: #020617;
+  background: #0C0B14;
   color: #f9fafb;
 }
 
@@ -648,8 +648,8 @@ body.page-template-page-pricing #primary {
 
 .plan-btn {
   display: inline-block;
-  background: linear-gradient(135deg, #fb923c, #fb7185);
-  color: #020617;
+  background: linear-gradient(135deg, #1DC3A0, #4FE5C4);
+  color: #0C0B14;
   font-weight: 600;
   text-decoration: none;
   border-radius: 999px;
@@ -667,7 +667,7 @@ body.page-template-page-pricing #primary {
   top: -12px;
   right: 16px;
   background: linear-gradient(135deg, var(--pricing-accent), var(--pricing-accent-secondary));
-  color: #020617;
+  color: #0C0B14;
   font-size: 11px;
   font-weight: 700;
   padding: 4px 12px;

@@ -12,9 +12,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 0 0, rgba(15, 23, 42, 0.9), transparent 55%),
+    radial-gradient(circle at 0 0, rgba(24, 18, 40, 0.9), transparent 55%),
     radial-gradient(circle at 100% 0, rgba(8, 47, 73, 0.95), transparent 55%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98));
+    linear-gradient(180deg, rgba(24, 18, 40, 0.96), rgba(2, 6, 23, 0.98));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -32,12 +32,12 @@
   padding: 1.8rem 1.6rem 1.4rem;
   background:
     radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.08), transparent 60%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.98));
+    linear-gradient(145deg, rgba(24, 18, 40, 0.98), rgba(24, 18, 40, 0.98));
   box-shadow:
     0 20px 48px rgba(0, 0, 0, 0.85),
     0 0 0 1px rgba(148, 163, 184, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #e5edff;
+  color: #F7F7F7;
 }
 
 .artly-onboarding-kicker {
@@ -79,8 +79,8 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #020617;
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  color: #0C0B14;
   box-shadow: 0 14px 38px rgba(15, 152, 246, 0.55);
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }

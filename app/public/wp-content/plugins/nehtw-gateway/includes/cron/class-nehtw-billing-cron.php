@@ -319,4 +319,3 @@ class Nehtw_Billing_Cron {
 
 // Initialize
 new Nehtw_Billing_Cron();
-

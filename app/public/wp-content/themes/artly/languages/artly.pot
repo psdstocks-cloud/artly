@@ -1,0 +1,407 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Artly Theme 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-01 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: page-home-bilingual.php
+msgid "For visual teams & solo creators"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Stop Wasting Money on Multiple Stock Subscriptions"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "One wallet. Every major stock site. Download in seconds. Re-download forever for free. Save up to 40% on your stock budget."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "from 500+ creators"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "files downloaded"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "No credit card required"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Start Free 14-Day Trial"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "View Pricing"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "14-day money-back guarantee · No long-term contracts · Designed for creatives"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Artly Studio"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Stock & AI downloads"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Wallet balance"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "1 point ≈ 20 EGP"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "subscriptions & pay-as-you-go"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Smart downloader"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Paste a stock URL. We detect the site & ID automatically."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Paste stock URL"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Generate download link"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Live orders are available once you create a free Artly account."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Download history"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Re-download any past order for free, directly from your dashboard."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Need help?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Our team speaks \"design\". Share your link and we'll help you get the file."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Downloads"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Happy Creators"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Average Savings"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Stock Sites Supported"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Loved by creatives"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "See why 500+ teams trust Artly"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Artly cut our stock budget by 35%. We used to have 4 different subscriptions. Now it's all in one place. Game changer."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Sarah Martinez"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Creative Director, Brand Studio"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Finally, no more hunting for that file I downloaded 3 months ago. Download history is brilliant. Re-download any time for free!"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Ahmed Khaled"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Freelance Designer, Cairo"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "The Arabic support and RTL layout are perfect. First stock tool that actually works for our bilingual team."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Layla Al-Sayed"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Art Director, Digital Agency"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "How Artly works"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Your visual assets flow through one wallet. A typical project looks like this."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Sign Up Free"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Create your account in 30 seconds. No credit card required."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Add Points"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Top up your wallet with points. 1 point = ~20 EGP. Pay only for what you use."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Download Instantly"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Paste any stock URL. We handle the rest. Re-download forever for free."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Why teams switch to Artly"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "One wallet, all sites"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Single balance for Shutterstock, Adobe Stock, Freepik & more."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Smart URL detection"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Paste any stock URL, we auto-detect site & ID."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Most Popular"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Download history"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Re-download any file for free, anytime."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Pay as you go"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "No subscriptions. Top up points when you need them."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "RTL & dark mode"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Arabic/English switch with right-to-left layouts."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Licensing friendly"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Files fetched from official providers with your licenses."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Supported Stock Sites"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Works with all major stock providers"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Transparent pricing"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Plans that scale with your team"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Starter"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "EGP"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "month"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "points"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "downloads"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Pro"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Team"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Custom"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Unlimited downloads"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Start Free Trial"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "View detailed pricing"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Frequently asked questions"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Everything you need to know about Artly"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "How does the point system work?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "1 point = ~20 EGP and gets you one standard stock download. Premium assets may require more points. Points never expire, and you can reload anytime."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Which stock sites do you support?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "We support Shutterstock, Adobe Stock, Freepik, iStock, Envato Elements, and more. We're constantly adding new providers."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Can I really re-download files for free?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Yes! Once you download a file, it's saved in your history forever. Re-download it any time without spending additional points."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Is there a free trial?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Absolutely! Start with a 14-day free trial. No credit card required to sign up. Try all features risk-free."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "What if I need a refund?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "We offer a 14-day money-back guarantee. If you're not happy, contact us and we'll issue a full refund, no questions asked."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Do you offer team/agency plans?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Yes! We have special pricing for teams of 5+ users. Contact us for custom quotes with volume discounts and dedicated support."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Still have questions?"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Contact Support"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Built by designers who were tired of messy stock workflows"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Artly started as an internal tool for our own studio. We loved premium stock libraries, but hated tracking credits, invoices and logins for every site on every project."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "So we built one wallet, one dashboard and one download flow for the whole team — and decided to open it to other artists, studios and agencies who felt the same pain."
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Team Artly"
+msgstr ""
+
+#: page-home-bilingual.php
+msgid "Start Your Free Trial Today"
+msgstr ""
+
+#: header.php
+msgid "Switch language"
+msgstr ""
+

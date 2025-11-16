@@ -1,0 +1,305 @@
+# Arabic translations for Artly Theme
+# Copyright (C) 2025 Artly
+# NOTE: These translations should be reviewed by a native Arabic speaker
+msgid ""
+msgstr ""
+"Project-Id-Version: Artly Theme 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-01 12:00+0000\n"
+"PO-Revision-Date: 2025-01-01 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "For visual teams & solo creators"
+msgstr "للفرق المرئية والمبدعين الأفراد"
+
+msgid "Stop Wasting Money on Multiple Stock Subscriptions"
+msgstr "توقف عن إضاعة المال على اشتراكات متعددة في مواقع الصور"
+
+msgid "One wallet. Every major stock site. Download in seconds. Re-download forever for free. Save up to 40% on your stock budget."
+msgstr "محفظة واحدة. جميع مواقع الصور الرئيسية. تحميل في ثوانٍ. إعادة تحميل مجانية للأبد. وفر حتى 40% من ميزانية الصور."
+
+msgid "from 500+ creators"
+msgstr "من أكثر من 500 مبدع"
+
+msgid "files downloaded"
+msgstr "ملف تم تحميله"
+
+msgid "No credit card required"
+msgstr "لا حاجة لبطاقة ائتمان"
+
+msgid "Start Free 14-Day Trial"
+msgstr "ابدأ تجربة مجانية لمدة 14 يومًا"
+
+msgid "View Pricing"
+msgstr "عرض الأسعار"
+
+msgid "14-day money-back guarantee · No long-term contracts · Designed for creatives"
+msgstr "ضمان استرداد الأموال لمدة 14 يومًا · لا عقود طويلة الأجل · مصمم للمبدعين"
+
+msgid "Artly Studio"
+msgstr "استوديو Artly"
+
+msgid "Stock & AI downloads"
+msgstr "تحميلات الصور والذكاء الاصطناعي"
+
+msgid "Wallet balance"
+msgstr "رصيد المحفظة"
+
+msgid "1 point ≈ 20 EGP"
+msgstr "نقطة واحدة ≈ 20 جنيه"
+
+msgid "subscriptions & pay-as-you-go"
+msgstr "اشتراكات ودفع عند الاستخدام"
+
+msgid "Smart downloader"
+msgstr "أداة التحميل الذكية"
+
+msgid "Paste a stock URL. We detect the site & ID automatically."
+msgstr "الصق رابط الصورة. نكتشف الموقع والمعرف تلقائيًا."
+
+msgid "Paste stock URL"
+msgstr "الصق رابط الصورة"
+
+msgid "Generate download link"
+msgstr "إنشاء رابط التحميل"
+
+msgid "Live orders are available once you create a free Artly account."
+msgstr "الطلبات المباشرة متاحة بمجرد إنشاء حساب Artly مجاني."
+
+msgid "Download history"
+msgstr "سجل التحميلات"
+
+msgid "Re-download any past order for free, directly from your dashboard."
+msgstr "أعد تحميل أي طلب سابق مجانًا، مباشرة من لوحة التحكم."
+
+msgid "Need help?"
+msgstr "تحتاج مساعدة؟"
+
+msgid "Our team speaks \"design\". Share your link and we'll help you get the file."
+msgstr "فريقنا يتحدث \"التصميم\". شارك رابطك وسنساعدك في الحصول على الملف."
+
+msgid "Downloads"
+msgstr "التحميلات"
+
+msgid "Happy Creators"
+msgstr "مبدعون سعداء"
+
+msgid "Average Savings"
+msgstr "متوسط التوفير"
+
+msgid "Stock Sites Supported"
+msgstr "مواقع الصور المدعومة"
+
+msgid "Loved by creatives"
+msgstr "محبوب من المبدعين"
+
+msgid "See why 500+ teams trust Artly"
+msgstr "اكتشف لماذا يثق أكثر من 500 فريق في Artly"
+
+msgid "Artly cut our stock budget by 35%. We used to have 4 different subscriptions. Now it's all in one place. Game changer."
+msgstr "قلل Artly ميزانية الصور لدينا بنسبة 35%. كنا نمتلك 4 اشتراكات مختلفة. الآن كل شيء في مكان واحد. تغيير جذري."
+
+msgid "Sarah Martinez"
+msgstr "سارة مارتينيز"
+
+msgid "Creative Director, Brand Studio"
+msgstr "مديرة إبداعية، استوديو العلامة التجارية"
+
+msgid "Finally, no more hunting for that file I downloaded 3 months ago. Download history is brilliant. Re-download any time for free!"
+msgstr "أخيرًا، لا مزيد من البحث عن الملف الذي حملته منذ 3 أشهر. سجل التحميلات رائع. أعد التحميل في أي وقت مجانًا!"
+
+msgid "Ahmed Khaled"
+msgstr "أحمد خالد"
+
+msgid "Freelance Designer, Cairo"
+msgstr "مصمم مستقل، القاهرة"
+
+msgid "The Arabic support and RTL layout are perfect. First stock tool that actually works for our bilingual team."
+msgstr "دعم العربية وتخطيط RTL مثاليان. أول أداة صور تعمل فعليًا لفريقنا ثنائي اللغة."
+
+msgid "Layla Al-Sayed"
+msgstr "ليلى السيد"
+
+msgid "Art Director, Digital Agency"
+msgstr "مديرة فنية، وكالة رقمية"
+
+msgid "How Artly works"
+msgstr "كيف يعمل Artly"
+
+msgid "Your visual assets flow through one wallet. A typical project looks like this."
+msgstr "تدفق أصولك المرئية من خلال محفظة واحدة. يبدو المشروع النموذجي هكذا."
+
+msgid "Sign Up Free"
+msgstr "سجل مجانًا"
+
+msgid "Create your account in 30 seconds. No credit card required."
+msgstr "أنشئ حسابك في 30 ثانية. لا حاجة لبطاقة ائتمان."
+
+msgid "Add Points"
+msgstr "أضف نقاط"
+
+msgid "Top up your wallet with points. 1 point = ~20 EGP. Pay only for what you use."
+msgstr "اشحن محفظتك بالنقاط. نقطة واحدة = ~20 جنيه. ادفع فقط لما تستخدمه."
+
+msgid "Download Instantly"
+msgstr "تحميل فوري"
+
+msgid "Paste any stock URL. We handle the rest. Re-download forever for free."
+msgstr "الصق أي رابط صورة. نحن نتعامل مع الباقي. أعد التحميل مجانًا للأبد."
+
+msgid "Why teams switch to Artly"
+msgstr "لماذا تنتقل الفرق إلى Artly"
+
+msgid "One wallet, all sites"
+msgstr "محفظة واحدة، جميع المواقع"
+
+msgid "Single balance for Shutterstock, Adobe Stock, Freepik & more."
+msgstr "رصيد واحد لـ Shutterstock و Adobe Stock و Freepik والمزيد."
+
+msgid "Smart URL detection"
+msgstr "اكتشاف URL ذكي"
+
+msgid "Paste any stock URL, we auto-detect site & ID."
+msgstr "الصق أي رابط صورة، نكتشف الموقع والمعرف تلقائيًا."
+
+msgid "Most Popular"
+msgstr "الأكثر شعبية"
+
+msgid "Re-download any file for free, anytime."
+msgstr "أعد تحميل أي ملف مجانًا، في أي وقت."
+
+msgid "Pay as you go"
+msgstr "ادفع عند الاستخدام"
+
+msgid "No subscriptions. Top up points when you need them."
+msgstr "لا اشتراكات. اشحن النقاط عندما تحتاجها."
+
+msgid "RTL & dark mode"
+msgstr "RTL والوضع الداكن"
+
+msgid "Arabic/English switch with right-to-left layouts."
+msgstr "تبديل عربي/إنجليزي مع تخطيطات من اليمين إلى اليسار."
+
+msgid "Licensing friendly"
+msgstr "صديق للترخيص"
+
+msgid "Files fetched from official providers with your licenses."
+msgstr "الملفات مستخرجة من مزودين رسميين بتراخيصك."
+
+msgid "Supported Stock Sites"
+msgstr "مواقع الصور المدعومة"
+
+msgid "Works with all major stock providers"
+msgstr "يعمل مع جميع مزودي الصور الرئيسيين"
+
+msgid "Transparent pricing"
+msgstr "أسعار شفافة"
+
+msgid "Plans that scale with your team"
+msgstr "خطط تتوسع مع فريقك"
+
+msgid "Starter"
+msgstr "مبتدئ"
+
+msgid "EGP"
+msgstr "جنيه"
+
+msgid "month"
+msgstr "شهر"
+
+msgid "points"
+msgstr "نقاط"
+
+msgid "downloads"
+msgstr "تحميلات"
+
+msgid "Pro"
+msgstr "احترافي"
+
+msgid "Team"
+msgstr "فريق"
+
+msgid "Custom"
+msgstr "مخصص"
+
+msgid "Unlimited downloads"
+msgstr "تحميلات غير محدودة"
+
+msgid "Start Free Trial"
+msgstr "ابدأ تجربة مجانية"
+
+msgid "View detailed pricing"
+msgstr "عرض الأسعار التفصيلية"
+
+msgid "Frequently asked questions"
+msgstr "الأسئلة الشائعة"
+
+msgid "Everything you need to know about Artly"
+msgstr "كل ما تحتاج معرفته عن Artly"
+
+msgid "How does the point system work?"
+msgstr "كيف يعمل نظام النقاط؟"
+
+msgid "1 point = ~20 EGP and gets you one standard stock download. Premium assets may require more points. Points never expire, and you can reload anytime."
+msgstr "نقطة واحدة = ~20 جنيه وتعطيك تحميل صورة قياسي واحد. قد تتطلب الأصول المميزة نقاطًا أكثر. النقاط لا تنتهي صلاحيتها أبدًا، ويمكنك إعادة الشحن في أي وقت."
+
+msgid "Which stock sites do you support?"
+msgstr "ما هي مواقع الصور التي تدعمونها؟"
+
+msgid "We support Shutterstock, Adobe Stock, Freepik, iStock, Envato Elements, and more. We're constantly adding new providers."
+msgstr "ندعم Shutterstock و Adobe Stock و Freepik و iStock و Envato Elements والمزيد. نضيف مزودين جدد باستمرار."
+
+msgid "Can I really re-download files for free?"
+msgstr "هل يمكنني حقًا إعادة تحميل الملفات مجانًا؟"
+
+msgid "Yes! Once you download a file, it's saved in your history forever. Re-download it any time without spending additional points."
+msgstr "نعم! بمجرد تحميل ملف، يتم حفظه في سجلك إلى الأبد. أعد تحميله في أي وقت دون إنفاق نقاط إضافية."
+
+msgid "Is there a free trial?"
+msgstr "هل هناك تجربة مجانية؟"
+
+msgid "Absolutely! Start with a 14-day free trial. No credit card required to sign up. Try all features risk-free."
+msgstr "بالتأكيد! ابدأ بتجربة مجانية لمدة 14 يومًا. لا حاجة لبطاقة ائتمان للتسجيل. جرب جميع الميزات دون مخاطر."
+
+msgid "What if I need a refund?"
+msgstr "ماذا لو احتجت استردادًا؟"
+
+msgid "We offer a 14-day money-back guarantee. If you're not happy, contact us and we'll issue a full refund, no questions asked."
+msgstr "نوفر ضمان استرداد الأموال لمدة 14 يومًا. إذا لم تكن راضيًا، اتصل بنا وسنصدر استردادًا كاملاً، دون أسئلة."
+
+msgid "Do you offer team/agency plans?"
+msgstr "هل تقدمون خطط فريق/وكالة؟"
+
+msgid "Yes! We have special pricing for teams of 5+ users. Contact us for custom quotes with volume discounts and dedicated support."
+msgstr "نعم! لدينا أسعار خاصة للفرق المكونة من 5+ مستخدمين. اتصل بنا للحصول على عروض أسعار مخصصة مع خصومات الحجم ودعم مخصص."
+
+msgid "Still have questions?"
+msgstr "لا تزال لديك أسئلة؟"
+
+msgid "Contact Support"
+msgstr "اتصل بالدعم"
+
+msgid "Built by designers who were tired of messy stock workflows"
+msgstr "صُنع من قبل مصممين تعبوا من سير عمل الصور الفوضوي"
+
+msgid "Artly started as an internal tool for our own studio. We loved premium stock libraries, but hated tracking credits, invoices and logins for every site on every project."
+msgstr "بدأ Artly كأداة داخلية لاستوديونا الخاص. أحببنا مكتبات الصور المميزة، لكننا كرهنا تتبع الاعتمادات والفواتير وتسجيلات الدخول لكل موقع في كل مشروع."
+
+msgid "So we built one wallet, one dashboard and one download flow for the whole team — and decided to open it to other artists, studios and agencies who felt the same pain."
+msgstr "لذلك أنشأنا محفظة واحدة ولوحة تحكم واحدة وتدفق تحميل واحد للفريق بأكمله — وقررنا فتحه للفنانين والاستوديوهات والوكالات الأخرى التي شعرت بنفس الألم."
+
+msgid "Team Artly"
+msgstr "فريق Artly"
+
+msgid "Start Your Free Trial Today"
+msgstr "ابدأ تجربتك المجانية اليوم"
+
+msgid "Switch language"
+msgstr "تبديل اللغة"
+

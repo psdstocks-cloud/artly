@@ -1,0 +1,302 @@
+/* RTL (Right-to-Left) Support for Arabic */
+
+/* Import Arabic font */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+
+[dir="rtl"] {
+  font-family: 'Tajawal', 'Fira Sans', sans-serif;
+}
+
+/* Base RTL overrides */
+[dir="rtl"] body {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Hero Section RTL */
+[dir="rtl"] .artly-hero-inner {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+}
+
+[dir="rtl"] .artly-hero-copy {
+  text-align: right;
+}
+
+[dir="rtl"] .artly-hero-social-proof {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+[dir="rtl"] .artly-proof-item {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .artly-hero-actions {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .artly-btn-arrow {
+  margin-left: 0;
+  margin-right: 0.3rem;
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .artly-btn-primary:hover .artly-btn-arrow {
+  transform: scaleX(-1) translateX(-3px);
+}
+
+/* Card RTL */
+[dir="rtl"] .artly-card-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .artly-card-row-balance {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .artly-card-balance-meta {
+  align-items: flex-start;
+  text-align: right;
+}
+
+[dir="rtl"] .artly-card-row-footer {
+  direction: rtl;
+}
+
+/* Stats RTL */
+[dir="rtl"] .artly-stats-grid {
+  direction: rtl;
+}
+
+/* Testimonials RTL */
+[dir="rtl"] .artly-testimonial-author {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .artly-testimonial-text {
+  text-align: right;
+}
+
+/* Steps RTL */
+[dir="rtl"] .artly-steps-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-step-number {
+  right: auto;
+  left: -8px;
+}
+
+/* Features/Benefits RTL */
+[dir="rtl"] .artly-benefits-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-benefit h3::before {
+  margin-right: 0;
+  margin-left: 0.7rem;
+}
+
+[dir="rtl"] .artly-benefit-badge {
+  right: auto;
+  left: 1.5rem;
+}
+
+/* Sites Carousel RTL */
+[dir="rtl"] .artly-sites-carousel {
+  direction: rtl;
+}
+
+/* Pricing RTL */
+[dir="rtl"] .artly-pricing-strip {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-price-preview {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-price-badge {
+  left: auto;
+  right: 50%;
+  transform: translateX(50%);
+}
+
+[dir="rtl"] .artly-pricing-strip-cta {
+  align-items: flex-end;
+  text-align: right;
+}
+
+[dir="rtl"] .artly-pricing-details-link::after {
+  content: "←";
+  margin-right: 0.3rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .artly-pricing-details-link {
+  direction: rtl;
+}
+
+/* FAQ RTL */
+[dir="rtl"] .artly-faq-grid {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-faq-question {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .artly-faq-icon {
+  order: -1;
+  margin-left: 0;
+  margin-right: 1rem;
+}
+
+/* Story RTL */
+[dir="rtl"] .artly-story-body {
+  text-align: right;
+}
+
+[dir="rtl"] .artly-story-cta {
+  direction: rtl;
+}
+
+/* Section Headers RTL */
+[dir="rtl"] .artly-section-header {
+  text-align: center; /* Keep centered for visual balance */
+}
+
+[dir="rtl"] .artly-section-header p {
+  text-align: center;
+}
+
+/* Personas RTL */
+[dir="rtl"] .artly-personas-layout {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr);
+}
+
+[dir="rtl"] .artly-personas-list {
+  direction: rtl;
+}
+
+/* Input fields RTL */
+[dir="rtl"] .artly-input {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-input::placeholder {
+  text-align: right;
+}
+
+/* Language Switcher RTL */
+[dir="rtl"] .artly-header-lang-toggle {
+  direction: ltr; /* Keep EN/AR display in LTR for clarity */
+}
+
+/* Buttons RTL */
+[dir="rtl"] .artly-btn {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-btn-ghost {
+  direction: rtl;
+}
+
+/* Links with arrows RTL */
+[dir="rtl"] a[href]::after {
+  content: none;
+}
+
+[dir="rtl"] .artly-pricing-details-link {
+  direction: rtl;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Mobile adjustments for RTL */
+@media (max-width: 640px) {
+  [dir="rtl"] .artly-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  [dir="rtl"] .artly-hero-social-proof {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  [dir="rtl"] .artly-proof-item {
+    flex-direction: row-reverse;
+  }
+}
+
+/* Typography adjustments for Arabic */
+[dir="rtl"] {
+  line-height: 1.7; /* Slightly increased for Arabic readability */
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] h5,
+[dir="rtl"] h6 {
+  font-family: 'Tajawal', 'Commissioner', sans-serif;
+}
+
+/* Number formatting - keep Western numerals for consistency */
+[dir="rtl"] .artly-stat-number,
+[dir="rtl"] .artly-card-balance,
+[dir="rtl"] .artly-price-amount {
+  font-variant-numeric: normal;
+  direction: ltr; /* Numbers always LTR */
+  display: inline-block;
+  unicode-bidi: embed;
+}
+
+/* Spacing adjustments for Arabic text */
+[dir="rtl"] p {
+  text-align: right;
+}
+
+[dir="rtl"] .artly-hero-sub {
+  text-align: right;
+}
+
+[dir="rtl"] .artly-step-card p,
+[dir="rtl"] .artly-benefit p,
+[dir="rtl"] .artly-persona p {
+  text-align: right;
+}
+
+/* Card shadows - flip direction */
+[dir="rtl"] .artly-hero-card {
+  box-shadow: -32px 32px 80px rgba(15, 23, 42, 0.55);
+}
+
+[dir="rtl"] .artly-testimonial-card:hover {
+  box-shadow: -20px 20px 40px rgba(15, 23, 42, 0.15);
+}
+
+[dir="rtl"] .artly-step-card:hover {
+  box-shadow: -24px 24px 48px rgba(15, 23, 42, 0.18);
+}
+
+[dir="rtl"] .artly-benefit:hover {
+  box-shadow: -18px 18px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure proper text direction for mixed content */
+[dir="rtl"] .artly-card-app-title,
+[dir="rtl"] .artly-card-app-sub {
+  direction: rtl;
+}
+
+[dir="rtl"] .artly-card-label,
+[dir="rtl"] .artly-field-label {
+  direction: rtl;
+  text-align: right;
+}
+

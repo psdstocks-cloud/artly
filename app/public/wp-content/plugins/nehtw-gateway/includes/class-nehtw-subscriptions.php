@@ -535,4 +535,3 @@ function nehtw_gateway_ensure_subscription_product( $plan ) {
     
     return false;
 }
-

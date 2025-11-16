@@ -1,384 +1,65 @@
-/**
- * Artly Homepage Animations with GSAP + ScrollTrigger
- */
-
-(function() {
-    'use strict';
-
-    // Wait for DOM and GSAP to be ready
-    if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
-        console.warn('GSAP or ScrollTrigger not loaded');
-        return;
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof gsap === 'undefined') return;
+  
+    if (typeof ScrollTrigger !== 'undefined') {
+      gsap.registerPlugin(ScrollTrigger);
     }
-
-    // Register ScrollTrigger plugin
-    gsap.registerPlugin(ScrollTrigger);
-
-    // Set default preferences
-    const defaults = {
-        duration: 0.8,
-        ease: 'power3.out',
-        stagger: 0.1,
-        start: 'top 85%',
-        once: true
-    };
-
-    // Initialize on DOM ready
-    document.addEventListener('DOMContentLoaded', function() {
-        initAnimations();
-        initParallaxEffects();
-        initCardInteractions();
+  
+    gsap.from('.artly-hero-left', {
+      opacity: 0,
+      y: 40,
+      duration: 0.9,
+      ease: 'power3.out'
     });
-
-    /**
-     * Initialize all scroll-triggered animations
-     */
-    function initAnimations() {
-        // Hero section animations
-        animateHero();
-
-        // Section header animations
-        animateSectionHeaders();
-
-        // Stagger animations for grids/lists
-        animateStaggeredElements();
-
-        // Individual animated elements
-        animateElements();
+  
+    gsap.from('.artly-hero-right', {
+      opacity: 0,
+      y: 40,
+      duration: 0.9,
+      delay: 0.15,
+      ease: 'power3.out'
+    });
+  
+    var consoleEl = document.querySelector('.artly-hero-console');
+    if (consoleEl) {
+      gsap.to(consoleEl, {
+        y: -8,
+        duration: 3,
+        yoyo: true,
+        repeat: -1,
+        ease: 'sine.inOut'
+      });
     }
-
-    /**
-     * Hero section entrance animations
-     */
-    function animateHero() {
-        const heroCopy = document.querySelector('.artly-hero-copy');
-        if (!heroCopy) return;
-
-        // Create timeline for hero
-        const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-
-        // Animate eyebrow
-        tl.from('.artly-eyebrow', {
-            y: 30,
-            opacity: 0,
-            duration: 0.6
-        })
-        // Animate title
-        .from('.artly-hero-title', {
-            y: 50,
-            opacity: 0,
-            duration: 0.8
-        }, '-=0.3')
-        // Animate subtitle
-        .from('.artly-hero-sub', {
-            y: 30,
-            opacity: 0,
-            duration: 0.7
-        }, '-=0.4')
-        // Animate social proof
-        .from('.artly-hero-social-proof', {
-            y: 20,
-            opacity: 0,
-            duration: 0.6
-        }, '-=0.3')
-        // Animate buttons
-        .from('.artly-hero-actions .artly-btn', {
-            y: 20,
-            opacity: 0,
-            duration: 0.6,
-            stagger: 0.15
-        }, '-=0.3')
-        // Animate meta
-        .from('.artly-hero-meta', {
-            opacity: 0,
-            duration: 0.5
-        }, '-=0.2');
-
-        // Animate hero card separately
-        gsap.from('.artly-hero-card', {
-            x: 80,
-            opacity: 0,
-            duration: 1,
-            ease: 'power3.out',
-            delay: 0.4
+  
+    if (typeof ScrollTrigger !== 'undefined') {
+      gsap.utils.toArray('.artly-section').forEach(function (section) {
+        gsap.from(section, {
+          opacity: 0,
+          y: 32,
+          duration: 0.8,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
+          }
         });
-
-        // Floating animation for card
-        gsap.to('.artly-hero-card', {
-            y: -15,
-            duration: 3,
-            ease: 'power1.inOut',
-            yoyo: true,
-            repeat: -1
-        });
+      });
     }
-
-    /**
-     * Animate section headers
-     */
-    function animateSectionHeaders() {
-        const headers = document.querySelectorAll('.artly-section-header');
-        
-        headers.forEach((header, index) => {
-            gsap.from(header, {
-                scrollTrigger: {
-                    trigger: header,
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                y: 40,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease
-            });
-        });
-    }
-
-    /**
-     * Animate staggered elements (benefits, steps, personas, testimonials, etc.)
-     */
-    function animateStaggeredElements() {
-        // Testimonials
-        gsap.utils.toArray('.artly-testimonials-grid .artly-testimonial-card').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: el.closest('.artly-section-testimonials'),
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                y: 50,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: i * 0.15
-            });
-        });
-
-        // Benefits grid
-        gsap.utils.toArray('.artly-benefits-grid .artly-benefit').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: el.closest('.artly-section-benefits'),
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                y: 50,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: i * defaults.stagger
-            });
-        });
-
-        // Steps grid
-        gsap.utils.toArray('.artly-steps-grid .artly-step-card').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: el.closest('.artly-section-steps'),
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                y: 50,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: i * 0.15
-            });
-        });
-
-        // FAQ items
-        gsap.utils.toArray('.artly-faq-grid .artly-faq-item').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: el.closest('.artly-section-faq'),
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                y: 30,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: i * 0.08
-            });
-        });
-
-        // Pricing options
-        gsap.utils.toArray('.artly-price-preview .artly-price-option').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: el.closest('.artly-pricing-strip'),
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                y: 40,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: i * 0.12
-            });
-        });
-
-        // Personas
-        gsap.utils.toArray('.artly-personas-list .artly-persona').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: el.closest('.artly-section-personas'),
-                    start: defaults.start,
-                    toggleActions: 'play none none none'
-                },
-                x: -50,
-                opacity: 0,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: i * defaults.stagger
-            });
-        });
-    }
-
-    /**
-     * Animate individual elements with data attributes
-     */
-    function animateElements() {
-        const animatedElements = document.querySelectorAll('[data-animate]');
-
-        animatedElements.forEach((el) => {
-            const animation = el.getAttribute('data-animate');
-            const delay = parseFloat(el.getAttribute('data-delay')) || 0;
-            const section = el.closest('[data-scroll-section]');
-
-            let animationProps = {};
-
-            switch (animation) {
-                case 'fade-up':
-                    animationProps = {
-                        y: 50,
-                        opacity: 0
-                    };
-                    break;
-                case 'fade-down':
-                    animationProps = {
-                        y: -50,
-                        opacity: 0
-                    };
-                    break;
-                case 'fade-left':
-                    animationProps = {
-                        x: -50,
-                        opacity: 0
-                    };
-                    break;
-                case 'fade-right':
-                    animationProps = {
-                        x: 50,
-                        opacity: 0
-                    };
-                    break;
-                case 'slide-left':
-                    animationProps = {
-                        x: 100,
-                        opacity: 0
-                    };
-                    break;
-                case 'scale-up':
-                    animationProps = {
-                        scale: 0.9,
-                        opacity: 0
-                    };
-                    break;
-                default:
-                    animationProps = {
-                        opacity: 0
-                    };
-            }
-
-            gsap.from(el, {
-                scrollTrigger: {
-                    trigger: section || el,
-                    start: defaults.start,
-                    toggleActions: defaults.once ? 'play none none none' : 'play reverse play reverse'
-                },
-                ...animationProps,
-                duration: defaults.duration,
-                ease: defaults.ease,
-                delay: delay
-            });
-        });
-    }
-
-    /**
-     * Parallax effects for backgrounds
-     */
-    function initParallaxEffects() {
-        // Parallax on hero background gradient
-        gsap.to('.artly-front', {
-            scrollTrigger: {
-                trigger: '.artly-front',
-                start: 'top top',
-                end: 'bottom top',
-                scrub: true
-            },
-            backgroundPosition: '50% 100%'
-        });
-
-        // Parallax on hero card
-        gsap.to('.artly-hero-card', {
-            scrollTrigger: {
-                trigger: '.artly-hero',
-                start: 'top top',
-                end: 'bottom top',
-                scrub: 1
-            },
-            y: 100,
-            opacity: 0.5
-        });
-    }
-
-    /**
-     * Enhanced card interactions
-     */
-    function initCardInteractions() {
-        const cards = document.querySelectorAll('.artly-benefit, .artly-step, .artly-persona, .artly-hero-card');
-
-        cards.forEach((card) => {
-            // Hover scale effect
-            card.addEventListener('mouseenter', function() {
-                gsap.to(this, {
-                    scale: 1.03,
-                    y: -5,
-                    duration: 0.3,
-                    ease: 'power2.out'
-                });
-            });
-
-            card.addEventListener('mouseleave', function() {
-                gsap.to(this, {
-                    scale: 1,
-                    y: 0,
-                    duration: 0.3,
-                    ease: 'power2.out'
-                });
-            });
-        });
-    }
-
-    // Optional: Lottie animation loader
-    function initLottieAnimations() {
-        if (typeof lottie === 'undefined') {
-            console.warn('Lottie not loaded');
-            return;
+  
+    var featureCards = document.querySelectorAll('.artly-feature-card');
+    if (featureCards.length && typeof ScrollTrigger !== 'undefined') {
+      gsap.from(featureCards, {
+        opacity: 0,
+        y: 26,
+        duration: 0.75,
+        ease: 'power2.out',
+        stagger: 0.08,
+        scrollTrigger: {
+          trigger: '.artly-features',
+          start: 'top 80%',
+          toggleActions: 'play none none reverse'
         }
-
-        // Example: Load a Lottie animation (you'll need a Lottie JSON file)
-        const lottieContainer = document.querySelector('.lottie-animation');
-        if (lottieContainer) {
-            lottie.loadAnimation({
-                container: lottieContainer,
-                renderer: 'svg',
-                loop: true,
-                autoplay: true,
-                path: get_template_directory_uri() + '/assets/animations/hero-animation.json' // Add your Lottie file
-            });
-        }
+      });
     }
-
-})();
+  });

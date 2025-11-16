@@ -2,14 +2,14 @@
 
 /* CSS Custom Properties */
 :root {
-  --account-bg: radial-gradient(circle at top, rgba(13, 27, 42, 0.95) 0%, rgba(8, 12, 24, 0.98) 60%, rgba(5, 8, 18, 1) 100%);
+  --account-bg: radial-gradient(circle at top, rgba(24, 18, 40, 0.95) 0%, rgba(20, 15, 40, 0.98) 60%, rgba(12, 11, 20, 1) 100%);
   --account-text: #f8fafc;
   --account-text-muted: rgba(226, 232, 240, 0.82);
   --account-surface: rgba(255, 255, 255, 0.06);
   --account-surface-hover: rgba(255, 255, 255, 0.08);
   --account-border: rgba(255, 255, 255, 0.08);
-  --account-accent-start: #06f5e8;
-  --account-accent-end: #16a3ff;
+  --account-accent-start: #7B4CFF;
+  --account-accent-end: #7B4CFF;
   --account-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 
@@ -47,13 +47,13 @@ body.woocommerce-account::after {
 body.woocommerce-account::before {
   top: -160px;
   right: -120px;
-  background: radial-gradient(circle, rgba(6, 245, 232, 0.25) 0%, rgba(22, 163, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(123, 76, 255, 0.25) 0%, rgba(123, 76, 255, 0) 70%);
 }
 
 body.woocommerce-account::after {
   bottom: -200px;
   left: -150px;
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.28) 0%, rgba(251, 113, 133, 0) 70%);
+  background: radial-gradient(circle, rgba(29, 195, 160, 0.28) 0%, rgba(79, 229, 196, 0) 70%);
 }
 
 body.woocommerce-account .site,
@@ -77,8 +77,8 @@ body.page-template-page-dashboard header.artly-site-header {
   opacity: 1 !important;
   background: linear-gradient(
     to bottom,
-    rgba(15, 23, 42, 0.96),
-    rgba(15, 23, 42, 0.9)
+    rgba(24, 18, 40, 0.96),
+    rgba(24, 18, 40, 0.9)
   ) !important;
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
@@ -235,13 +235,13 @@ body.page-template-page-dashboard .artly-announcement-bar {
 
 .btn.primary {
   background: linear-gradient(135deg, var(--account-accent-start), var(--account-accent-end));
-  color: #020617;
-  box-shadow: 0 4px 16px rgba(6, 245, 232, 0.3);
+  color: #0C0B14;
+  box-shadow: 0 4px 16px rgba(123, 76, 255, 0.3);
 }
 
 .btn.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(6, 245, 232, 0.4);
+  box-shadow: 0 6px 24px rgba(123, 76, 255, 0.4);
 }
 
 .btn.ghost {
@@ -289,7 +289,7 @@ body.page-template-page-dashboard .artly-announcement-bar {
 }
 
 .pill:hover {
-  background: rgba(6, 245, 232, 0.1);
+  background: rgba(123, 76, 255, 0.1);
   border-color: var(--account-accent-start);
   color: var(--account-accent-start);
   transform: translateY(-2px);
@@ -405,7 +405,7 @@ body.page-template-page-dashboard .artly-announcement-bar {
 
 .artly-acc-nav .is-active a,
 .artly-acc-nav .woocommerce-MyAccount-navigation-link--is-active a {
-  background: rgba(6, 245, 232, 0.1);
+  background: rgba(123, 76, 255, 0.1);
   border-color: var(--account-accent-start);
   color: var(--account-accent-start);
 }
@@ -517,7 +517,7 @@ body.page-template-page-dashboard .artly-announcement-bar {
   outline: none;
   border-color: var(--account-accent-start);
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(6, 245, 232, 0.1);
+  box-shadow: 0 0 0 3px rgba(123, 76, 255, 0.1);
 }
 
 .woocommerce-EditAccountForm fieldset {

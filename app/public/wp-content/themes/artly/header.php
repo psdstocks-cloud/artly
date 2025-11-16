@@ -59,57 +59,24 @@ if ( ! defined( 'ABSPATH' ) ) {
               </a>
             </li>
           <?php endif; ?>
-          <li class="artly-header-menu-item--has-dropdown">
+          <li class="artly-header-menu-item--lang-switcher">
             <button 
               type="button" 
-              class="artly-header-menu-dropdown-trigger"
-              aria-expanded="false"
-              aria-haspopup="true"
-              id="websites-menu-trigger"
+              class="artly-header-lang-toggle"
+              id="artly-lang-toggle"
+              aria-label="<?php esc_attr_e( 'Switch language', 'artly' ); ?>"
+              title="<?php esc_attr_e( 'Switch language', 'artly' ); ?>"
             >
-              <?php esc_html_e( 'Supported Websites', 'artly' ); ?>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <?php
+              $current_lang = function_exists( 'artly_get_current_language' ) ? artly_get_current_language() : 'en';
+              $other_lang = ( $current_lang === 'en' ) ? 'ar' : 'en';
+              $current_label = ( $current_lang === 'en' ) ? 'EN' : 'العربية';
+              $other_label = ( $other_lang === 'en' ) ? 'EN' : 'العربية';
+              ?>
+              <span class="artly-lang-current"><?php echo esc_html( $current_label ); ?></span>
+              <span class="artly-lang-separator">/</span>
+              <span class="artly-lang-other"><?php echo esc_html( $other_label ); ?></span>
             </button>
-            <div class="artly-header-menu-dropdown" id="websites-menu-dropdown" role="menu" aria-labelledby="websites-menu-trigger">
-              <div class="artly-header-menu-dropdown-inner">
-                <?php
-                $websites = artly_get_supported_websites();
-                if ( ! empty( $websites ) ) :
-                  // Split into columns for better organization
-                  $chunk_size = ceil( count( $websites ) / 3 );
-                  $columns = array_chunk( $websites, $chunk_size );
-                  ?>
-                  <div class="artly-header-menu-dropdown-grid">
-                    <?php foreach ( $columns as $column ) : ?>
-                      <div class="artly-header-menu-dropdown-column">
-                        <?php foreach ( $column as $website ) : ?>
-                          <a 
-                            href="<?php echo esc_url( $website['url'] ); ?>" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            class="artly-header-menu-dropdown-link"
-                            role="menuitem"
-                          >
-                            <span class="artly-header-menu-dropdown-link-label">
-                              <?php echo esc_html( $website['label'] ); ?>
-                            </span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                              <path d="M5.25 3.5L9.75 8L5.25 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                          </a>
-                        <?php endforeach; ?>
-                      </div>
-                    <?php endforeach; ?>
-                  </div>
-                <?php else : ?>
-                  <div class="artly-header-menu-dropdown-empty">
-                    <p><?php esc_html_e( 'No websites configured yet.', 'artly' ); ?></p>
-                  </div>
-                <?php endif; ?>
-              </div>
-            </div>
           </li>
         </ul>
         

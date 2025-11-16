@@ -2,7 +2,7 @@
 
 .artly-signup-page {
   min-height: 100vh;
-  background: radial-gradient(circle at top, #f7f4ff 0, #f2f5ff 30%, #070a13 140%);
+  background: radial-gradient(circle at top, #E9E6F6 0, #D6CFF0 30%, #151226 140%);
   padding: 3rem 0 5rem;
 }
 
@@ -25,7 +25,7 @@
   line-height: 1.1;
   font-weight: 700;
   margin: 0 0 1rem;
-  color: #050608;
+    color: #1E1E28;
 }
 
 .artly-signup-subtitle {
@@ -49,7 +49,7 @@
 }
 
 .artly-signup-feature .artly-icon {
-  color: #06f5e8;
+    color: #7B4CFF;
   flex-shrink: 0;
 }
 
@@ -170,7 +170,7 @@
 
 .artly-form-input:focus {
   outline: none;
-  border-color: #06f5e8;
+    border-color: #7B4CFF;
   box-shadow: 0 0 0 3px rgba(6, 245, 232, 0.1);
 }
 
@@ -186,7 +186,7 @@
 }
 
 .artly-form-input:valid:not(:placeholder-shown):not(:focus) {
-  border-color: #06f5e8;
+    border-color: #7B4CFF;
 }
 
 .artly-form-hint {
@@ -251,7 +251,7 @@
   height: 20px;
   margin-top: 0.1rem;
   cursor: pointer;
-  accent-color: #06f5e8;
+    accent-color: #7B4CFF;
   flex-shrink: 0;
   border-radius: 4px;
 }
@@ -261,14 +261,14 @@
 }
 
 .artly-form-checkbox-label a {
-  color: #06f5e8;
+    color: #7B4CFF;
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 0.2s ease;
 }
 
 .artly-form-checkbox-label a:hover {
-  color: #16a3ff;
+    color: #7B4CFF;
 }
 
 /* Submit Button - Enhanced to match theme */
@@ -290,14 +290,14 @@
 }
 
 .artly-btn-primary {
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #031019;
-  box-shadow: 0 16px 30px rgba(15, 159, 240, 0.35);
+    background: linear-gradient(135deg, #5800AA, #7B4CFF);
+  color: #F7F7F7;
+  box-shadow: 0 16px 30px rgba(123, 76, 255, 0.35);
 }
 
 .artly-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 20px 36px rgba(15, 159, 240, 0.45);
+  box-shadow: 0 20px 36px rgba(123, 76, 255, 0.45);
 }
 
 .artly-btn-primary:active:not(:disabled) {
@@ -334,7 +334,7 @@
   left: 50%;
   margin-left: -10px;
   margin-top: -10px;
-  border: 2px solid #031019;
+  border: 2px solid #0C0B14;
   border-radius: 50%;
   border-top-color: transparent;
   animation: spin 0.6s linear infinite;
@@ -356,14 +356,14 @@
 }
 
 .artly-signup-footer a {
-  color: #06f5e8;
+    color: #7B4CFF;
   font-weight: 600;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .artly-signup-footer a:hover {
-  color: #16a3ff;
+    color: #7B4CFF;
   text-decoration: underline;
 }
 

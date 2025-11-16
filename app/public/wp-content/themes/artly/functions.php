@@ -463,66 +463,30 @@ add_action( 'wp_enqueue_scripts', 'artly_enqueue_login_assets', 20 );
  */
 function artly_enqueue_cinematic_scripts() {
     if ( is_front_page() ) {
-        // GSAP Core
+        $theme_uri = get_template_directory_uri();
+        $version   = wp_get_theme()->get( 'Version' );
+
         wp_enqueue_script(
             'gsap',
             'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js',
             array(),
-            null,
+            '3.12.5',
             true
         );
 
-        // GSAP ScrollTrigger
         wp_enqueue_script(
-            'scrolltrigger',
+            'gsap-scrolltrigger',
             'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js',
             array( 'gsap' ),
-            null,
+            '3.12.5',
             true
         );
 
-        // GSAP TextPlugin (for text animations)
-        wp_enqueue_script(
-            'textplugin',
-            'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js',
-            array( 'gsap' ),
-            null,
-            true
-        );
-
-        // Lottie
-        wp_enqueue_script(
-            'lottie',
-            'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js',
-            array(),
-            null,
-            true
-        );
-
-        // Our custom cinematic animations
-        wp_enqueue_script(
-            'artly-gsap-home',
-            get_template_directory_uri() . '/assets/js/gsap-home.js',
-            array( 'gsap', 'scrolltrigger', 'textplugin', 'lottie' ),
-            wp_get_theme()->get( 'Version' ),
-            true
-        );
-
-        // Home page animations (enhanced)
         wp_enqueue_script(
             'artly-home-animations',
-            get_template_directory_uri() . '/assets/js/home-animations.js',
-            array( 'gsap', 'scrolltrigger' ),
-            wp_get_theme()->get( 'Version' ),
-            true
-        );
-
-        // Conversion tracking
-        wp_enqueue_script(
-            'artly-conversion-tracking',
-            get_template_directory_uri() . '/assets/js/conversion-tracking.js',
-            array(),
-            wp_get_theme()->get( 'Version' ),
+            $theme_uri . '/assets/js/home-animations.js',
+            array( 'gsap', 'gsap-scrolltrigger' ),
+            $version,
             true
         );
     }

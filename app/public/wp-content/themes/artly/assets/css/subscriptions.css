@@ -2,10 +2,10 @@
   min-height: 100vh;
   padding: 4rem 0 5rem;
   background:
-    radial-gradient(circle at 0 0, rgba(15, 23, 42, 0.95) 0, transparent 55%),
+    radial-gradient(circle at 0 0, rgba(24, 18, 40, 0.95) 0, transparent 55%),
     radial-gradient(circle at 100% 0, rgba(8, 47, 73, 0.95) 0, transparent 55%),
-    radial-gradient(circle at 50% 100%, #020617 0, #000000 100%);
-  color: #e5edff;
+    radial-gradient(circle at 50% 100%, #0C0B14 0, #000000 100%);
+  color: #F7F7F7;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
 }
 
@@ -33,7 +33,7 @@
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -53,7 +53,7 @@
   margin-bottom: 2.5rem;
   background:
     radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.06), transparent 60%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+    linear-gradient(145deg, rgba(24, 18, 40, 0.96), rgba(24, 18, 40, 0.98));
   box-shadow:
     0 12px 28px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(148, 163, 184, 0.15);
@@ -73,7 +73,7 @@
 .subs-status-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #06f5e8;
+  color: #7B4CFF;
   margin-bottom: 0.5rem;
 }
 
@@ -96,7 +96,7 @@
   padding: 2rem 1.8rem;
   background:
     radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.06), transparent 60%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+    linear-gradient(145deg, rgba(24, 18, 40, 0.96), rgba(24, 18, 40, 0.98));
   box-shadow:
     0 12px 28px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(148, 163, 184, 0.15);
@@ -110,37 +110,37 @@
   transform: translateY(-4px);
   box-shadow:
     0 16px 36px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(6, 245, 232, 0.3);
+    0 0 0 1px rgba(123, 76, 255, 0.3);
 }
 
 .subs-card--highlight {
-  border: 1px solid rgba(6, 245, 232, 0.4);
+  border: 1px solid rgba(123, 76, 255, 0.4);
   background:
-    radial-gradient(circle at 0 0, rgba(6, 245, 232, 0.08), transparent 60%),
-    linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(8, 47, 73, 0.98));
+    radial-gradient(circle at 0 0, rgba(123, 76, 255, 0.08), transparent 60%),
+    linear-gradient(145deg, rgba(24, 18, 40, 0.98), rgba(8, 47, 73, 0.98));
   box-shadow:
-    0 16px 36px rgba(6, 245, 232, 0.2),
-    0 0 0 1px rgba(6, 245, 232, 0.4);
+    0 16px 36px rgba(123, 76, 255, 0.2),
+    0 0 0 1px rgba(123, 76, 255, 0.4);
 }
 
 .subs-plan-name {
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  color: #e5edff;
+  color: #F7F7F7;
 }
 
 .subs-plan-price {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #fb923c;
+  color: #1DC3A0;
   margin-bottom: 0.5rem;
 }
 
 .subs-plan-points {
   font-size: 1rem;
   font-weight: 600;
-  color: #06f5e8;
+  color: #7B4CFF;
   margin-bottom: 1rem;
 }
 
@@ -169,27 +169,27 @@
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #020617;
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  color: #0C0B14;
   border: none;
   cursor: pointer;
-  box-shadow: 0 8px 22px rgba(6, 245, 232, 0.35);
+  box-shadow: 0 8px 22px rgba(123, 76, 255, 0.35);
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }
 
 .subs-plan-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(6, 245, 232, 0.45);
+  box-shadow: 0 12px 30px rgba(123, 76, 255, 0.45);
   filter: brightness(1.05);
 }
 
 .subs-card--highlight .subs-plan-btn {
-  background: linear-gradient(135deg, #fb923c, #fb7185);
-  box-shadow: 0 8px 22px rgba(251, 146, 60, 0.35);
+  background: linear-gradient(135deg, #1DC3A0, #4FE5C4);
+  box-shadow: 0 8px 22px rgba(29, 195, 160, 0.35);
 }
 
 .subs-card--highlight .subs-plan-btn:hover {
-  box-shadow: 0 12px 30px rgba(251, 146, 60, 0.45);
+  box-shadow: 0 12px 30px rgba(29, 195, 160, 0.45);
 }
 
 /* Responsive */

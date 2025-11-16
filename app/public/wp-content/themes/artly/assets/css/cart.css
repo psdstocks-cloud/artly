@@ -2,18 +2,18 @@
 
 /* CSS Custom Properties */
 :root {
-  --cart-bg: radial-gradient(circle at top, rgba(13, 27, 42, 0.95) 0%, rgba(8, 12, 24, 0.98) 60%, rgba(5, 8, 18, 1) 100%);
+  --cart-bg: radial-gradient(circle at top, rgba(24, 18, 40, 0.95) 0%, rgba(20, 15, 40, 0.98) 60%, rgba(12, 11, 20, 1) 100%);
   --cart-text: #f8fafc;
   --cart-text-muted: rgba(226, 232, 240, 0.82);
   --cart-surface: rgba(255, 255, 255, 0.06);
   --cart-surface-hover: rgba(255, 255, 255, 0.08);
   --cart-border: rgba(255, 255, 255, 0.08);
-  --cart-accent-start: #06f5e8;
-  --cart-accent-end: #16a3ff;
-  --cart-accent-secondary-start: #fb923c;
-  --cart-accent-secondary-end: #fb7185;
+  --cart-accent-start: #7B4CFF;
+  --cart-accent-end: #7B4CFF;
+  --cart-accent-secondary-start: #1DC3A0;
+  --cart-accent-secondary-end: #4FE5C4;
   --cart-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-  --cart-glow: 0 0 20px rgba(6, 245, 232, 0.3);
+  --cart-glow: 0 0 20px rgba(123, 76, 255, 0.3);
 }
 
 [data-theme="light"] {
@@ -24,7 +24,7 @@
   --cart-surface-hover: rgba(255, 255, 255, 1);
   --cart-border: rgba(148, 163, 184, 0.3);
   --cart-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  --cart-glow: 0 0 20px rgba(6, 245, 232, 0.2);
+  --cart-glow: 0 0 20px rgba(123, 76, 255, 0.2);
 }
 
 /* Page Background */
@@ -51,13 +51,13 @@ body.woocommerce-cart::after {
 body.woocommerce-cart::before {
   top: -160px;
   right: -120px;
-  background: radial-gradient(circle, rgba(6, 245, 232, 0.25) 0%, rgba(22, 163, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(123, 76, 255, 0.25) 0%, rgba(123, 76, 255, 0) 70%);
 }
 
 body.woocommerce-cart::after {
   bottom: -200px;
   left: -150px;
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.28) 0%, rgba(251, 113, 133, 0) 70%);
+  background: radial-gradient(circle, rgba(29, 195, 160, 0.28) 0%, rgba(79, 229, 196, 0) 70%);
 }
 
 body.woocommerce-cart .site,
@@ -163,8 +163,8 @@ body.woocommerce-cart .artly-menu-backdrop {
 
 .progress li.done .progress-step,
 .progress li.current .progress-step {
-  background: rgba(6, 245, 232, 0.1);
-  border-color: rgba(6, 245, 232, 0.3);
+  background: rgba(123, 76, 255, 0.1);
+  border-color: rgba(123, 76, 255, 0.3);
 }
 
 /* Glass Card Base */
@@ -414,7 +414,7 @@ body.woocommerce-cart .artly-menu-backdrop {
   outline: none;
   border-color: var(--cart-accent-start);
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(6, 245, 232, 0.1);
+  box-shadow: 0 0 0 3px rgba(123, 76, 255, 0.1);
 }
 
 .artly-coupon-form button {
@@ -422,7 +422,7 @@ body.woocommerce-cart .artly-menu-backdrop {
   background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
   border: none;
   border-radius: 8px;
-  color: #020617;
+  color: #0C0B14;
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
@@ -432,7 +432,7 @@ body.woocommerce-cart .artly-menu-backdrop {
 
 .artly-coupon-form button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(6, 245, 232, 0.3);
+  box-shadow: 0 8px 24px rgba(123, 76, 255, 0.3);
 }
 
 /* CTA Buttons */
@@ -448,7 +448,7 @@ body.woocommerce-cart .artly-menu-backdrop {
   width: 100%;
   padding: 16px 32px;
   background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
-  color: #020617;
+  color: #0C0B14;
   text-align: center;
   text-decoration: none;
   font-weight: 700;
@@ -485,7 +485,7 @@ body.woocommerce-cart .artly-menu-backdrop {
 
 .btn-primary.btn-glow:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 30px rgba(6, 245, 232, 0.5), 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 30px rgba(123, 76, 255, 0.5), 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .btn-outline {
@@ -506,7 +506,7 @@ body.woocommerce-cart .artly-menu-backdrop {
 .btn-outline:hover {
   border-color: var(--cart-accent-start);
   color: var(--cart-accent-start);
-  background: rgba(6, 245, 232, 0.05);
+  background: rgba(123, 76, 255, 0.05);
 }
 
 /* Trust Row */
@@ -596,7 +596,7 @@ body.woocommerce-cart .artly-menu-backdrop {
   margin-top: 24px;
   padding: 16px 32px;
   background: linear-gradient(135deg, var(--cart-accent-start), var(--cart-accent-end));
-  color: #020617;
+  color: #0C0B14;
   text-decoration: none;
   font-weight: 700;
   border-radius: 12px;
@@ -605,7 +605,7 @@ body.woocommerce-cart .artly-menu-backdrop {
 
 .woocommerce-cart .cart-empty .return-to-shop:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(6, 245, 232, 0.3);
+  box-shadow: 0 8px 24px rgba(123, 76, 255, 0.3);
 }
 
 /* RTL Support */

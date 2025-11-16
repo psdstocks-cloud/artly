@@ -1,5 +1,5 @@
 .artly-downloads-page {
-  background: radial-gradient(circle at top, rgba(13, 27, 42, 0.95) 0%, rgba(8, 12, 24, 0.98) 60%, rgba(5, 8, 18, 1) 100%);
+  background: radial-gradient(circle at top, rgba(24, 18, 40, 0.95) 0%, rgba(20, 15, 40, 0.98) 60%, rgba(12, 11, 20, 1) 100%);
   min-height: 100vh;
   padding: 120px 24px 80px;
   color: #f8fafc;
@@ -14,7 +14,7 @@
   width: 420px;
   height: 420px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(6, 245, 232, 0.25) 0%, rgba(22, 163, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(123, 76, 255, 0.25) 0%, rgba(123, 76, 255, 0) 70%);
   filter: blur(40px);
   z-index: 0;
 }
@@ -27,7 +27,7 @@
 .artly-downloads-page::after {
   bottom: -200px;
   left: -150px;
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.28) 0%, rgba(251, 113, 133, 0) 70%);
+  background: radial-gradient(circle, rgba(29, 195, 160, 0.28) 0%, rgba(79, 229, 196, 0) 70%);
 }
 
 .artly-downloads-inner {
@@ -69,7 +69,7 @@
 
 .artly-downloads-page .downloads-tabs {
   display: inline-flex;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(24, 18, 40, 0.6);
   padding: 6px;
   border-radius: 999px;
   backdrop-filter: blur(16px);
@@ -93,9 +93,9 @@
 }
 
 .artly-downloads-page .downloads-tab.is-active {
-  background: linear-gradient(135deg, rgba(6, 245, 232, 0.18), rgba(22, 163, 255, 0.3));
+  background: linear-gradient(135deg, rgba(123, 76, 255, 0.18), rgba(123, 76, 255, 0.3));
   color: #ffffff;
-  box-shadow: 0 8px 24px rgba(6, 245, 232, 0.18);
+  box-shadow: 0 8px 24px rgba(123, 76, 255, 0.18);
 }
 
 .artly-downloads-page .downloads-section {
@@ -115,16 +115,16 @@
   grid-template-columns: 120px 1fr auto;
   gap: 24px;
   align-items: center;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(24, 18, 40, 0.55);
   border-radius: 28px;
   padding: 20px 24px;
   backdrop-filter: blur(18px);
   border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 16px 40px rgba(24, 18, 40, 0.35);
 }
 
 .artly-downloads-page .downloads-item:hover {
-  border-color: rgba(6, 245, 232, 0.35);
+  border-color: rgba(123, 76, 255, 0.35);
   transform: translateY(-2px);
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
@@ -134,7 +134,7 @@
   aspect-ratio: 1 / 1;
   border-radius: 20px;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(24, 18, 40, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,7 +152,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(6, 245, 232, 0.08), rgba(22, 163, 255, 0.16));
+  background: linear-gradient(135deg, rgba(123, 76, 255, 0.08), rgba(123, 76, 255, 0.16));
   animation: artlyThumbShimmer 1.2s ease-in-out infinite alternate;
 }
 
@@ -191,7 +191,7 @@
   align-items: center;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(6, 245, 232, 0.16);
+  background: rgba(123, 76, 255, 0.16);
   color: #67e8f9;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
@@ -205,7 +205,7 @@
   min-width: 100px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(24, 18, 40, 0.75);
   border: 1px solid rgba(148, 163, 184, 0.2);
   color: rgba(226, 232, 240, 0.85);
   font-weight: 600;
@@ -235,7 +235,7 @@
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 20px;
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.58));
+  background: linear-gradient(145deg, rgba(24, 18, 40, 0.82), rgba(24, 18, 40, 0.58));
   border: 1px dashed rgba(148, 163, 184, 0.28);
   display: flex;
   align-items: center;
@@ -250,11 +250,11 @@
   width: 58%;
   max-width: 72px;
   aspect-ratio: 1 / 1;
-  background: linear-gradient(135deg, rgba(6, 245, 232, 0.18), rgba(22, 163, 255, 0.28));
+  background: linear-gradient(135deg, rgba(123, 76, 255, 0.18), rgba(123, 76, 255, 0.28));
   border-radius: 16px;
   position: absolute;
   z-index: 1;
-  filter: drop-shadow(0 12px 24px rgba(6, 245, 232, 0.18));
+  filter: drop-shadow(0 12px 24px rgba(123, 76, 255, 0.18));
 }
 
 .artly-downloads-page .downloads-thumb-placeholder::after,
@@ -264,7 +264,7 @@
   height: 26px;
   position: absolute;
   z-index: 2;
-  background: linear-gradient(135deg, #06f5e8 0%, #16a3ff 100%);
+  background: linear-gradient(135deg, #7B4CFF 0%, #7B4CFF 100%);
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.6' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 6.75A2.25 2.25 0 016 4.5h12a2.25 2.25 0 012.25 2.25v10.5A2.25 2.25 0 0118 19.5H6a2.25 2.25 0 01-2.25-2.25V6.75z'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M3.75 13.5l3.72-3.72a1.5 1.5 0 012.121 0l3.659 3.659a1.5 1.5 0 002.121 0l3.379-3.379'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 7.5h.008v.008H8.25V7.5z'/%3E%3C/svg%3E");
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
@@ -302,15 +302,15 @@
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
-  color: #0f172a;
-  background: linear-gradient(135deg, #06f5e8 0%, #16a3ff 100%);
-  box-shadow: 0 12px 24px rgba(6, 245, 232, 0.35);
+  color: #151226;
+  background: linear-gradient(135deg, #7B4CFF 0%, #7B4CFF 100%);
+  box-shadow: 0 12px 24px rgba(123, 76, 255, 0.35);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .artly-downloads-page .downloads-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 32px rgba(22, 163, 255, 0.32);
+  box-shadow: 0 16px 32px rgba(123, 76, 255, 0.32);
 }
 
 .artly-downloads-page .downloads-btn-primary:disabled,
@@ -343,7 +343,7 @@
   text-transform: uppercase;
   border: 1px solid rgba(148, 163, 184, 0.45);
   color: rgba(226, 232, 240, 0.85);
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(24, 18, 40, 0.9);
   white-space: nowrap;
 }
 
@@ -354,7 +354,7 @@
   background: radial-gradient(
     circle at 0 0,
     rgba(239, 68, 68, 0.2),
-    rgba(15, 23, 42, 0.98)
+    rgba(24, 18, 40, 0.98)
   );
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
 }
@@ -363,7 +363,7 @@
 .artly-download-status-pill--intermediate {
   border-color: rgba(148, 163, 184, 0.4);
   color: rgba(203, 213, 225, 0.9);
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(24, 18, 40, 0.85);
 }
 
 /* Re-download button (enhanced - works with existing downloads-btn-primary) */
@@ -377,8 +377,8 @@
   padding: 10px 20px;
   font-weight: 600;
   font-size: 0.9rem;
-  color: #06f5e8;
-  border: 1px solid rgba(6, 245, 232, 0.45);
+  color: #7B4CFF;
+  border: 1px solid rgba(123, 76, 255, 0.45);
   background: transparent;
   cursor: pointer;
 }
@@ -389,7 +389,7 @@
   border-radius: 28px;
   text-align: center;
   color: rgba(148, 163, 184, 0.85);
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(24, 18, 40, 0.5);
   border: 1px dashed rgba(148, 163, 184, 0.3);
   backdrop-filter: blur(16px);
 }
@@ -402,12 +402,12 @@
   padding: 1.25rem 1.5rem;
   border-radius: 20px;
   background:
-    linear-gradient(135deg, rgba(6, 245, 232, 0.06), rgba(22, 163, 255, 0.05)),
-    rgba(15, 23, 42, 0.96);
+    linear-gradient(135deg, rgba(123, 76, 255, 0.06), rgba(123, 76, 255, 0.05)),
+    rgba(24, 18, 40, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.25);
   box-shadow:
-    0 24px 60px rgba(15, 23, 42, 0.85),
-    0 0 40px rgba(6, 245, 232, 0.15);
+    0 24px 60px rgba(24, 18, 40, 0.85),
+    0 0 40px rgba(123, 76, 255, 0.15);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   display: flex;
@@ -456,23 +456,23 @@
 
 /* Page numbers */
 .artly-pagination-item a {
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(24, 18, 40, 0.9);
   color: rgba(226, 232, 240, 0.9);
   border-color: rgba(148, 163, 184, 0.4);
 }
 
 .artly-pagination-item a:hover {
-  border-color: rgba(6, 245, 232, 0.65);
-  color: #06f5e8;
-  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.5);
+  border-color: rgba(123, 76, 255, 0.65);
+  color: #7B4CFF;
+  box-shadow: 0 0 0 1px rgba(123, 76, 255, 0.5);
 }
 
 /* Current page */
 .artly-pagination-item span.current {
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #020617;
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  color: #0C0B14;
   border-color: transparent;
-  box-shadow: 0 6px 18px rgba(6, 245, 232, 0.45);
+  box-shadow: 0 6px 18px rgba(123, 76, 255, 0.45);
 }
 
 /* Dots "..." */
@@ -514,8 +514,8 @@
   padding: 0.9rem 1.1rem;
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(6, 245, 232, 0.05), rgba(22, 163, 255, 0.05)),
-    rgba(15, 23, 42, 0.96);
+    linear-gradient(135deg, rgba(123, 76, 255, 0.05), rgba(123, 76, 255, 0.05)),
+    rgba(24, 18, 40, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.35);
   display: flex;
   align-items: center;
@@ -547,7 +547,7 @@
   width: 100%;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(24, 18, 40, 0.9);
   color: #f8fafc;
   padding: 0.55rem 1rem;
   font-size: 0.9rem;
@@ -560,8 +560,8 @@
 }
 
 .artly-downloads-search-input:focus {
-  border-color: rgba(6, 245, 232, 0.8);
-  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.4);
+  border-color: rgba(123, 76, 255, 0.8);
+  box-shadow: 0 0 0 1px rgba(123, 76, 255, 0.4);
 }
 
 /* Filter and sort dropdowns */
@@ -582,7 +582,7 @@
   min-width: 160px;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(24, 18, 40, 0.95);
   color: #e2e8f0;
   padding: 0.45rem 0.95rem;
   padding-right: 2.5rem;
@@ -591,16 +591,16 @@
   transition: all 0.16s ease;
   appearance: none;
   -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, #06f5e8 50%),
-                    linear-gradient(135deg, #06f5e8 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, #7B4CFF 50%),
+                    linear-gradient(135deg, #7B4CFF 50%, transparent 50%);
   background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
 }
 
 .artly-downloads-select:focus {
-  border-color: rgba(6, 245, 232, 0.8);
-  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.4);
+  border-color: rgba(123, 76, 255, 0.8);
+  box-shadow: 0 0 0 1px rgba(123, 76, 255, 0.4);
 }
 
 /* Responsive */
@@ -684,7 +684,7 @@
 .artly-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 8, 18, 0.88);
+  background: rgba(12, 11, 20, 0.88);
   backdrop-filter: blur(14px);
   z-index: 9999;
   display: flex;
@@ -712,10 +712,10 @@
 }
 
 .artly-modal-container {
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(24, 18, 40, 0.92);
   border-radius: 24px;
-  border: 1px solid rgba(6, 245, 232, 0.25);
-  box-shadow: 0 24px 64px rgba(6, 245, 232, 0.18);
+  border: 1px solid rgba(123, 76, 255, 0.25);
+  box-shadow: 0 24px 64px rgba(123, 76, 255, 0.18);
   backdrop-filter: blur(24px);
   max-width: 480px;
   width: 100%;
@@ -766,19 +766,19 @@
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
-  color: #0f172a;
-  background: linear-gradient(135deg, #06f5e8 0%, #16a3ff 100%);
-  box-shadow: 0 12px 28px rgba(6, 245, 232, 0.28);
+  color: #151226;
+  background: linear-gradient(135deg, #7B4CFF 0%, #7B4CFF 100%);
+  box-shadow: 0 12px 28px rgba(123, 76, 255, 0.28);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .artly-modal-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 32px rgba(22, 163, 255, 0.3);
+  box-shadow: 0 16px 32px rgba(123, 76, 255, 0.3);
 }
 
 .artly-modal-btn-primary:focus-visible {
-  outline: 2px solid rgba(6, 245, 232, 0.8);
+  outline: 2px solid rgba(123, 76, 255, 0.8);
   outline-offset: 3px;
 }
 
@@ -795,8 +795,8 @@
 }
 
 .artly-modal-btn-secondary:hover {
-  border-color: rgba(6, 245, 232, 0.4);
-  color: #06f5e8;
+  border-color: rgba(123, 76, 255, 0.4);
+  color: #7B4CFF;
 }
 
 @media (max-width: 640px) {
@@ -822,13 +822,13 @@
   padding: 1.5rem 1.75rem;
   border-radius: 20px;
   background:
-    linear-gradient(135deg, rgba(6, 245, 232, 0.08), rgba(22, 163, 255, 0.06)),
-    radial-gradient(circle at top right, rgba(6, 245, 232, 0.12), transparent 55%),
-    rgba(15, 23, 42, 0.96);
+    linear-gradient(135deg, rgba(123, 76, 255, 0.08), rgba(123, 76, 255, 0.06)),
+    radial-gradient(circle at top right, rgba(123, 76, 255, 0.12), transparent 55%),
+    rgba(24, 18, 40, 0.96);
   border: 1px solid rgba(148, 163, 184, 0.25);
   box-shadow:
-    0 18px 45px rgba(15, 23, 42, 0.8),
-    0 0 30px rgba(6, 245, 232, 0.18);
+    0 18px 45px rgba(24, 18, 40, 0.8),
+    0 0 30px rgba(123, 76, 255, 0.18);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   position: relative;
@@ -842,7 +842,7 @@
   pointer-events: none;
   background: radial-gradient(
     circle at 0% 0%,
-    rgba(6, 245, 232, 0.18),
+    rgba(123, 76, 255, 0.18),
     transparent 55%
   );
   opacity: 0.4;
@@ -905,7 +905,7 @@
 }
 
 .downloads-range-field input[type="date"] {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(24, 18, 40, 0.85);
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.4);
   padding: 0.4rem 0.6rem;
@@ -915,8 +915,8 @@
 }
 
 .downloads-range-field input[type="date"]:focus {
-  border-color: rgba(6, 245, 232, 0.7);
-  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.4);
+  border-color: rgba(123, 76, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(123, 76, 255, 0.4);
 }
 
 .downloads-range-apply {
@@ -926,15 +926,15 @@
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  background: linear-gradient(135deg, #06f5e8, #16a3ff);
-  color: #020617;
-  box-shadow: 0 8px 20px rgba(6, 245, 232, 0.35);
+  background: linear-gradient(135deg, #7B4CFF, #7B4CFF);
+  color: #0C0B14;
+  box-shadow: 0 8px 20px rgba(123, 76, 255, 0.35);
   transition: all 0.18s ease;
 }
 
 .downloads-range-apply:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(6, 245, 232, 0.45);
+  box-shadow: 0 12px 28px rgba(123, 76, 255, 0.45);
 }
 
 /* Metrics grid */
@@ -978,8 +978,8 @@
 }
 
 .metric-value--accent {
-  color: #06f5e8;
-  text-shadow: 0 0 14px rgba(6, 245, 232, 0.45);
+  color: #7B4CFF;
+  text-shadow: 0 0 14px rgba(123, 76, 255, 0.45);
 }
 
 .metric-value--muted {
@@ -991,7 +991,7 @@
   margin-left: 0.3rem;
   font-size: 0.85rem;
   font-weight: 500;
-  color: rgba(6, 245, 232, 0.75);
+  color: rgba(123, 76, 255, 0.75);
 }
 
 .metric-caption {
@@ -1011,7 +1011,7 @@
   border-radius: 999px;
   padding: 0.65rem 1.35rem;
   border: 1px solid rgba(148, 163, 184, 0.4);
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(24, 18, 40, 0.8);
   color: rgba(226, 232, 240, 0.9);
   font-size: 0.88rem;
   font-weight: 500;
@@ -1020,9 +1020,9 @@
 }
 
 .downloads-export-btn:hover {
-  border-color: rgba(6, 245, 232, 0.6);
-  color: #06f5e8;
-  box-shadow: 0 0 0 1px rgba(6, 245, 232, 0.35);
+  border-color: rgba(123, 76, 255, 0.6);
+  color: #7B4CFF;
+  box-shadow: 0 0 0 1px rgba(123, 76, 255, 0.35);
 }
 
 /* Provider breakdown */
@@ -1094,8 +1094,8 @@
   position: absolute;
   inset: 0;
   width: 0;
-  background: linear-gradient(90deg, #06f5e8, #16a3ff);
-  box-shadow: 0 0 18px rgba(6, 245, 232, 0.4);
+  background: linear-gradient(90deg, #7B4CFF, #7B4CFF);
+  box-shadow: 0 0 18px rgba(123, 76, 255, 0.4);
   transition: width 0.35s ease;
 }
 
