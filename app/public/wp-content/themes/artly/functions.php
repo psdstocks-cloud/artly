@@ -1157,50 +1157,15 @@ function artly_secure_session_settings() {
 add_action( 'init', 'artly_secure_session_settings', 1 );
 
 /**
- * Regenerate session ID on login for security.
- * DISABLED: WordPress already handles secure cookie management.
- * 
- * This function was causing issues with admin logins by clearing and resetting
- * auth cookies immediately after WordPress sets them, which can interfere with
- * the login flow and cause redirect loops or authentication failures.
- * 
- * WordPress core already:
- * - Sets secure, HttpOnly cookies
- * - Regenerates session tokens on login
- * - Handles cookie flags properly
- * 
- * If session regeneration is needed in the future, it should be implemented
- * more carefully without clearing cookies that WordPress just set.
+ * Set activity timestamp on successful login.
+ * This ensures the session timeout check doesn't immediately log out users
+ * who just logged in with an old timestamp from a previous session.
  */
 function artly_regenerate_session_on_login( $user_login, $user ) {
-    // Disabled to prevent interference with WordPress core authentication
-    // WordPress already handles secure session management properly
-    return;
-    
-    // Never interfere with wp-admin logins
-    $redirect_to = '';
-    if ( isset( $_GET['redirect_to'] ) ) {
-        $redirect_to = wp_unslash( $_GET['redirect_to'] );
-    } elseif ( isset( $_POST['redirect_to'] ) ) {
-        $redirect_to = wp_unslash( $_POST['redirect_to'] );
+    // Set the activity timestamp on successful login
+    if ( $user && ! is_wp_error( $user ) ) {
+        update_user_meta( $user->ID, 'artly_last_activity', time() );
     }
-    
-    // Skip for admin logins
-    if ( ! empty( $redirect_to ) && false !== strpos( $redirect_to, 'wp-admin' ) ) {
-        return;
-    }
-    
-    // Skip for wp-login.php (admin login) unless it's our custom form
-    if ( isset( $GLOBALS['pagenow'] ) && 'wp-login.php' === $GLOBALS['pagenow'] ) {
-        if ( empty( $_POST['artly_login_submission'] ) ) {
-            return;
-        }
-    }
-    
-    // Original problematic code (disabled):
-    // wp_set_current_user( $user->ID );
-    // wp_clear_auth_cookie();  // ⚠️ This clears the cookie WordPress just set
-    // wp_set_auth_cookie( $user->ID, true );  // Then sets it again - causes issues
 }
 add_action( 'wp_login', 'artly_regenerate_session_on_login', 10, 2 );
 
@@ -1209,6 +1174,13 @@ add_action( 'wp_login', 'artly_regenerate_session_on_login', 10, 2 );
  */
 function artly_check_session_timeout() {
     if ( ! is_user_logged_in() ) {
+        return;
+    }
+    
+    // Skip timeout check right after login
+    // This prevents immediate logout when user just logged in with an old timestamp
+    if ( isset( $_POST['artly_login_submission'] ) || isset( $_POST['log'] ) ) {
+        update_user_meta( get_current_user_id(), 'artly_last_activity', time() );
         return;
     }
 
