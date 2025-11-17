@@ -478,209 +478,152 @@ body.page-template-page-dashboard .artly-announcement-bar {
   font-weight: 600;
 }
 
-/* ===== Edit Account Page - Professional Redesign ===== */
+/* ===== Edit Account Page - New Layout ===== */
 
-/* Page Container */
-.artly-edit-account-page {
+.artly-account-page {
   min-height: 100vh;
-  padding: 140px 0 80px;
-  background:
-    radial-gradient(1200px at 20% 20%, rgba(123, 76, 255, 0.15), transparent 65%),
-    radial-gradient(900px at 80% 0%, rgba(123, 76, 255, 0.12), transparent 70%),
-    radial-gradient(1400px at 50% 100%, rgba(29, 195, 160, 0.1), transparent 75%),
-    #0C0B14;
+  position: relative;
   color: #F7F7F7;
-  position: relative;
-  overflow-x: hidden;
 }
 
-.artly-edit-account-container {
-  max-width: 1600px;
-  width: 100%;
+.artly-account-container {
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 0 clamp(24px, 5vw, 80px);
-  position: relative;
-  z-index: 1;
+  padding: 4rem 1.5rem 5rem;
 }
 
-/* Page Header */
-.artly-edit-account-header {
-  margin-bottom: 48px;
+.artly-account-header {
   text-align: center;
-  width: 100%;
+  margin-bottom: 3rem;
 }
 
-.artly-edit-account-header-content {
-  max-width: 900px;
-  width: 100%;
+.artly-account-title {
+  font-size: 2.2rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.6rem;
+}
+
+.artly-account-subtitle {
+  font-size: 0.98rem;
+  color: rgba(226, 232, 240, 0.78);
+  max-width: 520px;
   margin: 0 auto;
-  padding: 0;
 }
 
-.artly-edit-account-kicker {
+.artly-account-message {
+  margin-top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #bbf7d0;
+  font-size: 0.82rem;
+}
+
+.artly-account-status-dot {
   display: inline-block;
-  font-size: 0.85rem;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: rgba(123, 76, 255, 0.9);
-  margin-bottom: 16px;
-  font-weight: 600;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
 }
 
-.artly-edit-account-title {
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
-  font-weight: 800;
-  color: #F7F7F7;
-  margin: 0 0 16px;
-  line-height: 1.1;
-  background: linear-gradient(135deg, #F7F7F7 0%, rgba(123, 76, 255, 0.9) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.artly-edit-account-subtitle {
-  font-size: 1.1rem;
-  color: rgba(226, 232, 240, 0.85);
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Form Container */
-.artly-edit-account-form {
+.artly-account-form {
   width: 100%;
 }
 
-/* Grid Layout */
-.artly-edit-account-grid {
+.artly-account-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 32px;
-  margin-bottom: 40px;
-  max-width: 100%;
-  width: 100%;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 1.75rem;
+  margin-bottom: 2.5rem;
 }
 
-/* Account Cards */
-.artly-edit-account-card {
-  position: relative;
+.artly-account-card {
   border-radius: 24px;
-  padding: 32px;
-  background: linear-gradient(145deg, rgba(24, 18, 40, 0.85), rgba(24, 18, 40, 0.65));
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 20px 60px rgba(8, 15, 35, 0.5);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  background: rgba(10, 9, 20, 0.92);
+  border: 1px solid rgba(123, 76, 255, 0.45);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.75);
+  padding: 1.85rem 1.8rem 1.7rem;
+  backdrop-filter: blur(18px);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
 }
 
-.artly-edit-account-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, rgba(123, 76, 255, 0.8), rgba(29, 195, 160, 0.6));
-  opacity: 0;
-  transition: opacity 0.3s ease;
+.artly-account-card--security {
+  grid-column: 1 / -1;
 }
 
-.artly-edit-account-card:hover {
+.artly-account-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 28px 80px rgba(8, 15, 35, 0.6);
-  border-color: rgba(123, 76, 255, 0.4);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.85);
+  border-color: rgba(123, 76, 255, 0.9);
 }
 
-.artly-edit-account-card:hover::before {
-  opacity: 1;
-}
-
-.artly-card-personal {
-  background: linear-gradient(145deg, rgba(24, 18, 40, 0.88), rgba(24, 18, 40, 0.68));
-}
-
-.artly-card-contact {
-  background: linear-gradient(145deg, rgba(24, 18, 40, 0.88), rgba(24, 18, 40, 0.68));
-}
-
-.artly-card-security {
-  background: linear-gradient(145deg, rgba(123, 76, 255, 0.12), rgba(24, 18, 40, 0.75));
-  border-color: rgba(123, 76, 255, 0.3);
-}
-
-/* Card Header */
-.artly-card-header {
+.artly-account-card-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 28px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  gap: 0.9rem;
+  margin-bottom: 1.4rem;
 }
 
-.artly-card-icon {
-  display: flex;
+.artly-account-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(123, 76, 255, 0.2), rgba(123, 76, 255, 0.1));
-  border: 1px solid rgba(123, 76, 255, 0.3);
-  color: #7B4CFF;
+  background:
+    radial-gradient(circle at 30% 10%, rgba(255, 255, 255, 0.24), transparent 60%),
+    linear-gradient(135deg, #5800AA, #7B4CFF);
+  color: #F9FAFB;
   flex-shrink: 0;
+  transition: transform 150ms ease-out;
 }
 
-.artly-card-security .artly-card-icon {
-  background: linear-gradient(135deg, rgba(29, 195, 160, 0.2), rgba(29, 195, 160, 0.1));
-  border-color: rgba(29, 195, 160, 0.3);
-  color: #1DC3A0;
+.artly-account-card:hover .artly-account-icon-badge {
+  transform: translateY(-1px) scale(1.02);
 }
 
-.artly-card-title {
+.artly-account-card-heading h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.2rem;
+}
+
+.artly-account-card-heading p {
+  font-size: 0.86rem;
+  color: rgba(226, 232, 240, 0.78);
   margin: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #F7F7F7;
-  letter-spacing: -0.02em;
 }
 
-/* Card Body */
-.artly-card-body {
+.artly-account-card-body {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.25rem;
 }
 
-/* Form Rows */
-.artly-form-row {
+.artly-account-field {
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
-.artly-form-row--split {
+.artly-account-field-row {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
-/* Form Fields */
-.artly-form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.artly-field-label {
+.artly-account-field label {
   display: block;
-  font-weight: 600;
-  color: #F7F7F7;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+  color: rgba(226, 232, 240, 0.78);
+  white-space: nowrap;
 }
 
 .artly-required {
@@ -689,162 +632,139 @@ body.page-template-page-dashboard .artly-announcement-bar {
   font-weight: 700;
 }
 
-/* Input Styling */
-.artly-input {
+.artly-account-field input[type="text"],
+.artly-account-field input[type="email"],
+.artly-account-field input[type="password"] {
   width: 100%;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid rgba(148, 163, 184, 0.2);
-  border-radius: 14px;
-  color: #F7F7F7;
+  height: 50px;
+  padding: 0 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.85);
+  color: #F9FAFB;
   font-size: 0.95rem;
-  font-family: inherit;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-sizing: border-box;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out, transform 150ms ease-out;
 }
 
-.artly-input:hover {
-  border-color: rgba(123, 76, 255, 0.4);
-  background: rgba(255, 255, 255, 0.08);
+.artly-account-field input::placeholder {
+  color: rgba(148, 163, 184, 0.9);
 }
 
-.artly-input:focus {
+.artly-account-field input:focus {
   outline: none;
   border-color: #7B4CFF;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 0 4px rgba(123, 76, 255, 0.15), 0 8px 24px rgba(123, 76, 255, 0.2);
+  box-shadow: 0 0 0 1px rgba(123, 76, 255, 0.55);
+  background: rgba(15, 23, 42, 0.98);
 }
 
-.artly-input::placeholder {
-  color: rgba(226, 232, 240, 0.5);
-}
-
-/* Input Wrapper for Password Fields */
-.artly-input-wrapper {
+.artly-account-input-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
-.artly-input-wrapper .artly-input {
-  padding-right: 50px;
+.artly-account-input-wrapper input {
+  padding-right: 3rem;
 }
 
 .artly-password-toggle {
   position: absolute;
-  right: 14px;
-  display: flex;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: transparent;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   border: none;
-  color: rgba(226, 232, 240, 0.7);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(226, 232, 240, 0.75);
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  padding: 0;
+  transition: color 150ms ease-out, background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out;
 }
 
 .artly-password-toggle:hover {
   color: #7B4CFF;
-  background: rgba(123, 76, 255, 0.1);
+  background: rgba(123, 76, 255, 0.12);
+  transform: translateY(-50%) scale(1.02);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
 .artly-password-toggle:focus {
   outline: none;
-  color: #7B4CFF;
-  background: rgba(123, 76, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(123, 76, 255, 0.35);
 }
 
 .artly-password-toggle svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   stroke: currentColor;
 }
 
-/* Field Hints */
-.artly-field-hint {
+.artly-account-field-hint {
   display: block;
-  margin-top: 6px;
-  font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.7);
-  line-height: 1.5;
+  margin-top: 0.45rem;
+  font-size: 0.84rem;
+  color: rgba(148, 163, 184, 0.95);
+  line-height: 1.4;
 }
 
-/* Security Section */
-.artly-security-section {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.artly-password-hint {
+  font-size: 0.82rem;
+  color: rgba(148, 163, 184, 0.95);
+  margin: 0.2rem 0 0;
 }
 
-.artly-security-hint {
-  margin: 0 0 8px;
-  font-size: 0.9rem;
-  color: rgba(226, 232, 240, 0.75);
-  padding: 12px 16px;
-  background: rgba(123, 76, 255, 0.08);
-  border: 1px solid rgba(123, 76, 255, 0.2);
-  border-radius: 10px;
-}
-
-/* Form Actions */
-.artly-form-actions {
-  margin-top: 48px;
-  padding-top: 32px;
-  border-top: 1px solid rgba(148, 163, 184, 0.15);
+.artly-account-actions {
   display: flex;
   justify-content: center;
-  align-items: center;
 }
 
-.artly-btn-save {
+.artly-account-save {
+  position: relative;
+  overflow: hidden;
+  min-width: 190px;
+  margin-top: 0.5rem;
+  padding: 0.95rem 1.4rem;
+  border-radius: 14px;
+  border: 1px solid rgba(123, 76, 255, 0.7);
+  background: linear-gradient(135deg, #5800AA, #7B4CFF);
+  color: #F7F7F7;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.artly-account-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.6);
+}
+
+.artly-account-save::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: translateX(-120%);
+  transition: transform 280ms ease;
+}
+
+.artly-account-save:hover::before {
+  transform: translateX(120%);
+}
+
+.artly-btn-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-width: 200px;
-  padding: 16px 32px;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #7B4CFF 0%, #5800AA 100%);
-  color: #F7F7F7;
-  box-shadow: 0 8px 24px rgba(123, 76, 255, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.artly-btn-save:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(123, 76, 255, 0.5);
-  background: linear-gradient(135deg, #8B5CFF 0%, #6800BA 100%);
-}
-
-.artly-btn-save:active {
-  transform: translateY(0);
-  box-shadow: 0 6px 20px rgba(123, 76, 255, 0.4);
-}
-
-.artly-btn-save svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  transition: transform 0.2s ease;
-}
-
-.artly-btn-save:hover svg {
-  transform: scale(1.1);
+  margin-left: 0.5rem;
+  font-weight: 700;
 }
 
 .woocommerce-EditAccountForm .clear {
   display: none;
 }
-
 /* RTL Support */
 :root[dir="rtl"] .grid {
   direction: rtl;
@@ -864,147 +784,45 @@ body.page-template-page-dashboard .artly-announcement-bar {
 
 /* ===== Responsive Design ===== */
 
-/* Tablet: Two-column layout */
-@media (min-width: 768px) {
-  .artly-edit-account-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 32px;
+@media (max-width: 960px) {
+  .artly-account-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .artly-form-row--split {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+  .artly-account-card--security {
+    grid-column: auto;
   }
 
-  .artly-card-security {
-    grid-column: 1 / -1;
-  }
-}
-
-/* Desktop: Three-column layout */
-@media (min-width: 1024px) {
-  .artly-edit-account-page {
-    padding: 160px 0 100px;
+  .artly-account-header {
+    text-align: left;
   }
 
-  .artly-edit-account-container {
-    padding: 0 clamp(32px, 6vw, 120px);
+  .artly-account-subtitle {
+    margin-left: 0;
   }
 
-  .artly-edit-account-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 40px;
-  }
-
-  .artly-card-security {
-    grid-column: span 1;
-  }
-
-  .artly-edit-account-card {
-    padding: 40px;
-  }
-}
-
-/* Large Desktop: Even wider layout */
-@media (min-width: 1400px) {
-  .artly-edit-account-container {
-    padding: 0 clamp(40px, 8vw, 160px);
-  }
-
-  .artly-edit-account-grid {
-    gap: 48px;
-  }
-
-  .artly-edit-account-card {
-    padding: 48px;
-  }
-}
-
-/* Mobile Responsive */
-@media (max-width: 767px) {
-  .artly-edit-account-page {
-    padding: 120px 0 60px;
-  }
-
-  .artly-edit-account-container {
-    padding: 0 24px;
-  }
-
-  .artly-edit-account-header {
-    margin-bottom: 36px;
-  }
-
-  .artly-edit-account-kicker {
-    font-size: 0.75rem;
-  }
-
-  .artly-edit-account-subtitle {
-    font-size: 1rem;
-  }
-
-  .artly-edit-account-card {
-    padding: 24px 20px;
-  }
-
-  .artly-card-header {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-  }
-
-  .artly-card-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  .artly-card-title {
-    font-size: 1.15rem;
-  }
-
-  .artly-card-body {
-    gap: 20px;
-  }
-
-  .artly-form-actions {
-    margin-top: 36px;
-    padding-top: 24px;
-  }
-
-  .artly-btn-save {
-    width: 100%;
-    min-width: auto;
+  .artly-account-actions {
     justify-content: center;
   }
+}
 
-  .artly-password-fieldset {
-    padding: 20px 16px;
+@media (max-width: 640px) {
+  .artly-account-container {
+    padding-top: 3rem;
   }
 
-  .grid {
+  .artly-account-card {
+    padding: 1.6rem 1.5rem 1.5rem;
+  }
+
+  .artly-account-field-row {
     grid-template-columns: 1fr;
   }
 
-  .masonry {
-    column-width: 100%;
-  }
-
-  .card-actions {
-    flex-direction: column;
-  }
-
-  .card-actions .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .artly-acc-nav ul {
-    flex-direction: column;
-  }
-
-  .artly-acc-nav a {
+  .artly-account-save {
     width: 100%;
   }
 }
-
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,
