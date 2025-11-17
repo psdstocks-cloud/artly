@@ -679,14 +679,14 @@ add_action( 'wp_enqueue_scripts', 'artly_enqueue_points_assets' );
  */
 function artly_ajax_login() {
     // Verify nonce
-    check_ajax_referer( 'artly_login_ajax_nonce', 'nonce' );
+    check_ajax_referer( 'artly_login', '_wpnonce' );
     
     $errors = array();
     
     // Sanitize input
-    $username = sanitize_user( $_POST['artly_username'] ?? '' );
-    $password = $_POST['artly_password'] ?? '';
-    $remember = isset( $_POST['artly_remember'] ) ? true : false;
+    $username = sanitize_user( $_POST['username'] ?? '' );
+    $password = $_POST['password'] ?? '';
+    $remember = isset( $_POST['rememberme'] ) ? true : false;
     $redirect_to = isset( $_POST['redirect_to'] ) ? esc_url_raw( $_POST['redirect_to'] ) : home_url( '/dashboard/' );
     
     // Validation

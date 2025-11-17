@@ -140,7 +140,7 @@ $account_page    = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_perm
         <?php do_action( 'woocommerce_login_form' ); ?>
 
         <div class="actions">
-          <button id="artlyLoginBtn" type="submit" class="btn btn--primary" disabled aria-disabled="true">
+          <button id="artlyLoginBtn" type="submit" class="btn btn--primary">
             <span class="btn__label"><?php echo esc_html__( 'Sign in', 'artly' ); ?></span>
             <span class="btn__spinner" aria-hidden="true"></span>
           </button>
