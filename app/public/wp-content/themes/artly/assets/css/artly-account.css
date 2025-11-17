@@ -645,8 +645,6 @@ body.page-template-page-dashboard .artly-announcement-bar {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   margin-bottom: 0;
 }
-
->>>>>>> b4d3f1f (Fix login flow, update signup page colors, and improve header navigation)
 .artly-account-card {
   border-radius: 24px;
   background: rgba(10, 9, 20, 0.92);
@@ -917,7 +915,6 @@ body.page-template-page-dashboard .artly-announcement-bar {
 
 /* ===== Responsive Design ===== */
 
-<<<<<<< HEAD
 @media (max-width: 960px) {
   .artly-account-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -1033,7 +1030,7 @@ body.page-template-page-dashboard .artly-announcement-bar {
     width: 100%;
   }
 }
->>>>>>> b4d3f1f (Fix login flow, update signup page colors, and improve header navigation)
+
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,

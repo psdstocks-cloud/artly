@@ -767,34 +767,52 @@ add_action( 'template_redirect', 'artly_reset_onboarding_for_testing' );
  * But preserve wp-admin redirects so admin can still be accessed
  */
 function artly_custom_login_url( $login_url, $redirect, $force_reauth ) {
-    // If redirect is to wp-admin, preserve the original login URL behavior
-    // This allows WordPress core to handle admin authentication properly
-    if ( $redirect && false !== strpos( $redirect, admin_url() ) ) {
-        // For admin redirects, use the custom login page but ensure redirect_to is preserved
-        $login_page = get_page_by_path( 'login' );
-        if ( $login_page ) {
-            $login_url = get_permalink( $login_page->ID );
-            $login_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $login_url );
-            return $login_url;
-        }
+    // 1) Never touch the admin flow:
+    //    - when already in admin
+    //    - or when the redirect_to clearly targets wp-admin
+    if (
+        is_admin()
+        || ( ! empty( $redirect ) && false !== strpos( $redirect, 'wp-admin' ) )
+        || ( isset( $_SERVER['REQUEST_URI'] ) && false !== strpos( $_SERVER['REQUEST_URI'], '/wp-admin' ) )
+    ) {
+        return $login_url; // use the default wp-login.php URL
     }
-    
-    // For all other cases, use custom login page
+
+    // 2) Frontend branded login (/login) for normal users
     $login_page = get_page_by_path( 'login' );
     if ( $login_page ) {
-        $login_url = get_permalink( $login_page->ID );
+        $custom_login_url = get_permalink( $login_page->ID );
         if ( $redirect ) {
-            $login_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $login_url );
+            $custom_login_url = add_query_arg(
+                'redirect_to',
+                rawurlencode( $redirect ),
+                $custom_login_url
+            );
         }
+        return $custom_login_url;
     }
+
+    // Fallback: default behavior if /login page not found
     return $login_url;
 }
 add_filter( 'login_url', 'artly_custom_login_url', 10, 3 );
 
 /**
  * Redirect direct visits to wp-login.php to the branded /login/ page.
+ * But allow wp-admin to use the default WordPress login.
  */
 function artly_force_branded_login() {
+    // Only run on the core login script.
+    if ( 'wp-login.php' !== $GLOBALS['pagenow'] || is_user_logged_in() ) {
+        return;
+    }
+
+    // If this login request is specifically for wp-admin, DO NOT redirect.
+    // Let WordPress show the default login form.
+    if ( isset( $_GET['redirect_to'] ) && false !== strpos( wp_unslash( $_GET['redirect_to'] ), 'wp-admin' ) ) {
+        return;
+    }
+
     // Only for GET requests, so we don't break core form posts.
     if ( 'GET' !== $_SERVER['REQUEST_METHOD'] ) {
         return;
@@ -810,17 +828,21 @@ function artly_force_branded_login() {
         // For 'login' action or no action, redirect to custom page
     }
 
-    $login_slug = 'login'; // the page you created
-    $login_url  = home_url( '/' . $login_slug . '/' );
-
-    $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
-
-    // If we're on wp-login.php and not already on /login/, redirect.
-    if ( false !== strpos( $request_uri, 'wp-login.php' ) && ! is_page( $login_slug ) ) {
+    // For other login flows (frontend links), redirect to branded /login page.
+    $login_page = get_page_by_path( 'login' );
+    if ( $login_page ) {
+        $login_url = get_permalink( $login_page->ID );
+        
         // Preserve any error parameters
         if ( isset( $_GET['login'] ) ) {
             $login_url = add_query_arg( 'login', sanitize_text_field( $_GET['login'] ), $login_url );
         }
+        
+        // Preserve redirect_to if present
+        if ( isset( $_GET['redirect_to'] ) ) {
+            $login_url = add_query_arg( 'redirect_to', rawurlencode( wp_unslash( $_GET['redirect_to'] ) ), $login_url );
+        }
+        
         wp_safe_redirect( $login_url );
         exit;
     }
@@ -829,8 +851,31 @@ add_action( 'login_init', 'artly_force_branded_login' );
 
 /**
  * Redirect failed logins back to custom login page
+ * But don't interfere with wp-admin login attempts
  */
 function artly_redirect_failed_login( $username ) {
+    // Don't redirect if this is an admin login attempt
+    // Check if redirect_to contains wp-admin (from GET or POST)
+    $redirect_to = '';
+    if ( isset( $_GET['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_GET['redirect_to'] );
+    } elseif ( isset( $_POST['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_POST['redirect_to'] );
+    }
+    
+    // If redirecting to wp-admin, let WordPress handle it (don't redirect)
+    if ( ! empty( $redirect_to ) && false !== strpos( $redirect_to, 'wp-admin' ) ) {
+        return; // Let WordPress show the default error on wp-login.php
+    }
+    
+    // Also check if we're currently on wp-login.php
+    if ( isset( $GLOBALS['pagenow'] ) && 'wp-login.php' === $GLOBALS['pagenow'] ) {
+        // If we're on wp-login.php and not redirecting to wp-admin, still don't redirect
+        // Let WordPress handle the error display on wp-login.php
+        return;
+    }
+    
+    // Only redirect to custom login page for frontend login failures
     $login_page = get_page_by_path( 'login' );
     if ( $login_page ) {
         $login_url = get_permalink( $login_page->ID );
@@ -989,8 +1034,39 @@ function artly_clear_login_attempts( $username, $ip ) {
 
 /**
  * Honeypot and nonce validation for the custom login form.
+ * Never interfere with wp-admin login attempts.
  */
 function artly_login_security_checks( $user, $username, $password ) {
+    // Never interfere with wp-admin login attempts
+    $redirect_to = '';
+    if ( isset( $_GET['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_GET['redirect_to'] );
+    } elseif ( isset( $_POST['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_POST['redirect_to'] );
+    }
+    
+    // If redirecting to wp-admin, skip all custom security checks
+    if ( ! empty( $redirect_to ) && false !== strpos( $redirect_to, 'wp-admin' ) ) {
+        return $user;
+    }
+    
+    // Also check if we're on wp-login.php (admin login)
+    if ( isset( $GLOBALS['pagenow'] ) && 'wp-login.php' === $GLOBALS['pagenow'] ) {
+        // Only run security checks if this is NOT an admin login
+        // If redirect_to is not set or doesn't contain wp-admin, it might be a frontend login
+        // But to be safe, if we're on wp-login.php, let WordPress handle it
+        if ( empty( $redirect_to ) || false === strpos( $redirect_to, 'wp-admin' ) ) {
+            // This might be a frontend login via wp-login.php, so we can still check
+            // But only if it's our custom form
+            if ( empty( $_POST['artly_login_submission'] ) ) {
+                return $user; // Not our custom form, let WordPress handle it
+            }
+        } else {
+            return $user; // Admin login, skip our checks
+        }
+    }
+    
+    // Only run security checks for our custom login form
     if ( empty( $_POST['artly_login_submission'] ) ) {
         return $user;
     }
@@ -1022,8 +1098,23 @@ add_filter( 'authenticate', 'artly_login_security_checks', 5, 3 );
 
 /**
  * Track failed login attempts and clear on success.
+ * Never interfere with wp-admin login attempts.
  */
 function artly_track_login_result( $user, $username, $password ) {
+    // Never interfere with wp-admin login attempts
+    $redirect_to = '';
+    if ( isset( $_GET['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_GET['redirect_to'] );
+    } elseif ( isset( $_POST['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_POST['redirect_to'] );
+    }
+    
+    // If redirecting to wp-admin, skip tracking
+    if ( ! empty( $redirect_to ) && false !== strpos( $redirect_to, 'wp-admin' ) ) {
+        return $user;
+    }
+    
+    // Only track for our custom login form
     if ( empty( $_POST['artly_login_submission'] ) ) {
         return $user;
     }
@@ -1055,21 +1146,61 @@ function artly_secure_session_settings() {
         // HttpOnly flag (WordPress handles this by default)
         ini_set( 'session.cookie_httponly', '1' );
         // SameSite attribute
-        ini_set( 'session.cookie_samesite', 'Strict' );
+        // Use Lax for local/dev to prevent cookie issues, Strict for production HTTPS
+        if ( is_ssl() && ! defined( 'WP_LOCAL_DEV' ) && ! in_array( $_SERVER['HTTP_HOST'] ?? '', array( 'localhost', '127.0.0.1', 'artly.local' ), true ) ) {
+            ini_set( 'session.cookie_samesite', 'Strict' );
+        } else {
+            ini_set( 'session.cookie_samesite', 'Lax' );
+        }
     }
 }
 add_action( 'init', 'artly_secure_session_settings', 1 );
 
 /**
  * Regenerate session ID on login for security.
+ * DISABLED: WordPress already handles secure cookie management.
+ * 
+ * This function was causing issues with admin logins by clearing and resetting
+ * auth cookies immediately after WordPress sets them, which can interfere with
+ * the login flow and cause redirect loops or authentication failures.
+ * 
+ * WordPress core already:
+ * - Sets secure, HttpOnly cookies
+ * - Regenerates session tokens on login
+ * - Handles cookie flags properly
+ * 
+ * If session regeneration is needed in the future, it should be implemented
+ * more carefully without clearing cookies that WordPress just set.
  */
 function artly_regenerate_session_on_login( $user_login, $user ) {
-    if ( $user && ! is_wp_error( $user ) ) {
-        wp_set_current_user( $user->ID );
-        // WordPress doesn't expose session regeneration directly, but we can clear auth cookie and reset
-        wp_clear_auth_cookie();
-        wp_set_auth_cookie( $user->ID, true );
+    // Disabled to prevent interference with WordPress core authentication
+    // WordPress already handles secure session management properly
+    return;
+    
+    // Never interfere with wp-admin logins
+    $redirect_to = '';
+    if ( isset( $_GET['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_GET['redirect_to'] );
+    } elseif ( isset( $_POST['redirect_to'] ) ) {
+        $redirect_to = wp_unslash( $_POST['redirect_to'] );
     }
+    
+    // Skip for admin logins
+    if ( ! empty( $redirect_to ) && false !== strpos( $redirect_to, 'wp-admin' ) ) {
+        return;
+    }
+    
+    // Skip for wp-login.php (admin login) unless it's our custom form
+    if ( isset( $GLOBALS['pagenow'] ) && 'wp-login.php' === $GLOBALS['pagenow'] ) {
+        if ( empty( $_POST['artly_login_submission'] ) ) {
+            return;
+        }
+    }
+    
+    // Original problematic code (disabled):
+    // wp_set_current_user( $user->ID );
+    // wp_clear_auth_cookie();  // ⚠️ This clears the cookie WordPress just set
+    // wp_set_auth_cookie( $user->ID, true );  // Then sets it again - causes issues
 }
 add_action( 'wp_login', 'artly_regenerate_session_on_login', 10, 2 );
 
@@ -1094,7 +1225,7 @@ function artly_check_session_timeout() {
     // Update last activity timestamp
     update_user_meta( get_current_user_id(), 'artly_last_activity', time() );
 }
-add_action( 'init', 'artly_check_session_timeout', 1 );
+add_action( 'init', 'artly_check_session_timeout', 20 );
 
 /**
  * Get client IP address in a safe way (X-Forwarded-For aware)
@@ -1391,46 +1522,52 @@ function artly_get_recent_downloads( $user_id, $limit = 10 ) {
 }
 // Canonicalize login to /login
 add_action('template_redirect', function () {
+    // Skip redirects immediately after login (give cookies time to set)
+    // This prevents redirect loops when the login form is submitted
+    if ( isset( $_POST['artly_login_submission'] ) || isset( $_POST['log'] ) ) {
+        return; // Let the login form handle the redirect
+    }
+    
     // Comprehensive routing logic for dashboard and account pages
-  if ( is_admin() ) {
-    return;
-  }
+    if ( is_admin() ) {
+        return;
+    }
 
-  $is_account   = function_exists( 'is_account_page' ) && is_account_page();
-  $is_wc_ep     = function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url();
-  $is_dashboard = is_page( 'dashboard' );
-  $is_login     = is_page( 'login' );
+    $is_account   = function_exists( 'is_account_page' ) && is_account_page();
+    $is_wc_ep     = function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url();
+    $is_dashboard = is_page( 'dashboard' );
+    $is_login     = is_page( 'login' );
 
-  // LOGGED OUT
-  if ( ! is_user_logged_in() ) {
-    // My Account base (no endpoint) → Login
+    // LOGGED OUT
+    if ( ! is_user_logged_in() ) {
+        // My Account base (no endpoint) → Login
+        if ( $is_account && ! $is_wc_ep ) {
+            wp_safe_redirect( home_url( '/login/' ), 302 );
+            exit;
+        }
+
+        // Dashboard should not be visible when logged out
+        if ( $is_dashboard ) {
+            wp_safe_redirect( home_url( '/login/' ), 302 );
+            exit;
+        }
+
+        // Allow /my-account/lost-password/ and reset key endpoints to work
+        return;
+    }
+
+    // LOGGED IN
+    // My Account base → Dashboard
     if ( $is_account && ! $is_wc_ep ) {
-      wp_safe_redirect( home_url( '/login/' ), 302 );
-      exit;
+        wp_safe_redirect( home_url( '/dashboard/' ), 301 );
+        exit;
     }
 
-    // Dashboard should not be visible when logged out
-    if ( $is_dashboard ) {
-      wp_safe_redirect( home_url( '/login/' ), 302 );
-      exit;
+    // Already logged in and hits /login → Dashboard
+    if ( $is_login ) {
+        wp_safe_redirect( home_url( '/dashboard/' ), 302 );
+        exit;
     }
-
-    // Allow /my-account/lost-password/ and reset key endpoints to work
-    return;
-  }
-
-  // LOGGED IN
-  // My Account base → Dashboard
-  if ( $is_account && ! $is_wc_ep ) {
-    wp_safe_redirect( home_url( '/dashboard/' ), 301 );
-    exit;
-  }
-
-  // Already logged in and hits /login → Dashboard
-  if ( $is_login ) {
-    wp_safe_redirect( home_url( '/dashboard/' ), 302 );
-    exit;
-  }
 });
   
 /**
