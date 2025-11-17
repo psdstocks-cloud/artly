@@ -24,12 +24,12 @@
     // Add loading state to form submissions
     $('.woocommerce-EditAccountForm').on('submit', function () {
       const $button = $(this).find('button[type="submit"]');
-      const $buttonSpan = $button.find('span');
-      const originalText = $buttonSpan.length ? $buttonSpan.text() : $button.text();
+      const $buttonText = $button.find('.artly-edit-account-save-btn-text');
+      const originalText = $buttonText.length ? $buttonText.text() : $button.text();
       
       $button.prop('disabled', true);
-      if ($buttonSpan.length) {
-        $buttonSpan.text('Saving...');
+      if ($buttonText.length) {
+        $buttonText.text('Saving...');
       } else {
         $button.text('Saving...');
       }
@@ -37,8 +37,8 @@
       // Re-enable after timeout (in case of validation error)
       setTimeout(function () {
         $button.prop('disabled', false);
-        if ($buttonSpan.length) {
-          $buttonSpan.text(originalText);
+        if ($buttonText.length) {
+          $buttonText.text(originalText);
         } else {
           $button.text(originalText);
         }
