@@ -24,12 +24,24 @@
     // Add loading state to form submissions
     $('.woocommerce-EditAccountForm').on('submit', function () {
       const $button = $(this).find('button[type="submit"]');
-      const originalText = $button.text();
-      $button.prop('disabled', true).text('Saving...');
+      const $buttonSpan = $button.find('span');
+      const originalText = $buttonSpan.length ? $buttonSpan.text() : $button.text();
+      
+      $button.prop('disabled', true);
+      if ($buttonSpan.length) {
+        $buttonSpan.text('Saving...');
+      } else {
+        $button.text('Saving...');
+      }
 
       // Re-enable after timeout (in case of validation error)
       setTimeout(function () {
-        $button.prop('disabled', false).text(originalText);
+        $button.prop('disabled', false);
+        if ($buttonSpan.length) {
+          $buttonSpan.text(originalText);
+        } else {
+          $button.text(originalText);
+        }
       }, 5000);
     });
 
@@ -38,6 +50,30 @@
       $(this).css('transform', 'translateY(-4px)');
     }).on('mouseleave', function () {
       $(this).css('transform', 'translateY(0)');
+    });
+
+    // Password toggle functionality for edit account form
+    $(document).on('click', '.artly-password-toggle', function (e) {
+      e.preventDefault();
+      const $button = $(this);
+      const targetId = $button.data('target');
+      const $input = $('#' + targetId);
+      const $eyeIcon = $button.find('.artly-icon-eye');
+      const $eyeOffIcon = $button.find('.artly-icon-eye-off');
+
+      if ($input.length) {
+        if ($input.attr('type') === 'password') {
+          $input.attr('type', 'text');
+          $eyeIcon.hide();
+          $eyeOffIcon.show();
+          $button.attr('aria-label', 'Hide password');
+        } else {
+          $input.attr('type', 'password');
+          $eyeIcon.show();
+          $eyeOffIcon.hide();
+          $button.attr('aria-label', 'Show password');
+        }
+      }
     });
   });
 })(jQuery);
