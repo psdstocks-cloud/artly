@@ -113,9 +113,16 @@
         return;
       }
 
+      // Get redirect_to from URL parameter if present
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get('redirect_to') || form.querySelector('input[name="redirect_to"]')?.value || '';
+
       // Prepare form data
       const formData = new FormData(form);
       formData.append('action', 'artly_login_ajax');
+      if (redirectTo) {
+        formData.append('redirect_to', redirectTo);
+      }
 
       // Set loading state
       setLoadingState(true);

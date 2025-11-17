@@ -764,8 +764,22 @@ add_action( 'template_redirect', 'artly_reset_onboarding_for_testing' );
 
 /**
  * Filter login URL to use custom login page
+ * But preserve wp-admin redirects so admin can still be accessed
  */
 function artly_custom_login_url( $login_url, $redirect, $force_reauth ) {
+    // If redirect is to wp-admin, preserve the original login URL behavior
+    // This allows WordPress core to handle admin authentication properly
+    if ( $redirect && false !== strpos( $redirect, admin_url() ) ) {
+        // For admin redirects, use the custom login page but ensure redirect_to is preserved
+        $login_page = get_page_by_path( 'login' );
+        if ( $login_page ) {
+            $login_url = get_permalink( $login_page->ID );
+            $login_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $login_url );
+            return $login_url;
+        }
+    }
+    
+    // For all other cases, use custom login page
     $login_page = get_page_by_path( 'login' );
     if ( $login_page ) {
         $login_url = get_permalink( $login_page->ID );
@@ -1228,6 +1242,53 @@ add_filter( 'woocommerce_account_menu_items', function ( $items ) {
         'customer-logout' => __( 'Log out', 'artly' ),
     );
 } );
+
+// === 2.5. Remove WooCommerce navigation and default output on edit-account page ===
+add_action( 'template_redirect', function() {
+    if ( function_exists( 'is_account_page' ) && is_account_page() && function_exists( 'WC' ) ) {
+        $endpoint = WC()->query->get_current_endpoint();
+        if ( $endpoint === 'edit-account' ) {
+            // Remove WooCommerce navigation
+            remove_action( 'woocommerce_account_navigation', 'woocommerce_account_navigation', 10 );
+            remove_action( 'woocommerce_before_account_navigation', 'woocommerce_output_account_navigation', 10 );
+        }
+    }
+}, 5 );
+
+// === 2.7. Remove WooCommerce default "My account" title and navigation output ===
+// WooCommerce outputs title/nav through woocommerce_account_content, but we need the template
+// So we'll remove the default function and add our own that only loads the template
+add_action( 'template_redirect', function() {
+    if ( function_exists( 'is_account_page' ) && is_account_page() && function_exists( 'WC' ) ) {
+        $endpoint = WC()->query->get_current_endpoint();
+        if ( $endpoint === 'edit-account' ) {
+            // Remove WooCommerce default account content function (outputs title + nav + template)
+            remove_action( 'woocommerce_account_content', 'woocommerce_account_content', 10 );
+            
+            // Add our own that only loads the template (no title/nav)
+            add_action( 'woocommerce_account_content', function() {
+                $endpoint = WC()->query->get_current_endpoint();
+                if ( $endpoint === 'edit-account' ) {
+                    wc_get_template( 'myaccount/form-edit-account.php' );
+                }
+            }, 10 );
+            
+            // Remove WooCommerce default notices output (we handle it in my-account.php)
+            remove_action( 'woocommerce_before_my_account', 'woocommerce_output_all_notices', 5 );
+        }
+    }
+}, 1 );
+
+// === 2.6. Remove WooCommerce default page title on edit-account ===
+add_filter( 'woocommerce_page_title', function( $title ) {
+    if ( function_exists( 'is_account_page' ) && is_account_page() && function_exists( 'WC' ) ) {
+        $endpoint = WC()->query->get_current_endpoint();
+        if ( $endpoint === 'edit-account' ) {
+            return ''; // Remove WooCommerce title
+        }
+    }
+    return $title;
+}, 20 );
 
 // === 3. Load assets for Dashboard and WooCommerce account endpoints ===
 add_action( 'wp_enqueue_scripts', function () {

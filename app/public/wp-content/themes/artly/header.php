@@ -130,9 +130,6 @@ if ( ! defined( 'ABSPATH' ) ) {
             <?php esc_html_e( 'Log out', 'artly' ); ?>
           </a>
         <?php else : ?>
-          <a class="artly-header-link" href="<?php echo esc_url( home_url( '/pricing/' ) ); ?>">
-            <?php esc_html_e( 'Pricing', 'artly' ); ?>
-          </a>
           <a class="artly-header-link" href="<?php echo esc_url( home_url( '/login/' ) ); ?>">
             <?php esc_html_e( 'Sign in', 'artly' ); ?>
           </a>

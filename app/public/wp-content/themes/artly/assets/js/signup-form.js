@@ -28,7 +28,7 @@
           input.type = 'text';
           this.setAttribute('aria-label', 'Hide password');
           this.innerHTML = `
-            <svg class="artly-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="artly-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2.5 2.5L17.5 17.5M10 4C6 4 2.73 6.11 1 9.5C2.73 12.89 6 15 10 15C14 15 17.27 12.89 19 9.5C17.27 6.11 14 4 10 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               <path d="M10 12.5C11.38 12.5 12.5 11.38 12.5 10C12.5 8.62 11.38 7.5 10 7.5" stroke="currentColor" stroke-width="1.5"/>
             </svg>
@@ -37,7 +37,7 @@
           input.type = 'password';
           this.setAttribute('aria-label', 'Show password');
           this.innerHTML = `
-            <svg class="artly-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="artly-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M10 4C6 4 2.73 6.11 1 9.5C2.73 12.89 6 15 10 15C14 15 17.27 12.89 19 9.5C17.27 6.11 14 4 10 4Z" stroke="currentColor" stroke-width="1.5"/>
               <circle cx="10" cy="9.5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
             </svg>

@@ -1,18 +1,15 @@
 <?php
 /**
- * Edit account form (Artly override)
- * Minimal override - keeps WooCommerce logic intact, adds Artly styling classes
+ * Edit account form – Artly themed
  *
- * @package Artly
+ * Copy this file to your theme:
+ * wp-content/themes/artly/woocommerce/myaccount/form-edit-account.php
+ *
+ * Keeps all WooCommerce hooks/logic, only changes markup/classes.
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Hook - woocommerce_before_edit_account_form.
- *
- * @since 2.6.0
- */
 do_action( 'woocommerce_before_edit_account_form' );
 
 $account_message = '';
@@ -30,20 +27,23 @@ if ( function_exists( 'wc_get_notices' ) ) {
 }
 ?>
 
-<main class="artly-account-page">
-    <div class="artly-container artly-account-container">
-        <header class="artly-account-header">
-            <h1 class="artly-account-title"><?php esc_html_e( 'Account settings', 'artly' ); ?></h1>
-            <p class="artly-account-subtitle"><?php esc_html_e( 'Manage your personal information, contact details, and security preferences.', 'artly' ); ?></p>
+<section class="artly-edit-account-page">
+    <div class="artly-edit-account-inner">
+        <section class="edit-account-hero">
+            <p class="edit-account-kicker"><?php esc_html_e( 'Account Management', 'artly' ); ?></p>
+            <h1 class="edit-account-title"><?php esc_html_e( 'Profile Settings', 'artly' ); ?></h1>
+            <p class="edit-account-subtitle">
+                <?php esc_html_e( 'Manage your personal information, contact details, and security preferences', 'artly' ); ?>
+            </p>
             <?php if ( ! empty( $account_message ) ) : ?>
-                <p class="artly-account-message"><span class="artly-account-status-dot" aria-hidden="true"></span><?php echo esc_html( $account_message ); ?></p>
+                <p class="edit-account-message"><span class="edit-account-status-dot" aria-hidden="true"></span><?php echo esc_html( $account_message ); ?></p>
             <?php endif; ?>
-        </header>
+        </section>
 
-        <form class="woocommerce-EditAccountForm edit-account artly-account-form" action="" method="post" <?php do_action( 'woocommerce_edit_account_form_tag' ); ?>>
+        <form class="woocommerce-EditAccountForm edit-account artly-edit-account-form" action="" method="post" <?php do_action( 'woocommerce_edit_account_form_tag' ); ?>>
             <?php do_action( 'woocommerce_edit_account_form_start' ); ?>
 
-            <div class="artly-account-grid">
+            <div class="artly-edit-account-grid">
                 <section class="artly-account-card artly-account-card--personal">
                     <div class="artly-account-card-header">
                         <div class="artly-account-icon-badge">
@@ -212,7 +212,7 @@ if ( function_exists( 'wc_get_notices' ) ) {
             <?php do_action( 'woocommerce_edit_account_form_end' ); ?>
         </form>
     </div>
-</main>
+</section>
 
-<?php do_action( 'woocommerce_after_edit_account_form' ); ?>
-
+<?php
+do_action( 'woocommerce_after_edit_account_form' );

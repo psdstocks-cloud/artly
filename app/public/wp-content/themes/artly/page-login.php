@@ -6,6 +6,52 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Process login form submission (non-AJAX fallback)
+if ( isset( $_POST['artly_login_submission'] ) && isset( $_POST['username'] ) && isset( $_POST['password'] ) ) {
+    $username = sanitize_user( $_POST['username'] );
+    $password = $_POST['password'];
+    $remember = isset( $_POST['rememberme'] );
+    $redirect_to = isset( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : '';
+    
+    if ( empty( $redirect_to ) ) {
+        $redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
+    }
+    
+    if ( empty( $redirect_to ) ) {
+        $redirect_to = home_url( '/dashboard/' );
+    }
+    
+    $creds = array(
+        'user_login'    => $username,
+        'user_password' => $password,
+        'remember'      => $remember
+    );
+    
+    $user = wp_signon( $creds, false );
+    
+    if ( ! is_wp_error( $user ) ) {
+        wp_safe_redirect( $redirect_to );
+        exit;
+    } else {
+        // Redirect back to login page with error
+        $error_code = $user->get_error_code();
+        $error_message = $user->get_error_message();
+        
+        // Make error messages more user-friendly
+        if ( strpos( $error_message, 'incorrect password' ) !== false || strpos( $error_message, 'Invalid' ) !== false ) {
+            $error_message = 'Invalid username or password.';
+        }
+        
+        $login_url = home_url( '/login/' );
+        if ( ! empty( $_GET['redirect_to'] ) ) {
+            $login_url = add_query_arg( 'redirect_to', urlencode( $_GET['redirect_to'] ), $login_url );
+        }
+        $login_url = add_query_arg( 'login', 'failed', $login_url );
+        wp_safe_redirect( $login_url );
+        exit;
+    }
+}
+
 if ( is_user_logged_in() ) {
     $redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
     if ( ! $redirect_to ) {
@@ -18,7 +64,15 @@ if ( is_user_logged_in() ) {
 get_header();
 
 do_action( 'woocommerce_before_customer_login_form' );
-$error_message = function_exists( 'artly_login_get_notice_message' ) ? artly_login_get_notice_message() : '';
+
+// Get error message from URL parameter or WooCommerce notices
+$error_message = '';
+if ( isset( $_GET['login'] ) && $_GET['login'] === 'failed' ) {
+    $error_message = 'Invalid username or password. Please try again.';
+} else {
+    $error_message = function_exists( 'artly_login_get_notice_message' ) ? artly_login_get_notice_message() : '';
+}
+
 $username_value = isset( $_POST['username'] ) ? sanitize_text_field( wp_unslash( $_POST['username'] ) ) : '';
 $remember_checked = ! empty( $_POST['rememberme'] );
 $account_page    = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : wp_login_url();
@@ -44,13 +98,19 @@ $account_page    = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_perm
         <h2><?php echo esc_html__( 'Sign in to continue', 'artly' ); ?></h2>
       </header>
 
-      <form class="artly-form" method="post" action="<?php echo esc_url( $account_page ); ?>" novalidate>
+      <form class="artly-form artly-login-form" method="post" action="<?php echo esc_url( home_url( '/login/' ) ); ?>" novalidate>
         <?php wp_nonce_field( 'artly_login' ); ?>
         <?php if ( function_exists( 'wp_nonce_field' ) ) : ?>
           <?php wp_nonce_field( 'woocommerce-login', 'woocommerce-login-nonce' ); ?>
         <?php endif; ?>
         <input type="hidden" name="artly_login_submission" value="1" />
         <input type="text" name="artly_login_hp" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+        <?php
+        $redirect_to = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '';
+        if ( $redirect_to ) :
+        ?>
+        <input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>" />
+        <?php endif; ?>
 
         <?php do_action( 'woocommerce_login_form_start' ); ?>
 
