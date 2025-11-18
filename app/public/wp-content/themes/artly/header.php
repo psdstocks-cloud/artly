@@ -15,6 +15,42 @@ if ( ! defined( 'ABSPATH' ) ) {
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 
+<?php
+$artly_app_pages = array(
+    'dashboard',
+    'my-downloads',
+    'my-points',
+    'stock-order',
+    'transactions',
+    'subscriptions',
+    'my-subscriptions',
+    'ai-generator',
+    'my-ai',
+);
+
+$artly_app_templates = array(
+    'page-dashboard.php',
+    'page-my-downloads.php',
+    'page-my-points.php',
+    'page-stock-order.php',
+    'page-transactions.php',
+    'page-subscriptions.php',
+    'page-my-subscriptions.php',
+    'page-ai-generator.php',
+    'page-my-ai.php',
+);
+
+$artly_is_app_template = false;
+foreach ( $artly_app_templates as $artly_template ) {
+    if ( is_page_template( $artly_template ) ) {
+        $artly_is_app_template = true;
+        break;
+    }
+}
+
+$artly_is_app_context = is_page( $artly_app_pages ) || $artly_is_app_template;
+?>
+
 <!-- Announcement bar -->
 <div class="artly-announcement-bar" id="artly-announcement">
   <div class="artly-announcement-inner">
@@ -58,6 +94,18 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <?php esc_html_e( 'My Downloads', 'artly' ); ?>
               </a>
             </li>
+            <?php if ( $artly_is_app_context ) : ?>
+              <li>
+                <a href="<?php echo esc_url( home_url( '/ai-generator/' ) ); ?>" class="<?php echo is_page( 'ai-generator' ) ? 'is-active' : ''; ?>">
+                  <?php esc_html_e( 'AI Generator', 'artly' ); ?>
+                </a>
+              </li>
+              <li>
+                <a href="<?php echo esc_url( home_url( '/my-ai/' ) ); ?>" class="<?php echo is_page( 'my-ai' ) ? 'is-active' : ''; ?>">
+                  <?php esc_html_e( 'My AI', 'artly' ); ?>
+                </a>
+              </li>
+            <?php endif; ?>
           <?php endif; ?>
           <li class="artly-header-menu-item--lang-switcher">
             <button 
