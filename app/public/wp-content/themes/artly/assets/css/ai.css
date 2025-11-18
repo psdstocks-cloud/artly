@@ -1,0 +1,436 @@
+.artly-ai-generator-page,
+.artly-my-ai-page {
+  min-height: 100vh;
+  padding: 120px 0 100px;
+  background:
+    radial-gradient(1200px at 10% 10%, rgba(123, 76, 255, 0.12), transparent 65%),
+    radial-gradient(1000px at 90% 0%, rgba(79, 229, 196, 0.14), transparent 70%),
+    #0b1220;
+  color: #e2e8f0;
+}
+
+.artly-ai-generator-page .artly-dashboard-inner,
+.artly-my-ai-page .artly-dashboard-inner {
+  width: min(1140px, 92vw);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.artly-ai-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.artly-ai-top-text {
+  max-width: 640px;
+}
+
+.artly-ai-kicker {
+  font-size: 0.85rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(123, 76, 255, 0.9);
+  margin: 0 0 10px;
+}
+
+.artly-ai-title {
+  margin: 0 0 12px;
+  font-size: clamp(2.1rem, 3vw, 2.8rem);
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.artly-ai-subtitle {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.9);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.artly-ai-balance-card {
+  min-width: 280px;
+  background: linear-gradient(145deg, rgba(24, 18, 40, 0.8), rgba(24, 18, 40, 0.64));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 20px;
+  padding: 20px 22px;
+  box-shadow: 0 20px 45px rgba(8, 15, 35, 0.55);
+  backdrop-filter: blur(18px);
+}
+
+.artly-ai-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.artly-ai-balance-label {
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.95rem;
+}
+
+.artly-ai-balance-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.artly-ai-balance-unit {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.95rem;
+}
+
+.artly-ai-cost-line {
+  margin: 6px 0 12px;
+  color: rgba(203, 213, 225, 0.9);
+  font-size: 0.95rem;
+}
+
+.artly-ai-balance-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.artly-ai-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.2fr);
+  gap: 22px;
+}
+
+.artly-ai-card,
+.artly-ai-state,
+.artly-ai-filters {
+  background: linear-gradient(145deg, rgba(24, 18, 40, 0.8), rgba(24, 18, 40, 0.64));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 20px 45px rgba(8, 15, 35, 0.55);
+  backdrop-filter: blur(18px);
+}
+
+.artly-ai-card textarea {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 160px;
+}
+
+.artly-ai-card textarea:focus {
+  outline: 2px solid rgba(123, 76, 255, 0.6);
+  border-color: rgba(123, 76, 255, 0.6);
+}
+
+.artly-ai-label {
+  display: block;
+  margin-bottom: 10px;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.artly-ai-label--small {
+  font-size: 0.95rem;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.artly-ai-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 16px;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.95rem;
+}
+
+.artly-ai-help {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.artly-ai-counter.is-over-limit {
+  color: #fca5a5;
+}
+
+.artly-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.artly-ai-chip {
+  border: 1px solid rgba(123, 76, 255, 0.3);
+  background: rgba(123, 76, 255, 0.12);
+  color: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.artly-ai-chip:hover,
+.artly-ai-chip:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(123, 76, 255, 0.35);
+}
+
+.artly-ai-chip--status {
+  border-color: rgba(79, 229, 196, 0.5);
+  background: rgba(79, 229, 196, 0.12);
+  color: #7ff0d8;
+  font-weight: 600;
+}
+
+.artly-ai-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.artly-ai-control select {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.artly-ai-control-note {
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.95rem;
+}
+
+.artly-ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.artly-ai-cost-note {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.95rem;
+}
+
+.artly-ai-state {
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artly-ai-state h2 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+}
+
+.artly-ai-state p {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.9);
+  line-height: 1.6;
+}
+
+.artly-ai-state-block {
+  text-align: center;
+  width: 100%;
+}
+
+.artly-ai-illustration {
+  width: 86px;
+  height: 86px;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  background: radial-gradient(circle at 30% 30%, rgba(123, 76, 255, 0.7), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(79, 229, 196, 0.7), transparent 55%),
+    rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 18px 36px rgba(8, 15, 35, 0.65);
+}
+
+.artly-ai-progress {
+  width: 100%;
+  height: 10px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.artly-ai-progress-fill {
+  width: 20%;
+  height: 100%;
+  background: linear-gradient(90deg, #7f5af0, #5eead4);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.artly-ai-result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.artly-ai-image-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 14px 28px rgba(8, 15, 35, 0.55);
+}
+
+.artly-ai-image-card img {
+  width: 100%;
+  border-radius: 12px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.artly-ai-image-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.artly-ai-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.artly-ai-history-card {
+  position: relative;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(24, 18, 40, 0.8), rgba(24, 18, 40, 0.64));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 18px 40px rgba(8, 15, 35, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.artly-ai-history-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.16);
+  object-fit: cover;
+}
+
+.artly-ai-history-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.artly-ai-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(123, 76, 255, 0.35);
+  color: #f8fafc;
+  background: rgba(123, 76, 255, 0.1);
+}
+
+.artly-ai-status {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.artly-ai-history-title {
+  margin: 0;
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.artly-ai-history-date {
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 0.9rem;
+}
+
+.artly-ai-history-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.artly-ai-filters {
+  margin-bottom: 22px;
+  padding: 16px 18px;
+}
+
+.artly-ai-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.artly-ai-filter {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.artly-ai-filter.is-active,
+.artly-ai-filter:focus-visible {
+  border-color: rgba(123, 76, 255, 0.6);
+  color: #f8fafc;
+  box-shadow: 0 12px 24px rgba(123, 76, 255, 0.35);
+}
+
+.artly-ai-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.artly-ai-page-info {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+@media (max-width: 960px) {
+  .artly-ai-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .artly-ai-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .artly-ai-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .artly-ai-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
