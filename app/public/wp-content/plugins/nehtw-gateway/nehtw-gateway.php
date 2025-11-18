@@ -36,6 +36,7 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-wallet-topups.php'
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-email-templates.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-webhooks.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-ai-settings.php';
 
 // Admin Dashboard Components
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/database/class-nehtw-database.php';
@@ -198,6 +199,8 @@ function nehtw_gateway_activate() {
     $table_wallet      = $wpdb->prefix . 'nehtw_wallet_transactions';
     $table_stock       = $wpdb->prefix . 'nehtw_stock_orders';
     $table_ai          = $wpdb->prefix . 'nehtw_ai_jobs';
+    $table_artly_ai    = $wpdb->prefix . 'artly_ai_jobs';
+    $table_artly_ai_files = $wpdb->prefix . 'artly_ai_files';
     $table_stock_sites = $wpdb->prefix . 'nehtw_stock_sites';
     $table_subscriptions = $wpdb->prefix . 'nehtw_subscriptions';
     
@@ -270,6 +273,35 @@ function nehtw_gateway_activate() {
         KEY created_at (created_at)
     ) {$charset_collate};";
 
+    $sql_artly_ai_jobs = "CREATE TABLE {$table_artly_ai} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        job_id VARCHAR(64) NOT NULL,
+        prompt TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        percentage INT(3) NOT NULL DEFAULT 0,
+        cost FLOAT DEFAULT 0,
+        type VARCHAR(20) DEFAULT 'imagine',
+        parent_job_id VARCHAR(64) NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        PRIMARY KEY  (id),
+        KEY user_id (user_id),
+        KEY job_id (job_id)
+    ) {$charset_collate};";
+
+    $sql_artly_ai_files = "CREATE TABLE {$table_artly_ai_files} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        job_id VARCHAR(64) NOT NULL,
+        index_no INT(2) NOT NULL,
+        thumb_sm TEXT NOT NULL,
+        thumb_lg TEXT NOT NULL,
+        download_url TEXT NOT NULL,
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY  (id),
+        KEY job_id (job_id)
+    ) {$charset_collate};";
+
     $sql_stock_sites = "CREATE TABLE {$table_stock_sites} (
         id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
         provider_key VARCHAR(100) NOT NULL,
@@ -303,6 +335,19 @@ function nehtw_gateway_activate() {
     dbDelta( $sql_wallet );
     dbDelta( $sql_stock );
     dbDelta( $sql_ai );
+    dbDelta( $sql_artly_ai_jobs );
+    dbDelta( $sql_artly_ai_files );
+
+    // Ensure AI pricing defaults exist
+    if ( false === get_option( 'artly_ai_generate_cost_points', false ) ) {
+        add_option( 'artly_ai_generate_cost_points', 5 );
+    }
+    if ( false === get_option( 'artly_ai_vary_cost_points', false ) ) {
+        add_option( 'artly_ai_vary_cost_points', 2 );
+    }
+    if ( false === get_option( 'artly_ai_upscale_cost_points', false ) ) {
+        add_option( 'artly_ai_upscale_cost_points', 3 );
+    }
     dbDelta( $sql_stock_sites );
     dbDelta( $sql_subscriptions );
     
@@ -843,6 +888,91 @@ function nehtw_gateway_get_balance( $user_id ) {
     );
     $sum = $wpdb->get_var( $sql );
     return floatval( $sum );
+}
+
+/**
+ * Wrapper for retrieving user points that aligns with the Artly wallet naming.
+ *
+ * @param int $user_id
+ * @return float
+ */
+function artly_get_user_points( $user_id ) {
+    return nehtw_gateway_get_user_points_balance( $user_id );
+}
+
+/**
+ * Deduct points from a user's wallet while keeping existing wallet flows intact.
+ *
+ * @param int    $user_id
+ * @param float  $points
+ * @param string $reason
+ * @param array  $meta
+ * @return int|false Insert ID on success, false on failure
+ */
+function artly_deduct_points( $user_id, $points, $reason, $meta = array() ) {
+    $points = floatval( $points );
+    if ( $points <= 0 ) {
+        return false;
+    }
+
+    $meta_payload = array_merge( array( 'reason' => $reason ), (array) $meta );
+
+    return nehtw_gateway_add_transaction(
+        $user_id,
+        sanitize_key( $reason ),
+        -abs( $points ),
+        array(
+            'meta' => $meta_payload,
+        )
+    );
+}
+
+/**
+ * Get the configured cost (in points) for an AI operation.
+ *
+ * @param string $operation generate|vary|upscale
+ * @return int
+ */
+function artly_ai_get_operation_cost_points( $operation ) {
+    $operation = sanitize_key( $operation );
+
+    $defaults = array(
+        'generate' => 5,
+        'vary'     => 2,
+        'upscale'  => 3,
+    );
+
+    $option_map = array(
+        'generate' => 'artly_ai_generate_cost_points',
+        'vary'     => 'artly_ai_vary_cost_points',
+        'upscale'  => 'artly_ai_upscale_cost_points',
+    );
+
+    if ( ! isset( $option_map[ $operation ] ) ) {
+        return $defaults['generate'];
+    }
+
+    $value = get_option( $option_map[ $operation ], $defaults[ $operation ] );
+
+    return max( 0, intval( $value ) );
+}
+
+/**
+ * Determine if a user can afford an AI operation using their wallet points.
+ *
+ * @param int    $user_id
+ * @param string $operation
+ * @return array{can:bool,balance:float,required:int}
+ */
+function artly_ai_can_user_afford( $user_id, $operation ) {
+    $balance  = artly_get_user_points( $user_id );
+    $required = artly_ai_get_operation_cost_points( $operation );
+
+    return array(
+        'can'      => $balance >= $required,
+        'balance'  => $balance,
+        'required' => $required,
+    );
 }
 
 function nehtw_gateway_get_transactions( $user_id, $limit = 20, $offset = 0 ) {
