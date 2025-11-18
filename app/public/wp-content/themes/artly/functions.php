@@ -415,6 +415,80 @@ function artly_enqueue_assets() {
             )
         );
     }
+
+    // AI Generator + History assets
+    $is_ai_page = is_page_template( 'page-ai-generator.php' )
+        || is_page_template( 'page-my-ai.php' )
+        || is_page( 'ai-generator' )
+        || is_page( 'my-ai' );
+
+    if ( $is_ai_page ) {
+        $version = wp_get_theme()->get( 'Version' );
+
+        wp_enqueue_style(
+            'artly-ai',
+            get_template_directory_uri() . '/assets/css/ai.css',
+            array( 'artly-layout', 'artly-style' ),
+            $version
+        );
+
+        wp_enqueue_script(
+            'artly-ai-generator',
+            get_template_directory_uri() . '/assets/js/ai-generator.js',
+            array(),
+            $version,
+            true
+        );
+
+        $cost_generate = (int) get_option( 'artly_ai_cost_generate', 10 );
+        $cost_vary     = (int) get_option( 'artly_ai_cost_vary', 6 );
+        $cost_upscale  = (int) get_option( 'artly_ai_cost_upscale', 4 );
+
+        $current_user = is_user_logged_in() ? wp_get_current_user() : null;
+        $points       = function_exists( 'nehtw_gateway_get_user_points_balance' ) && is_user_logged_in()
+            ? (int) nehtw_gateway_get_user_points_balance( get_current_user_id() )
+            : 0;
+
+        $ai_settings = array(
+            'restUrl'       => untrailingslashit( esc_url_raw( rest_url( 'artly/v1' ) ) ),
+            'nonce'         => wp_create_nonce( 'wp_rest' ),
+            'currentUser'   => $current_user ? array(
+                'id'    => $current_user->ID,
+                'email' => $current_user->user_email,
+            ) : null,
+            'pointsBalance' => $points,
+            'costs'         => array(
+                'generate' => $cost_generate,
+                'vary'     => $cost_vary,
+                'upscale'  => $cost_upscale,
+            ),
+            'urls'          => array(
+                'pricing'     => esc_url( home_url( '/pricing/' ) ),
+                'aiGenerator' => esc_url( home_url( '/ai-generator/' ) ),
+                'myAi'        => esc_url( home_url( '/my-ai/' ) ),
+            ),
+            'texts'        => array(
+                'genericError'      => __( 'Something went wrong. Please try again.', 'artly' ),
+                'promptRequired'    => __( 'Please enter a prompt to continue.', 'artly' ),
+                'insufficientPoints'=> __( 'You do not have enough points for this action.', 'artly' ),
+                'noResults'         => __( 'No images returned yet.', 'artly' ),
+                'downloadLabel'     => __( 'Download', 'artly' ),
+                'varyLabel'         => __( 'Vary', 'artly' ),
+                'upscaleLabel'      => __( 'Upscale', 'artly' ),
+                'openInGenerator'   => __( 'Open in Generator', 'artly' ),
+                'emptyHistory'      => __( 'No AI jobs yet. Start generating to see your history here.', 'artly' ),
+                'pageLabel'         => __( 'Page', 'artly' ),
+                'typeVary'          => __( 'Variation', 'artly' ),
+                'typeUpscale'       => __( 'Upscale', 'artly' ),
+                'typeImagine'       => __( 'Generate', 'artly' ),
+                'statusProcessing'  => __( 'Processing', 'artly' ),
+                'statusCompleted'   => __( 'Completed', 'artly' ),
+                'statusPending'     => __( 'Pending', 'artly' ),
+            ),
+        );
+
+        wp_localize_script( 'artly-ai-generator', 'ArtlyAiSettings', $ai_settings );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'artly_enqueue_assets' );
 
