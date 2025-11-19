@@ -440,14 +440,20 @@ function artly_enqueue_assets() {
             true
         );
 
-        $cost_generate = (int) get_option( 'artly_ai_cost_generate', 10 );
-        $cost_vary     = (int) get_option( 'artly_ai_cost_vary', 6 );
-        $cost_upscale  = (int) get_option( 'artly_ai_cost_upscale', 4 );
+        $cost_generate = (int) get_option( 'artly_ai_generate_cost_points', 10 );
+        $cost_vary     = (int) get_option( 'artly_ai_vary_cost_points', 6 );
+        $cost_upscale  = (int) get_option( 'artly_ai_upscale_cost_points', 4 );
 
         $current_user = is_user_logged_in() ? wp_get_current_user() : null;
-        $points       = function_exists( 'nehtw_gateway_get_user_points_balance' ) && is_user_logged_in()
-            ? (int) nehtw_gateway_get_user_points_balance( get_current_user_id() )
-            : 0;
+        $points       = 0;
+
+        if ( is_user_logged_in() ) {
+            if ( function_exists( 'artly_get_user_points' ) ) {
+                $points = (int) floor( artly_get_user_points( get_current_user_id() ) );
+            } elseif ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
+                $points = (int) floor( nehtw_gateway_get_user_points_balance( get_current_user_id() ) );
+            }
+        }
 
         $ai_settings = array(
             'restUrl'       => untrailingslashit( esc_url_raw( rest_url( 'artly/v1' ) ) ),
