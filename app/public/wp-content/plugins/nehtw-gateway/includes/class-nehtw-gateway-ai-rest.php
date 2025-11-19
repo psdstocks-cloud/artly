@@ -1,13 +1,6 @@
 <?php
 /**
  * AI Image Generation REST controller for Artly / Nehtw gateway.
- *
- * Namespace: artly/v1
- * 
- * FIXES:
- * - Added missing /ai/history route
- * - Improved error handling
- * - Better nonce validation
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -16,47 +9,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Nehtw_Gateway_AI_REST {
 
-    /**
-     * Nehtw base URL.
-     */
-    const NEHTW_BASE = 'https://nehtw.com';
+    const ROUTE_NAMESPACE = 'artly/v1';
 
+    /**
+     * Bootstrap by registering REST routes.
+     */
     public function __construct() {
         add_action( 'rest_api_init', array( $this, 'register_routes' ) );
     }
 
     /**
-     * Register REST API routes.
+     * Register all REST routes related to AI generation.
      */
     public function register_routes() {
-        // Debug: Log route registration (only in debug mode)
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( 'Nehtw_Gateway_AI_REST: Registering routes' );
-        }
-        
-        // Create AI job
         register_rest_route(
-            'artly/v1',
+            self::ROUTE_NAMESPACE,
             '/ai/create',
             array(
-                'methods'             => WP_REST_Server::CREATABLE, // POST
+                'methods'             => WP_REST_Server::CREATABLE,
                 'callback'            => array( $this, 'create_job' ),
                 'permission_callback' => array( $this, 'require_logged_in' ),
                 'args'                => array(
                     'prompt' => array(
                         'required'          => true,
-                        'sanitize_callback' => 'sanitize_text_field',
+                        'sanitize_callback' => array( $this, 'sanitize_prompt_param' ),
                     ),
                 ),
             )
         );
 
-        // Get job status
         register_rest_route(
-            'artly/v1',
+            self::ROUTE_NAMESPACE,
             '/ai/status',
             array(
-                'methods'             => WP_REST_Server::READABLE, // GET
+                'methods'             => WP_REST_Server::READABLE,
                 'callback'            => array( $this, 'get_status' ),
                 'permission_callback' => array( $this, 'require_logged_in' ),
                 'args'                => array(
@@ -68,23 +54,21 @@ class Nehtw_Gateway_AI_REST {
             )
         );
 
-        // Perform action (vary/upscale)
         register_rest_route(
-            'artly/v1',
+            self::ROUTE_NAMESPACE,
             '/ai/action',
             array(
-                'methods'             => WP_REST_Server::CREATABLE, // POST
+                'methods'             => WP_REST_Server::CREATABLE,
                 'callback'            => array( $this, 'do_action' ),
                 'permission_callback' => array( $this, 'require_logged_in' ),
             )
         );
 
-        // Get AI generation history (MISSING ROUTE - NOW ADDED)
         register_rest_route(
-            'artly/v1',
+            self::ROUTE_NAMESPACE,
             '/ai/history',
             array(
-                'methods'             => WP_REST_Server::READABLE, // GET
+                'methods'             => WP_REST_Server::READABLE,
                 'callback'            => array( $this, 'get_history' ),
                 'permission_callback' => array( $this, 'require_logged_in' ),
                 'args'                => array(
@@ -102,7 +86,7 @@ class Nehtw_Gateway_AI_REST {
     }
 
     /**
-     * Require logged-in user.
+     * Permission callback: require a logged-in user.
      */
     public function require_logged_in() {
         return is_user_logged_in()
@@ -111,32 +95,23 @@ class Nehtw_Gateway_AI_REST {
     }
 
     /**
-     * Helper: get Nehtw API key from existing plugin function.
-     * Uses the same function that stock downloads use.
+     * Sanitize prompt parameter (trim + limit length).
      */
-    protected function get_api_key() {
-        // Use the plugin's centralized API key function (handles encryption/decryption)
-        if ( function_exists( 'nehtw_gateway_get_api_key' ) ) {
-            return nehtw_gateway_get_api_key();
-        }
-        // Fallback for backward compatibility
-        $api_key = get_option( 'nehtw_gateway_api_key' );
-        return $api_key ? trim( $api_key ) : '';
+    public function sanitize_prompt_param( $value ) {
+        $value = sanitize_textarea_field( (string) $value );
+        return mb_substr( $value, 0, 500 );
     }
 
     /**
-     * POST /artly/v1/ai/create
-     * Start a new AI generation job.
+     * POST /artly/v1/ai/create – Start a new AI generation job.
      */
     public function create_job( WP_REST_Request $request ) {
-        $prompt = $request->get_param( 'prompt' );
-        $prompt = trim( $prompt );
-
-        if ( empty( $prompt ) ) {
+        $prompt = $this->sanitize_prompt_param( $request->get_param( 'prompt' ) );
+        if ( '' === $prompt ) {
             return new WP_REST_Response(
                 array(
                     'success' => false,
-                    'error'   => 'Prompt is required.',
+                    'error'   => __( 'Please provide a prompt.', 'nehtw-gateway' ),
                 ),
                 400
             );
@@ -144,216 +119,63 @@ class Nehtw_Gateway_AI_REST {
 
         $api_key = $this->get_api_key();
         if ( empty( $api_key ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => 'Nehtw API key is not configured.',
-                ),
-                500
-            );
+            return $this->missing_api_key_response();
         }
 
-        // Call Nehtw /api/aig/create?prompt=...
-        $url  = add_query_arg(
-            array(
-                'prompt' => rawurlencode( $prompt ),
-            ),
-            self::NEHTW_BASE . '/api/aig/create'
-        );
-        $args = array(
-            'headers' => array(
-                'X-Api-Key' => $api_key,
-            ),
-            'timeout' => 20,
-        );
-
-        $response = wp_remote_get( $url, $args );
-        if ( is_wp_error( $response ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => $response->get_error_message(),
-                ),
-                500
-            );
-        }
-
-        $code = wp_remote_retrieve_response_code( $response );
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-        if ( 200 !== $code || ! is_array( $body ) || empty( $body['success'] ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => isset( $body['message'] ) ? $body['message'] : 'Nehtw create job failed.',
-                ),
-                500
-            );
-        }
-
-        // Nehtw returns: { success: true, job_id: "...", get_result_url: "..." }
-        $job_id = isset( $body['job_id'] ) ? $body['job_id'] : null;
-
-        if ( empty( $job_id ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => 'Nehtw did not return job_id.',
-                ),
-                500
-            );
-        }
-
-        // Get user ID and check balance before deducting points
         $user_id = get_current_user_id();
-        $cost_points = 0;
-        
-        if ( function_exists( 'artly_ai_get_operation_cost_points' ) ) {
-            $cost_points = artly_ai_get_operation_cost_points( 'generate' );
-        } else {
-            // Fallback to option value
-            $cost_points = (int) get_option( 'artly_ai_generate_cost_points', 10 );
+        $cost    = $this->get_operation_cost( 'generate' );
+        $wallet  = $this->check_user_balance( $user_id, $cost );
+
+        if ( ! $wallet['can_afford'] ) {
+            return $this->insufficient_points_response( $wallet['required'], $wallet['balance'] );
         }
 
-        // Check user balance using the same function as stock orders
-        $user_balance = 0;
-        if ( function_exists( 'nehtw_gateway_get_balance' ) ) {
-            $user_balance = nehtw_gateway_get_balance( $user_id );
-        } elseif ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
-            $user_balance = nehtw_gateway_get_user_points_balance( $user_id );
+        $api_response = nehtw_gateway_api_get(
+            '/api/aig/create',
+            array( 'prompt' => $prompt )
+        );
+
+        if ( is_wp_error( $api_response ) ) {
+            return $this->response_from_wp_error( $api_response );
         }
 
-        // Check if user has enough points (same check as stock orders)
-        if ( $cost_points > 0 && $user_balance < $cost_points ) {
+        if ( empty( $api_response['success'] ) || empty( $api_response['job_id'] ) ) {
             return new WP_REST_Response(
                 array(
                     'success' => false,
-                    'code'    => 'insufficient_points',
-                    'error'   => sprintf( 'Not enough points. You have %d, but this operation costs %d.', $user_balance, $cost_points ),
-                    'cost_points' => $cost_points,
-                    'user_balance' => $user_balance,
+                    'error'   => __( 'Nehtw did not return a job ID.', 'nehtw-gateway' ),
                 ),
-                400
+                500
             );
         }
 
-        // Deduct points from wallet using the same method as stock orders
-        if ( $cost_points > 0 ) {
-            // Verify table exists before attempting transaction
-            global $wpdb;
-            if ( function_exists( 'nehtw_gateway_get_table_name' ) ) {
-                $table = nehtw_gateway_get_table_name( 'wallet_transactions' );
-                if ( ! $table ) {
-                    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                        error_log( 'AI Generate: wallet_transactions table name not found' );
-                    }
-                    return new WP_REST_Response(
-                        array(
-                            'success' => false,
-                            'error'   => 'Wallet system not initialized. Please contact support.',
-                        ),
-                        500
-                    );
-                }
-                
-                // Verify table actually exists in database
-                $table_exists = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) === $table;
-                if ( ! $table_exists ) {
-                    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                        error_log( 'AI Generate: wallet_transactions table does not exist in database: ' . $table );
-                    }
-                    return new WP_REST_Response(
-                        array(
-                            'success' => false,
-                            'error'   => 'Wallet system not initialized. Please contact support.',
-                        ),
-                        500
-                    );
-                }
-            }
+        $job_id = sanitize_text_field( $api_response['job_id'] );
+        $this->insert_job_record(
+            $user_id,
+            $job_id,
+            $prompt,
+            'imagine',
+            $cost,
+            null,
+            'pending'
+        );
 
-            if ( ! function_exists( 'nehtw_gateway_add_transaction' ) ) {
-                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                    error_log( 'AI Generate: nehtw_gateway_add_transaction function not available' );
-                }
-                return new WP_REST_Response(
-                    array(
-                        'success' => false,
-                        'error'   => 'Points deduction system not available. Please contact support.',
-                    ),
-                    500
-                );
-            }
-
-            // Verify user ID is valid
-            if ( $user_id <= 0 ) {
-                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                    error_log( 'AI Generate: Invalid user ID: ' . $user_id );
-                }
-                return new WP_REST_Response(
-                    array(
-                        'success' => false,
-                        'error'   => 'Invalid user session. Please log in again.',
-                    ),
-                    401
-                );
-            }
-
-            $transaction_result = nehtw_gateway_add_transaction(
-                $user_id,
-                'ai_generate',
-                -1 * $cost_points,
-                array(
-                    'meta' => array(
-                        'source' => 'ai_generator',
-                        'job_id' => $job_id,
-                        'prompt' => substr( $prompt, 0, 100 ),
-                    ),
-                )
-            );
-
-            // Log transaction result for debugging
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'AI Generate: Transaction result: ' . var_export( $transaction_result, true ) );
-                error_log( 'AI Generate: User ID: ' . $user_id . ', Points: ' . $cost_points );
-                if ( ! empty( $wpdb->last_error ) ) {
-                    error_log( 'AI Generate: Database error: ' . $wpdb->last_error );
-                    error_log( 'AI Generate: Last query: ' . $wpdb->last_query );
-                }
-            }
-
-            // Check if transaction was successful (returns insert ID on success, false on failure)
-            if ( false === $transaction_result ) {
-                $error_message = 'Failed to deduct points.';
-                if ( defined( 'WP_DEBUG' ) && WP_DEBUG && ! empty( $wpdb->last_error ) ) {
-                    $error_message .= ' Database error: ' . $wpdb->last_error;
-                }
-                
-                return new WP_REST_Response(
-                    array(
-                        'success' => false,
-                        'error'   => $error_message,
-                    ),
-                    500
-                );
-            }
-            
-            // Update local variable balance (same as stock orders)
-            $user_balance -= $cost_points;
+        $deduction = $this->deduct_points( $user_id, 'generate', $cost, $job_id, $prompt );
+        if ( is_wp_error( $deduction ) ) {
+            return $this->response_from_wp_error( $deduction );
         }
 
-        // Get updated balance after deduction
-        if ( function_exists( 'nehtw_gateway_get_balance' ) ) {
-            $user_balance = nehtw_gateway_get_balance( $user_id );
-        } elseif ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
-            $user_balance = nehtw_gateway_get_user_points_balance( $user_id );
-        }
+        $balance = $this->get_user_balance( $user_id );
 
         return new WP_REST_Response(
             array(
                 'success'      => true,
                 'job_id'       => $job_id,
-                'user_balance' => $user_balance,
+                'prompt'       => $prompt,
+                'status'       => 'pending',
+                'percentage'   => 0,
+                'cost_points'  => $cost,
+                'user_balance' => $balance,
             ),
             200
         );
@@ -361,17 +183,14 @@ class Nehtw_Gateway_AI_REST {
 
     /**
      * GET /artly/v1/ai/status?job_id=...
-     * Get the status of an AI generation job.
      */
     public function get_status( WP_REST_Request $request ) {
-        $job_id = $request->get_param( 'job_id' );
-        $job_id = trim( $job_id );
-
-        if ( empty( $job_id ) ) {
+        $job_id = sanitize_text_field( $request->get_param( 'job_id' ) );
+        if ( '' === $job_id ) {
             return new WP_REST_Response(
                 array(
                     'success' => false,
-                    'error'   => 'job_id is required.',
+                    'error'   => __( 'job_id is required.', 'nehtw-gateway' ),
                 ),
                 400
             );
@@ -379,118 +198,58 @@ class Nehtw_Gateway_AI_REST {
 
         $api_key = $this->get_api_key();
         if ( empty( $api_key ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => 'Nehtw API key is not configured.',
-                ),
-                500
-            );
+            return $this->missing_api_key_response();
         }
 
-        // Call Nehtw /api/aig/public/{job_id}
-        $url  = self::NEHTW_BASE . '/api/aig/public/' . rawurlencode( $job_id );
-        $args = array(
-            'headers' => array(
-                'X-Api-Key' => $api_key,
-            ),
-            'timeout' => 20,
+        $api_response = nehtw_gateway_api_get( '/api/aig/public/' . rawurlencode( $job_id ) );
+        if ( is_wp_error( $api_response ) ) {
+            return $this->response_from_wp_error( $api_response );
+        }
+
+        $status     = $this->normalize_status( isset( $api_response['status'] ) ? $api_response['status'] : '' );
+        $percentage = $this->extract_percentage( $api_response );
+        $files      = $this->normalize_files( isset( $api_response['files'] ) ? $api_response['files'] : array() );
+
+        $this->update_job_record(
+            $job_id,
+            array(
+                'status'               => $status,
+                'percentage_complete'  => $percentage,
+                'files'                => $files,
+            )
         );
 
-        $response = wp_remote_get( $url, $args );
-        if ( is_wp_error( $response ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => $response->get_error_message(),
-                ),
-                500
-            );
-        }
-
-        $code = wp_remote_retrieve_response_code( $response );
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-        if ( 200 !== $code || ! is_array( $body ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => 'Nehtw status request failed.',
-                ),
-                500
-            );
-        }
-
-        // Parse status
-        $raw_status = isset( $body['status'] ) ? $body['status'] : 'pending';
-        
-        // Normalize status values
-        $status = $raw_status;
-        if ( in_array( $raw_status, array( 'done', 'finished', 'completed' ), true ) ) {
-            $status = 'completed';
-        } elseif ( in_array( $raw_status, array( 'failed', 'error', 'cancelled' ), true ) ) {
-            $status = 'failed';
-        }
-        
-        // Check for percentage in multiple possible field names
-        $percentage = 0;
-        if ( isset( $body['percentage_complete'] ) ) {
-            $percentage = (int) $body['percentage_complete'];
-        } elseif ( isset( $body['percentage'] ) ) {
-            $percentage = (int) $body['percentage'];
-        } elseif ( isset( $body['progress'] ) ) {
-            $percentage = (int) $body['progress'];
-        }
-        
-        $files = array();
-
-        if ( ! empty( $body['files'] ) && is_array( $body['files'] ) ) {
-            foreach ( $body['files'] as $file ) {
-                $files[] = array(
-                    'index'        => isset( $file['index'] ) ? (int) $file['index'] : 0,
-                    'thumb_sm'     => isset( $file['thumb_sm'] ) ? $file['thumb_sm'] : '',
-                    'thumb_lg'     => isset( $file['thumb_lg'] ) ? $file['thumb_lg'] : '',
-                    'download_url' => isset( $file['download'] ) ? $file['download'] : '',
-                );
-            }
-        }
-
-        // Include raw response in debug mode for troubleshooting
-        $response_data = array(
+        return new WP_REST_Response(
+            array(
                 'success'    => true,
                 'job_id'     => $job_id,
                 'status'     => $status,
                 'percentage' => $percentage,
                 'files'      => $files,
+            ),
+            200
         );
-        
-        // Add raw Nehtw response for debugging (only in debug mode)
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            $response_data['_debug'] = array(
-                'raw_status' => $raw_status,
-                'raw_body'   => $body,
-            );
-        }
-
-        return new WP_REST_Response( $response_data, 200 );
     }
 
     /**
-     * POST /artly/v1/ai/action
-     * Body: { job_id, action: "vary"|"upscale", index, vary_type? }
+     * POST /artly/v1/ai/action – vary/upscale.
      */
     public function do_action( WP_REST_Request $request ) {
-        $params    = $request->get_json_params();
-        $job_id    = isset( $params['job_id'] ) ? sanitize_text_field( $params['job_id'] ) : '';
-        $action    = isset( $params['action'] ) ? sanitize_text_field( $params['action'] ) : '';
-        $index     = isset( $params['index'] ) ? (int) $params['index'] : 0;
-        $vary_type = isset( $params['vary_type'] ) ? sanitize_text_field( $params['vary_type'] ) : '';
+        $params = $request->get_json_params();
+        if ( ! is_array( $params ) ) {
+            $params = array();
+        }
 
-        if ( empty( $job_id ) || empty( $action ) ) {
+        $job_id    = isset( $params['job_id'] ) ? sanitize_text_field( $params['job_id'] ) : '';
+        $action    = isset( $params['action'] ) ? sanitize_key( $params['action'] ) : '';
+        $index     = isset( $params['index'] ) ? absint( $params['index'] ) : 0;
+        $vary_type = isset( $params['vary_type'] ) ? sanitize_key( $params['vary_type'] ) : '';
+
+        if ( '' === $job_id || '' === $action || ! in_array( $action, array( 'vary', 'upscale' ), true ) ) {
             return new WP_REST_Response(
                 array(
                     'success' => false,
-                    'error'   => 'job_id and action are required.',
+                    'error'   => __( 'job_id and valid action are required.', 'nehtw-gateway' ),
                 ),
                 400
             );
@@ -498,178 +257,473 @@ class Nehtw_Gateway_AI_REST {
 
         $api_key = $this->get_api_key();
         if ( empty( $api_key ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => 'Nehtw API key is not configured.',
-                ),
-                500
-            );
+            return $this->missing_api_key_response();
         }
 
-        // Get user ID and check balance before deducting points
         $user_id = get_current_user_id();
-        $cost_points = 0;
-        
-        if ( function_exists( 'artly_ai_get_operation_cost_points' ) ) {
-            $cost_points = artly_ai_get_operation_cost_points( $action );
-        } else {
-            // Fallback to option values
-            if ( 'vary' === $action ) {
-                $cost_points = (int) get_option( 'artly_ai_vary_cost_points', 6 );
-            } elseif ( 'upscale' === $action ) {
-                $cost_points = (int) get_option( 'artly_ai_upscale_cost_points', 4 );
-            }
-        }
+        $cost    = $this->get_operation_cost( $action );
+        $wallet  = $this->check_user_balance( $user_id, $cost );
 
-        // Check user balance using the same function as stock orders
-        $user_balance = 0;
-        if ( function_exists( 'nehtw_gateway_get_balance' ) ) {
-            $user_balance = nehtw_gateway_get_balance( $user_id );
-        } elseif ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
-            $user_balance = nehtw_gateway_get_user_points_balance( $user_id );
-        }
-
-        // Check if user has enough points (same check as stock orders)
-        if ( $cost_points > 0 && $user_balance < $cost_points ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'code'    => 'insufficient_points',
-                    'error'   => sprintf( 'Not enough points. You have %d, but this operation costs %d.', $user_balance, $cost_points ),
-                    'cost_points' => $cost_points,
-                    'user_balance' => $user_balance,
-                ),
-                400
-            );
-        }
-
-        // Deduct points from wallet using the same method as stock orders
-        if ( $cost_points > 0 && function_exists( 'nehtw_gateway_add_transaction' ) ) {
-            nehtw_gateway_add_transaction(
-                $user_id,
-                'ai_' . $action,
-                -1 * $cost_points,
-                array(
-                    'meta' => array(
-                        'source'   => 'ai_generator',
-                        'job_id'   => $job_id,
-                        'action'   => $action,
-                        'index'    => $index,
-                        'vary_type' => $vary_type,
-                    ),
-                )
-            );
-            
-            // Update local variable balance (same as stock orders)
-            $user_balance -= $cost_points;
+        if ( ! $wallet['can_afford'] ) {
+            return $this->insufficient_points_response( $wallet['required'], $wallet['balance'] );
         }
 
         $payload = array(
             'job_id' => $job_id,
             'action' => $action,
-            'index'  => $index,
+            'index'  => max( 0, min( 3, $index ) ),
         );
+
         if ( 'vary' === $action && ! empty( $vary_type ) ) {
-            $payload['vary_type'] = $vary_type; // subtle / strong
+            $payload['vary_type'] = $vary_type;
         }
 
-        $url  = self::NEHTW_BASE . '/api/aig/actions';
-        $args = array(
-            'headers' => array(
-                'X-Api-Key'    => $api_key,
-                'Content-Type' => 'application/json',
-            ),
-            'body'    => wp_json_encode( $payload ),
-            'timeout' => 20,
-            'method'  => 'POST',
+        $api_response = nehtw_gateway_api_post_json( '/api/aig/actions', $payload );
+        if ( is_wp_error( $api_response ) ) {
+            return $this->response_from_wp_error( $api_response );
+        }
+
+        if ( empty( $api_response['success'] ) || empty( $api_response['job_id'] ) ) {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'error'   => __( 'Nehtw action failed to return a job ID.', 'nehtw-gateway' ),
+                ),
+                500
+            );
+        }
+
+        $new_job_id = sanitize_text_field( $api_response['job_id'] );
+        $parent     = $this->get_job_record( $job_id );
+        $prompt     = $parent ? $parent['prompt'] : '';
+
+        $this->insert_job_record(
+            $user_id,
+            $new_job_id,
+            $prompt,
+            $action,
+            $cost,
+            $job_id,
+            'pending'
         );
 
-        $response = wp_remote_post( $url, $args );
-        if ( is_wp_error( $response ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => $response->get_error_message(),
-                ),
-                500
-            );
+        $deduction = $this->deduct_points( $user_id, $action, $cost, $new_job_id, $prompt, array( 'parent_job_id' => $job_id ) );
+        if ( is_wp_error( $deduction ) ) {
+            return $this->response_from_wp_error( $deduction );
         }
 
-        $code = wp_remote_retrieve_response_code( $response );
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-        if ( 200 !== $code || ! is_array( $body ) || empty( $body['success'] ) ) {
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => isset( $body['message'] ) ? $body['message'] : 'Nehtw action failed.',
-                ),
-                500
-            );
-        }
-
-        $new_job_id = isset( $body['job_id'] ) ? $body['job_id'] : null;
-
-        if ( empty( $new_job_id ) ) {
-            // If Nehtw API failed, we should refund the points
-            // For now, we'll just return error (points already deducted)
-            // TODO: Implement refund logic if needed
-            return new WP_REST_Response(
-                array(
-                    'success' => false,
-                    'error'   => 'Nehtw did not return new job_id.',
-                ),
-                500
-            );
-        }
-
-        // Get updated balance after deduction (same as stock orders)
-        if ( function_exists( 'nehtw_gateway_get_balance' ) ) {
-            $user_balance = nehtw_gateway_get_balance( $user_id );
-        } elseif ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
-            $user_balance = nehtw_gateway_get_user_points_balance( $user_id );
-        }
+        $balance = $this->get_user_balance( $user_id );
 
         return new WP_REST_Response(
             array(
-                'success'      => true,
-                'job_id'       => $new_job_id,
-                'parent_job_id'=> $job_id,
-                'action'       => $action,
-                'user_balance' => $user_balance,
+                'success'       => true,
+                'job_id'        => $new_job_id,
+                'parent_job_id' => $job_id,
+                'action'        => $action,
+                'cost_points'   => $cost,
+                'user_balance'  => $balance,
             ),
             200
         );
     }
 
     /**
-     * GET /artly/v1/ai/history
-     * Get AI generation history for current user.
-     * 
-     * THIS WAS THE MISSING ROUTE!
+     * GET /artly/v1/ai/history – paginated job list for current user.
      */
     public function get_history( WP_REST_Request $request ) {
-        $page = $request->get_param( 'page' );
-        $per_page = $request->get_param( 'per_page' );
-        
-        $user_id = get_current_user_id();
-        
-        // For now, return an empty history
-        // You'll need to implement actual database storage for AI jobs
-        // This is a placeholder implementation
+        $user_id  = get_current_user_id();
+        $page     = max( 1, (int) $request->get_param( 'page' ) );
+        $per_page = (int) $request->get_param( 'per_page' );
+        $per_page = min( 50, max( 1, $per_page ) );
+
+        $table = $this->get_jobs_table();
+        if ( ! $table ) {
+            return new WP_REST_Response(
+                array(
+                    'success' => true,
+                    'jobs'    => array(),
+                    'pagination' => array(
+                        'current_page' => $page,
+                        'per_page'     => $per_page,
+                        'total_pages'  => 0,
+                        'total'        => 0,
+                    ),
+                ),
+                200
+            );
+        }
+
+        global $wpdb;
+
+        $total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE user_id = %d", $user_id ) );
+        $offset = ( $page - 1 ) * $per_page;
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
+                $user_id,
+                $per_page,
+                $offset
+            ),
+            ARRAY_A
+        );
+
+        $jobs = array();
+        if ( $rows ) {
+            foreach ( $rows as $row ) {
+                $jobs[] = $this->format_history_row( $row );
+            }
+        }
+
+        $total_pages = $total > 0 ? (int) max( 1, ceil( $total / $per_page ) ) : 0;
+
         return new WP_REST_Response(
             array(
-                'success' => true,
-                'jobs'    => array(), // Empty for now - implement database storage
+                'success'    => true,
+                'jobs'       => $jobs,
                 'pagination' => array(
                     'current_page' => $page,
                     'per_page'     => $per_page,
-                    'total_pages'  => 0,
-                    'total'        => 0,
+                    'total_pages'  => $total_pages,
+                    'total'        => $total,
                 ),
             ),
             200
+        );
+    }
+
+    /**
+     * Retrieve and cache the Nehtw API key.
+     */
+    protected function get_api_key() {
+        if ( function_exists( 'nehtw_gateway_get_api_key' ) ) {
+            return nehtw_gateway_get_api_key();
+        }
+
+        $settings = get_option( 'nehtw_gateway_settings', array() );
+        return isset( $settings['api_key'] ) ? $settings['api_key'] : '';
+    }
+
+    /**
+     * Get the ai_jobs table name.
+     */
+    protected function get_jobs_table() {
+        if ( function_exists( 'nehtw_gateway_get_table_name' ) ) {
+            return nehtw_gateway_get_table_name( 'ai_jobs' );
+        }
+        global $wpdb;
+        return $wpdb->prefix . 'nehtw_ai_jobs';
+    }
+
+    /**
+     * Get configured cost for an operation.
+     */
+    protected function get_operation_cost( $operation ) {
+        if ( function_exists( 'artly_ai_get_operation_cost_points' ) ) {
+            return artly_ai_get_operation_cost_points( $operation );
+        }
+
+        $map = array(
+            'generate' => 'artly_ai_generate_cost_points',
+            'vary'     => 'artly_ai_vary_cost_points',
+            'upscale'  => 'artly_ai_upscale_cost_points',
+        );
+
+        $defaults = array(
+            'generate' => 10,
+            'vary'     => 6,
+            'upscale'  => 4,
+        );
+
+        $key = isset( $map[ $operation ] ) ? $map[ $operation ] : 'artly_ai_generate_cost_points';
+        $fallback = isset( $defaults[ $operation ] ) ? $defaults[ $operation ] : $defaults['generate'];
+
+        return (int) get_option( $key, $fallback );
+    }
+
+    /**
+     * Check if user can afford a cost.
+     */
+    protected function check_user_balance( $user_id, $cost ) {
+        $balance = $this->get_user_balance( $user_id );
+        $cost    = max( 0, (int) $cost );
+
+        return array(
+            'can_afford' => $cost <= 0 || $balance >= $cost,
+            'balance'    => (int) floor( $balance ),
+            'required'   => $cost,
+        );
+    }
+
+    /**
+     * Retrieve user wallet balance.
+     */
+    protected function get_user_balance( $user_id ) {
+        if ( function_exists( 'artly_get_user_points' ) ) {
+            return (float) artly_get_user_points( $user_id );
+        }
+        if ( function_exists( 'nehtw_gateway_get_user_points_balance' ) ) {
+            return (float) nehtw_gateway_get_user_points_balance( $user_id );
+        }
+        return 0.0;
+    }
+
+    /**
+     * Insert a job record locally.
+     */
+    protected function insert_job_record( $user_id, $job_id, $prompt, $type, $cost, $parent_job_id = null, $status = 'pending' ) {
+        $table = $this->get_jobs_table();
+        if ( ! $table ) {
+            return;
+        }
+
+        global $wpdb;
+        $now = current_time( 'mysql' );
+
+        $wpdb->insert(
+            $table,
+            array(
+                'user_id'            => (int) $user_id,
+                'job_id'             => sanitize_text_field( $job_id ),
+                'parent_job_id'      => $parent_job_id ? sanitize_text_field( $parent_job_id ) : null,
+                'prompt'             => wp_strip_all_tags( $prompt ),
+                'type'               => sanitize_key( $type ),
+                'status'             => sanitize_key( $status ),
+                'cost_points'        => floatval( $cost ),
+                'percentage_complete'=> 0,
+                'created_at'         => $now,
+                'updated_at'         => $now,
+            ),
+            array( '%d', '%s', '%s', '%s', '%s', '%s', '%f', '%d', '%s', '%s' )
+        );
+    }
+
+    /**
+     * Update a job record.
+     */
+    protected function update_job_record( $job_id, $fields ) {
+        $table = $this->get_jobs_table();
+        if ( ! $table ) {
+            return false;
+        }
+
+        global $wpdb;
+
+        $data   = array( 'updated_at' => current_time( 'mysql' ) );
+        $format = array( '%s' );
+
+        if ( isset( $fields['status'] ) ) {
+            $data['status'] = sanitize_key( $fields['status'] );
+            $format[]       = '%s';
+        }
+
+        if ( isset( $fields['percentage_complete'] ) ) {
+            $data['percentage_complete'] = (int) $fields['percentage_complete'];
+            $format[]                    = '%d';
+        }
+
+        if ( isset( $fields['files'] ) ) {
+            $data['files'] = maybe_serialize( $fields['files'] );
+            $format[]      = '%s';
+        }
+
+        if ( isset( $fields['prompt'] ) ) {
+            $data['prompt'] = wp_strip_all_tags( $fields['prompt'] );
+            $format[]       = '%s';
+        }
+
+        return $wpdb->update( $table, $data, array( 'job_id' => sanitize_text_field( $job_id ) ), $format, array( '%s' ) );
+    }
+
+    /**
+     * Fetch a job row by job_id.
+     */
+    protected function get_job_record( $job_id ) {
+        $table = $this->get_jobs_table();
+        if ( ! $table ) {
+            return null;
+        }
+
+        global $wpdb;
+        return $wpdb->get_row(
+            $wpdb->prepare( "SELECT * FROM {$table} WHERE job_id = %s LIMIT 1", sanitize_text_field( $job_id ) ),
+            ARRAY_A
+        );
+    }
+
+    /**
+     * Deduct points using shared wallet helpers.
+     */
+    protected function deduct_points( $user_id, $operation, $cost, $job_id, $prompt = '', $extra_meta = array() ) {
+        $cost = (float) $cost;
+        if ( $cost <= 0 ) {
+            return true;
+        }
+
+        $meta = array_merge(
+            array(
+                'job_id'   => $job_id,
+                'prompt'   => mb_substr( $prompt, 0, 120 ),
+                'source'   => 'ai_generator',
+                'operation'=> $operation,
+            ),
+            $extra_meta
+        );
+
+        if ( function_exists( 'artly_deduct_points' ) ) {
+            $result = artly_deduct_points( $user_id, $cost, 'ai_' . $operation, $meta );
+        } elseif ( function_exists( 'nehtw_gateway_add_transaction' ) ) {
+            $result = nehtw_gateway_add_transaction(
+                $user_id,
+                'ai_' . $operation,
+                -abs( $cost ),
+                array( 'meta' => $meta )
+            );
+        } else {
+            return new WP_Error( 'artly_wallet_missing', __( 'Points system not available.', 'nehtw-gateway' ) );
+        }
+
+        if ( false === $result ) {
+            return new WP_Error( 'artly_wallet_failed', __( 'Failed to deduct points.', 'nehtw-gateway' ) );
+        }
+
+        return true;
+    }
+
+    /**
+     * Normalize remote status values.
+     */
+    protected function normalize_status( $status ) {
+        $status = strtolower( (string) $status );
+        if ( in_array( $status, array( 'completed', 'done', 'finished' ), true ) ) {
+            return 'completed';
+        }
+        if ( in_array( $status, array( 'failed', 'error', 'cancelled' ), true ) ) {
+            return 'failed';
+        }
+        if ( in_array( $status, array( 'processing', 'running', 'queued' ), true ) ) {
+            return 'processing';
+        }
+        return 'pending';
+    }
+
+    /**
+     * Extract percentage from multiple possible fields.
+     */
+    protected function extract_percentage( $payload ) {
+        foreach ( array( 'percentage_complete', 'percentage', 'progress' ) as $field ) {
+            if ( isset( $payload[ $field ] ) && is_numeric( $payload[ $field ] ) ) {
+                return (int) $payload[ $field ];
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Normalize files array.
+     */
+    protected function normalize_files( $files ) {
+        if ( empty( $files ) || ! is_array( $files ) ) {
+            return array();
+        }
+
+        $normalized = array();
+        foreach ( $files as $file ) {
+            if ( ! is_array( $file ) ) {
+                continue;
+            }
+            $normalized[] = array(
+                'index'        => isset( $file['index'] ) ? (int) $file['index'] : count( $normalized ),
+                'thumb_sm'     => isset( $file['thumb_sm'] ) ? esc_url_raw( $file['thumb_sm'] ) : '',
+                'thumb_lg'     => isset( $file['thumb_lg'] ) ? esc_url_raw( $file['thumb_lg'] ) : '',
+                'download_url' => isset( $file['download'] ) ? esc_url_raw( $file['download'] ) : '',
+            );
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Format job row for history response.
+     */
+    protected function format_history_row( $row ) {
+        $files = array();
+        if ( isset( $row['files'] ) ) {
+            $files = maybe_unserialize( $row['files'] );
+            if ( ! is_array( $files ) ) {
+                $files = array();
+            }
+        }
+
+        $preview = '';
+        if ( ! empty( $files ) ) {
+            if ( function_exists( 'nehtw_gateway_history_extract_ai_thumbnail' ) ) {
+                $preview = nehtw_gateway_history_extract_ai_thumbnail( $files );
+            } else {
+                $preview = isset( $files[0]['thumb_sm'] ) ? $files[0]['thumb_sm'] : '';
+            }
+        }
+
+        return array(
+            'job_id'       => isset( $row['job_id'] ) ? (string) $row['job_id'] : '',
+            'prompt'       => isset( $row['prompt'] ) ? (string) $row['prompt'] : '',
+            'type'         => isset( $row['type'] ) ? (string) $row['type'] : 'imagine',
+            'status'       => $this->normalize_status( isset( $row['status'] ) ? $row['status'] : '' ),
+            'percentage'   => isset( $row['percentage_complete'] ) ? (int) $row['percentage_complete'] : 0,
+            'cost_points'  => isset( $row['cost_points'] ) ? (float) $row['cost_points'] : 0,
+            'created_at'   => isset( $row['created_at'] ) ? $row['created_at'] : '',
+            'preview_thumb'=> $preview,
+        );
+    }
+
+    /**
+     * Response helper for missing API key.
+     */
+    protected function missing_api_key_response() {
+        return new WP_REST_Response(
+            array(
+                'success' => false,
+                'error'   => __( 'Nehtw API key is not configured.', 'nehtw-gateway' ),
+            ),
+            500
+        );
+    }
+
+    /**
+     * Build a standardized response for insufficient points.
+     */
+    protected function insufficient_points_response( $cost, $balance ) {
+        return new WP_REST_Response(
+            array(
+                'success'      => false,
+                'code'         => 'insufficient_points',
+                'error'        => __( 'You do not have enough points.', 'nehtw-gateway' ),
+                'cost_points'  => (int) $cost,
+                'user_balance' => (int) $balance,
+            ),
+            402
+        );
+    }
+
+    /**
+     * Convert WP_Error into REST response.
+     */
+    protected function response_from_wp_error( WP_Error $error ) {
+        $status = $error->get_error_data();
+        if ( is_array( $status ) && isset( $status['status'] ) ) {
+            $status = (int) $status['status'];
+        } elseif ( is_numeric( $status ) ) {
+            $status = (int) $status;
+        } else {
+            $status = 500;
+        }
+
+        return new WP_REST_Response(
+            array(
+                'success' => false,
+                'error'   => $error->get_error_message(),
+            ),
+            $status
         );
     }
 }
