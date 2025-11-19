@@ -26,6 +26,12 @@ require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-site-notifier.php'
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/bootstrap-seeder.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/admin/class-nehtw-admin-sites.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/rest/class-nehtw-rest-sites.php';
+require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-gateway-ai-rest.php';
+
+// Initialize AI REST API immediately after loading
+if ( class_exists( 'Nehtw_Gateway_AI_REST' ) ) {
+    new Nehtw_Gateway_AI_REST();
+}
 
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-stock-orders.php';
 require_once NEHTW_GATEWAY_PLUGIN_DIR . 'includes/class-nehtw-download-history.php';
@@ -7388,10 +7394,3 @@ add_action( 'plugins_loaded', 'nehtw_gateway_init' );
  * Shortcode: [nehtw_gateway_my_downloads]
  * Renders the React dashboard container.
  */
-// AI REST API.
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-nehtw-gateway-ai-rest.php';
-
-function nehtw_gateway_init_ai_rest() {
-    new Nehtw_Gateway_AI_REST();
-}
-add_action( 'plugins_loaded', 'nehtw_gateway_init_ai_rest' );
